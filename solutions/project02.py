@@ -1,42 +1,24 @@
+# Flash the LEDs
+
 from arduino_alvik import ArduinoAlvik
-import time 
+from time import sleep_ms
 
 bot = ArduinoAlvik()
-
-ft = 3000
-tt = 1550
 bot.begin()
-bot.set_wheels_speed(30,30)
-print("Wheels going")
-time.sleep_ms(ft)
-print("Wheels stopping")
-bot.brake()
-time.sleep_ms(100)
-bot.set_wheels_speed(-30,30)
-time.sleep_ms(tt)
-bot.set_wheels_speed(30,30)
-print("Wheels going")
-time.sleep_ms(ft)
-print("Wheels stopping")
-bot.brake()
-time.sleep_ms(100)
-bot.set_wheels_speed(-30,30)
-time.sleep_ms(tt)
-bot.set_wheels_speed(30,30)
-print("Wheels going")
-time.sleep_ms(ft)
-print("Wheels stopping")
-bot.brake()
-time.sleep_ms(100)
-bot.set_wheels_speed(-30,30)
-time.sleep_ms(tt)
-bot.set_wheels_speed(30,30)
-print("Wheels going")
-time.sleep_ms(ft)
-print("Wheels stopping")
-bot.brake()
-time.sleep_ms(100)
-bot.set_wheels_speed(-30,30)
-time.sleep_ms(tt)
+while not bot.get_touch_cancel():
+  bot.right_led.set_color(0,0,1)
+  bot.left_led.set_color(0,0,1)
+  if bot.get_touch_left():
+    bot.left_led.set_color(0,1,0)
+  if bot.get_touch_right():
+    bot.right_led.set_color(0,1,0)
+  if bot.get_touch_up():
+    bot.right_led.set_color(1,1,0)
+    bot.left_led.set_color(1,1,0)
+  if bot.get_touch_down():
+    bot.right_led.set_color(0,1,1)
+    bot.left_led.set_color(0,1,1)
+  sleep_ms(10)
+bot.right_led.set_color(0,0,1)
+bot.left_led.set_color(0,0,1)
 bot.stop()
-

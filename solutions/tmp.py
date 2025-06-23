@@ -1,0 +1,42 @@
+from arduino_alvik import ArduinoAlvik
+import time 
+
+bot = ArduinoAlvik()
+
+ft = 3000
+tt = 1550
+bot.begin()
+bot.set_wheels_speed(30,30)
+print("Wheels going")
+time.sleep_ms(ft)
+print("Wheels stopping")
+bot.brake()
+time.sleep_ms(100)
+bot.set_wheels_speed(-30,30)
+time.sleep_ms(tt)
+bot.set_wheels_speed(30,30)
+print("Wheels going")
+time.sleep_ms(ft)
+print("Wheels stopping")
+bot.brake()
+time.sleep_ms(100)
+bot.set_wheels_speed(-30,30)
+time.sleep_ms(tt)
+bot.set_wheels_speed(30,30)
+print("Wheels going")
+time.sleep_ms(ft)
+print("Wheels stopping")
+bot.brake()
+time.sleep_ms(100)
+bot.set_wheels_speed(-30,30)
+time.sleep_ms(tt)
+bot.set_wheels_speed(30,30)
+print("Wheels going")
+time.sleep_ms(ft)
+print("Wheels stopping")
+bot.brake()
+time.sleep_ms(100)
+bot.set_wheels_speed(-30,30)
+time.sleep_ms(tt)
+bot.stop()
+
