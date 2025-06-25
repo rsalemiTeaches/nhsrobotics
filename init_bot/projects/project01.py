@@ -41,20 +41,13 @@ bot.begin()  # Start the robot
 while not bot.get_touch_cancel():   # Checking that the X button is not pressed
   # indent in Python to be in a loop.
 
-  # bot.left_led.set_color(RED, GREEN, BLUE) sets the
-  # left LED to RED, GREEN, BLUE, or a combination of them.
-  # bot.left_led.set_color(1, 0, 0) sets the left LED
-  # to RED.
-  # bot.right_led.set_color(0, 1, 0) sets the right LED
-  # to GREEN.
-  
   bot.left_led.set_color(1, 0, 0)
   bot.right_led.set_color(0, 1, 0)
   # Delay for 1/2 a second (500 milliseconds) so we can
   # see that the LEDs are lit.
   sleep_ms(500)
 
-  # NOW you add code to set the LEDs to other colors.
+  # Now you add code to set the LEDs to other colors.
 
   # First, set the left LED to GREEN and the right LED to RED
   # Delay 500 milliseconds.
