@@ -1,51 +1,44 @@
-# Flash the LEDs
+# ==========================================================
+#                      Control the LEDs                     
+#       In this project, you'll use the buttons on the      
+#      back of the ALVIK to control the LEDs.  It works     
+#                         like this:                        
+#                  No button--Two blue LEDs                 
+#                  Left--Left LED is green                 
+#                  Right--Right LED is green                
+#                  Up--Both LEDs are yellow                 
+#                  Down--Both LEDs are purple
+#                  Cancel--Stop Running                   
+# ==========================================================
 
-#################################
-#    Project 01b                #
-# Controlling LEDs with buttons #
-#################################
 
-# In the first project you checked the cancel button (X)
-# to know when to stop the program. In this program, you'll
-# use the other buttons to control which LEDs
+# WORK Import the ArduinoAlvik class and the sleep_ms() function
 
-# I will get the robot running for you
+# WORK Create a new ArduinoAlvik object named bot
 
-from arduino_alvik import ArduinoAlvik
-from time import sleep_ms
-bot = ArduinoAlvik()
-bot.begin()
+bot.begin() # Start the bot
 
-# Now we loop until someone holds down
-# the X button.
+# Loop while bot.get_touch_cancel() returns false
 while not bot.get_touch_cancel():
-    # I set both LEDs to BLUE
-    bot.right_led.set_color(0,0,1)
-    bot.left_led.set_color(0,0,1)
-    # I am checkng the LEFT button. If it is
-    # pressed I set the left LED to GREEN.
-    if bot.get_touch_left():
-        bot.left_led.set_color(0,1,0)
-    # Now you check the RIGHT button. If it is
-    # pressed you set the righ LED to GREEN
+  # Turn off both LEDs
+  bot.right_led.set_color(0,0,1)
+  bot.left_led.set_color(0,0,1)
+  # If the left button is pushed, set the left LED to green.
+  if bot.get_touch_left():
+    bot.left_led.set_color(0,1,0)
+  # WORK If the right button is pushed, set the right LED to green
 
-    # WORK: Your code here
+  # WORK If the UP button is pushed set both LEDs to Yellow
+  # (RED, GREEN, OFF)
 
-    # Now check the UP button. If it is pressed
-    # set both LEDs to YELLOW (RED and GREEN on)
+  # WORK If the DOWN button is pushed set both LEDs to Purple
+  # (RED, OFF, BLUE)
 
-    # WORK: Your code here
 
-    # Now check the DOWN button. If it is pressed
-    # set both LEDs to AQUA (GREEN and BLUE on)
+  # WORK: Sleep for 10 ms
 
-    # WORK: Your code here
-    
-    sleep_ms(100) # A good habit in loops
 
-# Someone held the X button. Turn off the LEDs and
-# stop the robot.
-
-# WORK: Your code here to turn off the LEDs
+# WORK  When you are out of the loop 
+# turn off both LED and stop the robot.
 
 bot.stop()
