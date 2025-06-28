@@ -37,9 +37,9 @@ def get_closest_distance(d_l, d_cl, d_c, d_cr, d_r):
 
 
 try:
-    # Initialize the robot's hardware.
+# Initialize the robot's hardware.
     alvik.begin()
-    
+
     print("Proximity Color Indicator Project Started.")
     print("LEDs will change color based on the closest object.")
     print("Press the Cancel (X) button to stop.")
@@ -76,8 +76,8 @@ try:
             alvik.left_led.set_color(0, 1, 0)   # Green
             alvik.right_led.set_color(0, 1, 0)   # Green
 
-        # A small delay is important in a loop.
-        time.sleep_ms(50)
+            # A small delay is important in a loop.
+            time.sleep_ms(50)
 
 finally:
     # This code runs when the program is stopped.
