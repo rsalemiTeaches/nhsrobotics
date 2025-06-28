@@ -13,38 +13,48 @@
 
 
 # WORK Import the ArduinoAlvik class and the sleep_ms() function
-from arduino_alvik import ArduinoAlvik
+from arduino_alvik import ArduinoAlvik #get the alvik controller description
 from time import sleep_ms
 
 # WORK Create a new ArduinoAlvik object named bot
-alvik = ArduinoAlvik()
+alvik = ArduinoAlvik() # get an alvik controller
 
 try:
   alvik.begin() # Start the bot
 
-  # Loop while alvik.get_touch_cancel() returns false
+  # Loop forever
   while True:
     
     # Check to see if the user pressed X
     if alvik.get_touch_cancel():
       break
 
-    # Turn off both LEDs
+    # Set both LEDs to BLUE
     alvik.right_led.set_color(0,0,1)
     alvik.left_led.set_color(0,0,1)
-    # If the left button is pushed, set the left LED to green.
+
+    # Check to see if the LEFT ARROW is pushed
+    # If the LEFT ARROW is upushed set the LEFT
+    # LED to GREEN
+
     if alvik.get_touch_left():
       alvik.left_led.set_color(0,1,0)
-    # WORK If the right button is pushed, set the right LED to green
+    # WORK: Check to see if the RIGHT ARROW is pushed
+    # WORK: If the RIGHT ARROW is pushed set the
+    # WORK RIGHT LED to GREEN 
     if alvik.get_touch_right():
       alvik.right_led.set_color(0,1,0)
-    # WORK If the UP button is pushed set both LEDs to Yellow
-    # (RED, GREEN, OFF)
+
+    # WORK: Check to see if the UP ARROW is pushed.
+    # WORK: If the UP ARROW is pushed set both 
+    # WORKD LEDS to Yellow (RED, GREEN, OFF)
     if alvik.get_touch_up():
       alvik.right_led.set_color(1,1,0)
       alvik.left_led.set_color(1,1,0)
-    # WORK If the DOWN button is pushed set both LEDs to Purple
-    # (RED, OFF, BLUE)
+
+    # WORK: Check to see if the DOWN ARROW is pushed.
+    # WORK: If the DOWN ARROW is pushed set both 
+    # WORK: LEDS to PURPLE (RED, OFF, BLUE)
     if alvik.get_touch_down():
       alvik.right_led.set_color(1,0,1)
       alvik.left_led.set_color(1,0,1)

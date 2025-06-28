@@ -26,13 +26,13 @@
 # class.  Then we'll use "from to import the sleep_ms()
 # function.
 
-from arduino_alvik import ArduinoAlvik # Get the ArduinoAlvik class
+from arduino_alvik import ArduinoAlvik # Get the ArduinoAlvik controller
 from time import sleep_ms # get the sleep_ms function
 
-alvik = ArduinoAlvik() # Store a new ArduinoAlvik Object in alvik
+alvik = ArduinoAlvik() # Store a new Alvik controller in alvik
 
 try:
-  alvik.begin()  # Start the robot
+  alvik.begin()  # Start the robot (pressing the start button)
 
   # The "while" statement loops as long as something is true.
   # In this case, we're checking "not alvik.get_touch_cancel()"
@@ -76,6 +76,7 @@ try:
     # Turn off both LEDs by setting all the colors to 0
     alvik.left_led.set_color(0,0,0)
     alvik.right_led.set_color(0,0,0)
+    sleep_ms(500)
 finally:
   alvik.stop()  # Stop the robot when someone presses the
                 # X button or there is an interrupt.

@@ -13,32 +13,51 @@
 
 
 # WORK Import the ArduinoAlvik class and the sleep_ms() function
+from arduino_alvik import ArduinoAlvik #get the alvik controller description
+from time import sleep_ms
 
 # WORK Create a new ArduinoAlvik object named bot
+alvik = ArduinoAlvik() # get an alvik controller
 
-alvik.begin() # Start the bot
+try:
+  alvik.begin() # Start the bot
 
-# Loop while alvik.get_touch_cancel() returns false
-while not alvik.get_touch_cancel():
-  # Turn off both LEDs
-  alvik.right_led.set_color(0,0,1)
-  alvik.left_led.set_color(0,0,1)
-  # If the left button is pushed, set the left LED to green.
-  if alvik.get_touch_left():
-    alvik.left_led.set_color(0,1,0)
-  # WORK If the right button is pushed, set the right LED to green
+  # Loop forever
+  while True:
+    
+    # Check to see if the user pressed X
+    if alvik.get_touch_cancel():
+      break
 
-  # WORK If the UP button is pushed set both LEDs to Yellow
-  # (RED, GREEN, OFF)
+    # Set both LEDs to BLUE
+    alvik.right_led.set_color(0,0,1)
+    alvik.left_led.set_color(0,0,1)
 
-  # WORK If the DOWN button is pushed set both LEDs to Purple
-  # (RED, OFF, BLUE)
+    # Check to see if the LEFT ARROW is pushed
+    # If the LEFT ARROW is upushed set the LEFT
+    # LED to GREEN
+
+    if alvik.get_touch_left():
+      alvik.left_led.set_color(0,1,0)
+    # WORK: Check to see if the RIGHT ARROW is pushed
+    # WORK: If the RIGHT ARROW is pushed set the
+    # WORK RIGHT LED to GREEN 
 
 
-  # WORK: Sleep for 10 ms
+    # WORK: Check to see if the UP ARROW is pushed.
+    # WORK: If the UP ARROW is pushed set both 
+    # WORK: LEDS to Yellow (RED, GREEN, OFF)
 
 
-# WORK  When you are out of the loop 
-# turn off both LED and stop the robot.
+    # WORK: Check to see if the DOWN ARROW is pushed.
+    # WORK: If the DOWN ARROW is pushed set both 
+    # WORK: LEDS to PURPLE (RED, OFF, BLUE)
 
-alvik.stop()
+    
+    # WORK: Sleep for 10 ms
+
+finally:
+  # WORK  When you are out of the loop 
+  # or there is an interruption
+  # turn off both LEDs and stop the robot.
+  pass

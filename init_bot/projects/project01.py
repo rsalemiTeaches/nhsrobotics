@@ -26,45 +26,54 @@
 # class.  Then we'll use "from to import the sleep_ms()
 # function.
 
-from arduino_alvik import ArduinoAlvik # Get the ArduinoAlvik class
+from arduino_alvik import ArduinoAlvik # Get the ArduinoAlvik controller
 from time import sleep_ms # get the sleep_ms function
 
-alvik = ArduinoAlvik() # Store a new ArduinoAlvik Object in bot
+alvik = ArduinoAlvik() # Store a new Alvik controller in alvik
 
-alvik.begin()  # Start the robot
+try:
+  alvik.begin()  # Start the robot (pressing the start button)
 
-# The "while" statement loops as long as something is true.
-# In this case, we're checking "not alvik.get_touch_cancel()"
-# which means that we loop as long as the user is not touching
-# the X button on the Alvik.
+  # The "while True" statement loops until we break out of it.
+  # We check the CANCEL buttton 
+  # which means that we loop as long as the user is not touching
+  # the X button on the Alvik.
 
-while not alvik.get_touch_cancel():   # Checking that the X button is not pressed
-  # indent in Python to be in a loop.
+  while True:   # Checking that the X button is not pressed
+    # indent in Python to be in a loop.
 
-  alvik.left_led.set_color(1, 0, 0)
-  alvik.right_led.set_color(0, 1, 0)
-  # Delay for 1/2 a second (500 milliseconds) so we can
-  # see that the LEDs are lit.
-  sleep_ms(500)
+    if (alvik.get_touch_cancel()):
+      break
 
-  # Now you add code to set the LEDs to other colors.
+    # alvik.left_led.set_color(RED, GREEN, BLUE) sets the
+    # left LED to RED, GREEN, BLUE, or a combination of them.
+    # alvik.left_led.set_color(1, 0, 0) sets the left LED
+    # to RED.
+    # alvik.right_led.set_color(0, 1, 0) sets the right LED
+    # to GREEN.
+    
+    alvik.left_led.set_color(1, 0, 0)
+    alvik.right_led.set_color(0, 1, 0)
+    # Delay for 1/2 a second (500 milliseconds) so we can
+    # see that the LEDs are lit.
+    sleep_ms(500)
 
-  # First, set the left LED to GREEN and the right LED to RED
-  # Delay 500 milliseconds.
+  # NOW you add code to set the LEDs to other colors.
 
-  # WORK: Your code goes here
+    # WORK: First, set the left LED to GREEN and the right LED to RED
+    # SLeep 500 milliseconds.
 
-  # Now set the left and right LED to YELLOW by turning
-  # on both the RED and GREEN LEDs at the same time.
-  # Sleep 500 ms
 
-  # WORK: Your code goes here
+    # WORK: Now set the left and right LED to YELLOW by turning
+    # on both the RED and GREEN LEDs at the same time.
+    # Sleep 500 ms
 
-  # Turn off both LEDs by setting all the colors to 0
-  # Sleep 500 ms
+    # WORK: Turn off both LEDs by setting all the colors to 0
+    # WORK: Sleep 500 ms
 
-  # WORK: Your code goes here.
-  
-alvik.stop()  # Stop the robot when someone holds the X button.
+finally:
+  alvik.stop()  # Stop the robot when someone presses the
+                # X button or there is an interrupt.
+
 
 
