@@ -17,38 +17,38 @@ from arduino_alvik import ArduinoAlvik
 from time import sleep_ms
 
 # WORK Create a new ArduinoAlvik object named bot
-bot = ArduinoAlvik()
+alvik = ArduinoAlvik()
 
 
-bot.begin() # Start the bot
+alvik.begin() # Start the bot
 
-# Loop while bot.get_touch_cancel() returns false
-while not bot.get_touch_cancel():
+# Loop while alvik.get_touch_cancel() returns false
+while not alvik.get_touch_cancel():
   # Turn off both LEDs
-  bot.right_led.set_color(0,0,1)
-  bot.left_led.set_color(0,0,1)
+  alvik.right_led.set_color(0,0,1)
+  alvik.left_led.set_color(0,0,1)
   # If the left button is pushed, set the left LED to green.
-  if bot.get_touch_left():
-    bot.left_led.set_color(0,1,0)
+  if alvik.get_touch_left():
+    alvik.left_led.set_color(0,1,0)
   # WORK If the right button is pushed, set the right LED to green
-  if bot.get_touch_right():
-    bot.right_led.set_color(0,1,0)
+  if alvik.get_touch_right():
+    alvik.right_led.set_color(0,1,0)
   # WORK If the UP button is pushed set both LEDs to Yellow
   # (RED, GREEN, OFF)
-  if bot.get_touch_up():
-    bot.right_led.set_color(1,1,0)
-    bot.left_led.set_color(1,1,0)
+  if alvik.get_touch_up():
+    alvik.right_led.set_color(1,1,0)
+    alvik.left_led.set_color(1,1,0)
   # WORK If the DOWN button is pushed set both LEDs to Purple
   # (RED, OFF, BLUE)
-  if bot.get_touch_down():
-    bot.right_led.set_color(1,0,1)
-    bot.left_led.set_color(1,0,1)
+  if alvik.get_touch_down():
+    alvik.right_led.set_color(1,0,1)
+    alvik.left_led.set_color(1,0,1)
   
   # WORK: Sleep for 10 ms
   sleep_ms(10)
 
 # WORK  When you are out of the loop 
 # turn off both LED and stop the robot.
-bot.right_led.set_color(0,0,0)
-bot.left_led.set_color(0,0,0)
-bot.stop()
+alvik.right_led.set_color(0,0,0)
+alvik.left_led.set_color(0,0,0)
+alvik.stop()

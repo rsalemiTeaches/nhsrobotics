@@ -29,20 +29,20 @@
 from arduino_alvik import ArduinoAlvik # Get the ArduinoAlvik class
 from time import sleep_ms # get the sleep_ms function
 
-bot = ArduinoAlvik() # Store a new ArduinoAlvik Object in bot
+alvik = ArduinoAlvik() # Store a new ArduinoAlvik Object in bot
 
-bot.begin()  # Start the robot
+alvik.begin()  # Start the robot
 
 # The "while" statement loops as long as something is true.
-# In this case, we're checking "not bot.get_touch_cancel()"
+# In this case, we're checking "not alvik.get_touch_cancel()"
 # which means that we loop as long as the user is not touching
 # the X button on the Alvik.
 
-while not bot.get_touch_cancel():   # Checking that the X button is not pressed
+while not alvik.get_touch_cancel():   # Checking that the X button is not pressed
   # indent in Python to be in a loop.
 
-  bot.left_led.set_color(1, 0, 0)
-  bot.right_led.set_color(0, 1, 0)
+  alvik.left_led.set_color(1, 0, 0)
+  alvik.right_led.set_color(0, 1, 0)
   # Delay for 1/2 a second (500 milliseconds) so we can
   # see that the LEDs are lit.
   sleep_ms(500)
@@ -65,6 +65,6 @@ while not bot.get_touch_cancel():   # Checking that the X button is not pressed
 
   # WORK: Your code goes here.
   
-bot.stop()  # Stop the robot when someone holds the X button.
+alvik.stop()  # Stop the robot when someone holds the X button.
 
 
