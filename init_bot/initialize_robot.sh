@@ -26,6 +26,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 WHITELIST=(
     "/lib" # Whitelisting a directory keeps it and its contents
     "/firmware.bin"
+    "/solutions"
 )
 
 # A list of local files and directories to COPY to the device.
@@ -34,12 +35,16 @@ COPY_LIST=(
     "config.py"
     "main.py"
     "demo"
+    "lib"
+    "projects"
 )
 
 # The corresponding destination directories on the device for each item in COPY_LIST.
 # Make sure this has the same number of items as COPY_LIST.
 # Use ":" for the root directory.
 DESTINATION_LIST=(
+    ":"
+    ":"
     ":"
     ":"
     ":"
