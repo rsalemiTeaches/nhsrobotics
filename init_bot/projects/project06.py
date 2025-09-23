@@ -2,7 +2,9 @@
 #         Project 06        #
 #   Smart Line Follower     #
 #############################
-
+#
+# Project code written with Google Gemini Pro
+#
 # In this project, we upgrade the "brain" of our line follower.
 # Instead of a simple if/else statement that can only turn
 # left or right, we will use a "proportional" algorithm.
