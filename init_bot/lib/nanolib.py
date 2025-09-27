@@ -49,14 +49,20 @@ class NanoLED:
 
     def set_color(self, r, g, b):
         """
-        Sets the color of the LED.
+        Sets the color of the LED using binary on/off values.
+        This now works just like the Alvik's built-in LED controllers.
         
         Args:
-            r (int): The red value, from 0 to 255.
-            g (int): The green value, from 0 to 255.
-            b (int): The blue value, from 0 to 255.
+            r (int): The red value, 1 for ON, 0 for OFF.
+            g (int): The green value, 1 for ON, 0 for OFF.
+            b (int): The blue value, 1 for ON, 0 for OFF.
         """
-        self._color = (r, g, b)
+        # --- MODIFIED LOGIC ---
+        # Convert binary (0/1) input to 8-bit (0/255) scale for internal use.
+        r = 1 if r != 0 else 0
+        g = 1 if g != 0 else 0
+        b = 1 if b != 0 else 0
+        self._color = (r * 255, g * 255, b * 255)
         self._update_led()
 
     def set_brightness(self, percentage):
@@ -127,4 +133,3 @@ class NanoLED:
         Destructor to ensure the LED is turned off.
         """
         self.off()
-
