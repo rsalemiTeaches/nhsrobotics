@@ -9,6 +9,7 @@
 # functions and classes below.
 import qwiic_buzzer
 from qwiic_i2c.micropython_i2c import MicroPythonI2C # Use the Qwiic I2C library
+from nanolib import NanoLED
 
 def get_closest_distance(d1, d2, d3, d4, d5):
     """
