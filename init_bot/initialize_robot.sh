@@ -1,4 +1,5 @@
 #!/bin/bash
+# v9 - Fixed mismatched array length for file copy
 
 # ==============================================================================
 # Alvik Robot Initialization Script (with Update Mode)
@@ -10,12 +11,13 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # --- CONFIGURATION ---
-WHITELIST=("/lib" "/firmware.bin" "/solutions")
+WHITELIST=("/lib" "/solutions")
 
-FULL_COPY_LIST=("config.py" "main.py" "batterycheck.py" "demo" "lib" "projects")
-DESTINATION_LIST=(":" ":" ":" ":" ":" ":")
+FULL_COPY_LIST=("config.py" "main.py" "batterycheck.py" "demo" "lib" "projects" "firmware.bin")
+# FIX: Added the missing destination for firmware.bin
+DESTINATION_LIST=(":" ":" ":" ":" ":" ":" ":")
 
-UPDATE_COPY_LIST=("lib" "batterycheck.py")
+UPDATE_COPY_LIST=("lib")
 
 # --- SCRIPT LOGIC ---
 MODE="full"
@@ -39,6 +41,8 @@ while [[ $# -gt 0 ]]; do
         ;;
     esac
 done
+
+echo "Running initialize_robot.sh - v9"
 
 # --- Auto-detect port and build command arguments ---
 if [ -z "$PORT" ]; then
@@ -88,17 +92,9 @@ if [ "$MODE" = "full" ]; then
     done <<< "$REMOTE_FILES"
     echo "✅ Device cleaned."
     
-    echo "------------------------------------------"
-    echo "🧹 Cleaning contents of /lib directory..."
-    LIB_CONTENTS=$(mpremote "${CONNECT_ARGS[@]}" ls :lib 2>/dev/null || true)
-    while IFS= read -r item; do
-        if [ -n "$item" ]; then
-            item_path=":lib/${item}"
-            echo "   - Deleting '$item_path'"
-            mpremote "${CONNECT_ARGS[@]}" rm -r "$item_path" > /dev/null 2>&1 || true
-        fi
-    done <<< "$LIB_CONTENTS"
-    echo "✅ /lib directory contents cleaned."
+    # --- FIX ---
+    # The redundant /lib cleanup block that was here has been removed.
+    # The main loop above now correctly handles the whitelist.
 
     echo "------------------------------------------"
     echo "📂 Copying new files to the device..."
