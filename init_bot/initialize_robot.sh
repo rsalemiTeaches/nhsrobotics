@@ -1,5 +1,5 @@
 #!/bin/bash
-# v9 - Fixed mismatched array length for file copy
+# v12 - Reverted to 'ls' with robust sed parsing, as directed.
 
 # ==============================================================================
 # Alvik Robot Initialization Script (with Update Mode)
@@ -14,7 +14,6 @@ set -e # Exit immediately if a command exits with a non-zero status.
 WHITELIST=("/lib" "/solutions")
 
 FULL_COPY_LIST=("config.py" "main.py" "batterycheck.py" "demo" "lib" "projects" "firmware.bin")
-# FIX: Added the missing destination for firmware.bin
 DESTINATION_LIST=(":" ":" ":" ":" ":" ":" ":")
 
 UPDATE_COPY_LIST=("lib")
@@ -42,7 +41,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Running initialize_robot.sh - v9"
+echo "Running initialize_robot.sh - v12"
 
 # --- Auto-detect port and build command arguments ---
 if [ -z "$PORT" ]; then
@@ -55,7 +54,7 @@ if [ -z "$PORT" ]; then
     echo "✅ Found Alvik on port: $PORT"
 fi
 
-# CORRECTED: Use an array for command arguments for robustness.
+# Use an array for command arguments for robustness.
 CONNECT_ARGS=("connect" "${PORT}")
 
 
@@ -67,34 +66,41 @@ if [ "$MODE" = "full" ]; then
     
     echo "------------------------------------------"
     echo "🔎 Reading remote file system..."
-    # Use the argument array for the command
-    REMOTE_FILES=$(mpremote "${CONNECT_ARGS[@]}" ls -r :)
+    # Get the file listing. Add '|| true' to prevent script exit if ls fails.
+    REMOTE_FILES=$(mpremote "${CONNECT_ARGS[@]}" ls : 2>/dev/null || true)
     echo "✅ Remote file system read."
     echo "------------------------------------------"
     echo "🧹 Cleaning the device (keeping whitelist)..."
 
-    while IFS= read -r path; do
-        if [ -z "$path" ]; then continue; fi
-        normalized_path="/${path#*:}"
+    while IFS= read -r line; do
+        # Skip empty lines or the header from ls
+        if [ -z "$line" ] || [[ "$line" == "ls :"* ]]; then continue; fi
+
+        # FIX: Use sed to robustly extract the filename by stripping leading whitespace and numbers.
+        item_name=$(echo "$line" | sed 's/^[ ]*[0-9]*[ ]*//')
+        
+        # Normalize path for whitelist check (e.g., "/config.py")
+        normalized_path="/${item_name}"
+
         on_whitelist=false
         for whitelisted_item in "${WHITELIST[@]}"; do
+            # Check if the path starts with a whitelisted item.
             if [[ "$normalized_path" == "$whitelisted_item"* ]]; then
                 on_whitelist=true
                 break
             fi
         done
+        
         if [ "$on_whitelist" = false ]; then
-            echo "   - Deleting '$path'"
-            mpremote "${CONNECT_ARGS[@]}" rm -r "$path" > /dev/null 2>&1 || true
+            # Path for mpremote rm needs a colon prefix, e.g., ":config.py"
+            path_to_delete=":${item_name}"
+            echo "   - Deleting '$path_to_delete'"
+            mpremote "${CONNECT_ARGS[@]}" rm -r "$path_to_delete" > /dev/null 2>&1 || true
         else
-            echo "   - Keeping '$path' (whitelisted)"
+            echo "   - Keeping '/${item_name}' (whitelisted)"
         fi
     done <<< "$REMOTE_FILES"
     echo "✅ Device cleaned."
-    
-    # --- FIX ---
-    # The redundant /lib cleanup block that was here has been removed.
-    # The main loop above now correctly handles the whitelist.
 
     echo "------------------------------------------"
     echo "📂 Copying new files to the device..."
