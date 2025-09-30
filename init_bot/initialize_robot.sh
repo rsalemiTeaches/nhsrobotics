@@ -1,11 +1,12 @@
 #!/bin/bash
-# v13 - Architectural refactor to a directory-mirroring model.
+# v19 - Fixed silent rm failure on directories by stripping trailing slash.
 
 # ==============================================================================
 # Alvik Robot Synchronization Script
 #
 # This script synchronizes a MicroPython device to mirror a local source
-# directory, while protecting whitelisted paths on the device.
+# directory. It protects the /workspace path and any path specified in the
+# local .robotignore file.
 #
 # ==============================================================================
 
@@ -14,7 +15,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 # --- SCRIPT LOGIC ---
 PORT=""
 SOURCE_DIR=""
-WHITELIST_FILENAME=".robotignore"
+ROBOTIGNORE_FILENAME=".robotignore"
 
 # --- Argument Parsing ---
 while [[ $# -gt 0 ]]; do
@@ -35,7 +36,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Running initialize_robot.sh - v13"
+echo "Running initialize_robot.sh - v19"
 
 # --- Validate Arguments ---
 if [ -z "$SOURCE_DIR" ]; then
@@ -68,18 +69,35 @@ CONNECT_ARGS=("connect" "${PORT}")
 echo "🚀 Starting SYNCHRONIZATION for device..."
 echo "   (This will delete non-whitelisted remote files)"
 
-# --- Read Whitelist ---
-WHITELIST_FILE="${SOURCE_DIR}/${WHITELIST_FILENAME}"
-WHITELIST=() # Initialize as empty array
-if [ -f "$WHITELIST_FILE" ]; then
+# --- Read Ignore File to build Whitelist ---
+ROBOTIGNORE_FILE="${SOURCE_DIR}/${ROBOTIGNORE_FILENAME}"
+# The /workspace directory is always protected.
+WHITELIST=("/workspace")
+IGNORE_LIST=() # This list will be used for the copy phase
+
+if [ -f "$ROBOTIGNORE_FILE" ]; then
     echo "------------------------------------------"
-    echo "🔎 Found whitelist file: $WHITELIST_FILE"
-    # Read file into array, skipping comments and empty lines
-    mapfile -t WHITELIST < <(grep -v -e '^#' -e '^[[:space:]]*$' "$WHITELIST_FILE")
+    echo "🔎 Found ignore file: $ROBOTIGNORE_FILE"
+    # Read file line-by-line into an array for compatibility with older shells.
+    while IFS= read -r line; do
+        # Skip comments and empty lines
+        if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then
+            continue
+        fi
+        IGNORE_LIST+=("$line")
+    done < "$ROBOTIGNORE_FILE"
+    
+    # Add items from the ignore file to the main WHITELIST for the cleanup phase
+    for item in "${IGNORE_LIST[@]}"; do
+        WHITELIST+=("/${item}")
+    done
 else
     echo "------------------------------------------"
-    echo "🔎 No whitelist file found. All remote files are subject to deletion."
+    echo "🔎 No .robotignore file found."
 fi
+
+echo "ℹ️ The '/workspace' directory on the robot is protected from deletion."
+
 
 # --- Clean Device ---
 echo "------------------------------------------"
@@ -93,11 +111,13 @@ while IFS= read -r line; do
     if [ -z "$line" ] || [[ "$line" == "ls :"* ]]; then continue; fi
 
     item_name=$(echo "$line" | sed 's/^[ ]*[0-9]*[ ]*//')
+    # FIX: Strip trailing slash from directory names to ensure rm works correctly.
+    item_name=${item_name%/}
     normalized_path="/${item_name}"
 
     on_whitelist=false
     for whitelisted_item in "${WHITELIST[@]}"; do
-        if [[ "$normalized_path" == "$whitelisted_item"* ]]; then
+        if [[ "${normalized_path}" == "${whitelisted_item}"* ]]; then
             on_whitelist=true
             break
         fi
@@ -121,12 +141,26 @@ echo "📂 Copying new files to the device from '$SOURCE_DIR'..."
 find "$SOURCE_DIR" -mindepth 1 -maxdepth 1 | while IFS= read -r item_path; do
     item_name=$(basename "$item_path")
     
-    # Skip the whitelist file itself
-    if [ "$item_name" = "$WHITELIST_FILENAME" ]; then
-        echo "   - Skipping copy of '$WHITELIST_FILENAME'"
+    # Always skip the ignore file itself
+    if [ "$item_name" = "$ROBOTIGNORE_FILENAME" ]; then
+        echo "   - Skipping copy of '$ROBOTIGNORE_FILENAME'"
         continue
     fi
 
+    # Check against the user-defined ignore list
+    is_ignored=false
+    for ignored_item in "${IGNORE_LIST[@]}"; do
+        if [[ "$item_name" == "$ignored_item" ]]; then
+            is_ignored=true
+            break
+        fi
+    done
+
+    if [ "$is_ignored" = true ]; then
+        echo "   - Skipping '$item_name' (ignored by .robotignore)"
+        continue
+    fi
+    
     echo "   - Copying '$item_name' to ':'"
     mpremote "${CONNECT_ARGS[@]}" cp -r "$item_path" ":"
 done
