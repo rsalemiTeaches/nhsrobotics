@@ -174,3 +174,4 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+init_bot/.DS_Store

@@ -34,6 +34,7 @@ WHITELIST=(
 COPY_LIST=(
     "config.py"
     "main.py"
+    "batterycheck.py"
     "demo"
     "lib"
     "projects"
@@ -43,6 +44,7 @@ COPY_LIST=(
 # Make sure this has the same number of items as COPY_LIST.
 # Use ":" for the root directory.
 DESTINATION_LIST=(
+    ":"
     ":"
     ":"
     ":"
