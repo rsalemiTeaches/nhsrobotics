@@ -1,52 +1,71 @@
 #!/bin/bash
+# v2 - Accept source directory as an argument.
 
 # ==============================================================================
-# Initialize ALL Alvik Robots Script (with Update Mode)
+# Initialize All Robots Script
 #
-# This master script discovers all connected Alvik robots and runs the
-# individual `initialize_robot.sh` script for each one.
-#
-# Usage (Full Install - DELETES existing files):
-#   ./initialize_all.sh
-#
-# Usage (Library Update - SAFE for student work):
-#   ./initialize_all.sh -u
+# This script finds all connected Alvik robots and runs the
+# initialize_robot.sh script for each one.
 #
 # ==============================================================================
 
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # --- SCRIPT LOGIC ---
+SOURCE_DIR=""
 
-# Check for the '-u' flag to pass to the worker script.
-INIT_FLAGS=""
-if [[ "$1" == "-u" || "$1" == "--update" ]]; then
-    INIT_FLAGS="-u"
-    echo " MODE: Library Update"
-else
-    echo " MODE: Full Installation"
+# --- Argument Parsing ---
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+        -d|--dir)
+        SOURCE_DIR="$2"
+        shift 2
+        ;;
+        *)
+        echo "Unknown option: $1"
+        exit 1
+        ;;
+    esac
+done
+
+echo "Running initialize_all.sh - v2"
+
+# --- Validate Arguments ---
+if [ -z "$SOURCE_DIR" ]; then
+    echo "❌ ERROR: Source directory not specified. Use -d <path>."
+    exit 1
 fi
-
-echo "🚀 Starting initialization for all connected robots..."
-echo "====================================================="
-
-if [ ! -f "initialize_robot.sh" ]; then
-    echo "❌ ERROR: The 'initialize_robot.sh' script was not found."
+if [ ! -d "$SOURCE_DIR" ]; then
+    echo "❌ ERROR: Source '$SOURCE_DIR' is not a valid directory."
     exit 1
 fi
 
-mpremote connect list | grep 'usbmodem' | awk '{print $1}' | while read -r robot_port; do
+
+# --- Find All Robots ---
+echo "------------------------------------------"
+echo "🔎 Finding all connected Alvik robots..."
+PORT_LIST=$(mpremote connect list | grep 'usbmodem' | awk '{print $1}')
+
+if [ -z "$PORT_LIST" ]; then
+    echo "❌ No Alvik robots found. Please connect at least one robot and try again."
+    exit 1
+fi
+
+echo "✅ Found robots on the following ports:"
+echo "$PORT_LIST"
+
+
+# --- Initialize Each Robot ---
+for port in $PORT_LIST; do
+    echo "------------------------------------------"
+    echo "🚀 Initializing robot on port: $port"
+    echo "=========================================="
+    ./initialize_robot.sh -d "$SOURCE_DIR" -p "$port"
+    echo "=========================================="
+    echo "✅ Finished initializing robot on port: $port"
     echo ""
-    echo "--- Initializing Robot on Port: ${robot_port} ---"
-
-    # Pass the flags to the individual init script.
-    # The ${INIT_FLAGS} variable will either be empty or contain "-u".
-    ./initialize_robot.sh ${INIT_FLAGS} -p "${robot_port}"
-
-    echo "   - ✅  Initialization complete for ${robot_port}."
 done
 
-echo ""
-echo "====================================================="
-echo "🎉 All robots have been initialized."
+echo "🎉 All connected robots have been initialized."
 
