@@ -1,109 +1,126 @@
-#############################
-#         Project 08        #
-#        The Guard Bot      #
-#############################
-
-# This project introduces a new, powerful programming concept:
-# a "State Machine". A state machine allows a robot to have
-# different behaviors, or "states," and switch between them
-# based on sensor input.
-
-# Our Guard Bot will have two states:
-# 1. PATROLLING: It drives forward, "guarding" its area.
-# 2. ALERT: If it sees an intruder, it stops, spins 3 times, and then
-#    returns to patrolling.
+# Project 08: Traffic Light State Machine
+# This solution includes the "Flex" for the flashing warning light AND
+# the new feature to use the onboard Nano LED as a walk button indicator.
 
 from arduino_alvik import ArduinoAlvik
 from time import sleep_ms
-from nhs_robotics import get_closest_distance
+from nhs_robotics import NanoLED  # Import our new helper library
 
-# --- State Machine Definitions ---
-# We define our robot's possible states as constants.
-PATROLLING = 1
-ALERT = 2
+# --- State Definitions ---
+STATE_NS_GREEN = 0
+STATE_NS_YELLOW = 1
+STATE_EW_GREEN = 2
+STATE_EW_YELLOW = 3
+STATE_ALL_RED = 4
+STATE_WALK = 5
+STATE_FLASHING_WARN = 6 # Flex State
 
-# --- Configuration ---
-PATROL_SPEED = 25       # How fast the robot moves while on patrol.
-ALERT_DISTANCE = 5      # How close an intruder must be to trigger an alert.
-ALERT_SPINS = 3         # How many times the robot spins in alert mode.
-SPIN_SPEED = 40         # How fast the robot spins.
-ALERT_SPIN_DEGREES = 180 # How many degrees to spin to face away.
+# --- Direction Constants ---
+DIRECTION_NS = 0
+DIRECTION_EW = 1
 
-# --- Main Program ---
+# --- Timing Constants (in milliseconds) ---
+GREEN_DELAY_MS = 3000
+YELLOW_DELAY_MS = 1000
+ALL_RED_DELAY_MS = 1000
+WALK_DELAY_MS = 4000
+FLASH_DELAY_MS = 250 # Flex timing
+
 alvik = ArduinoAlvik()
-
-# We need a variable to store the robot's current state.
-# It will start in the PATROLLING state.
-current_state = PATROLLING
-
-# We need a counter for our alert action.
-spin_counter = 0
+# Create a controller for the Nano's onboard LED
+nano_led = NanoLED()
 
 try:
     alvik.begin()
-    print("Project 08: The Guard Bot")
-    print(f"Current State: PATROLLING")
-    print("Press OK to begin the patrol!")
 
-    while True:
-        if alvik.get_touch_ok():
-            break
-        # Blink green to show it's ready to patrol
-        alvik.left_led.set_color(0, 1, 0)
-        alvik.right_led.set_color(0, 1, 0)
-        sleep_ms(100)
-        alvik.left_led.set_color(0, 0, 0)
-        alvik.right_led.set_color(0, 0, 0)
-        sleep_ms(100)
+    current_state = STATE_ALL_RED # Start at a safe state
+    last_green_direction = DIRECTION_EW
+    walk_request_pending = False
 
-    print("Patrol started!")
+    while not alvik.get_touch_cancel():
 
-    # --- Main Loop ---
-    while True:
-        if alvik.get_touch_cancel():
-            break
-
-        # SENSE: We only need the distance sensor for this robot.
-        raw_dist_l, raw_dist_cl, raw_dist_c, raw_dist_cr, raw_dist_r = alvik.get_distance()
-        closest_distance = get_closest_distance(raw_dist_l, raw_dist_cl, raw_dist_c, raw_dist_cr, raw_dist_r)
-
-        # --- THINK & ACT: The State Machine ---
+        # --- EVENT HANDLING ---
+        if alvik.get_touch_center():
+            if not walk_request_pending:
+                print("Walk button pressed! Request is now pending.")
+                walk_request_pending = True
+                # NEW: Turn Nano LED white to show the request was received.
+                nano_led.set_color(1, 1, 1)
+                nano_led.set_brightness(100)
+                
+        # --- STATE HANDLING ---
         
-        # --- STATE 1: PATROLLING ---
-        if current_state == PATROLLING:
-            # Action: Drive forward with green lights
+        if current_state == STATE_NS_GREEN:
+            print("State: NS Green")
             alvik.left_led.set_color(0, 1, 0)
+            alvik.right_led.set_color(1, 0, 0)
+            last_green_direction = DIRECTION_NS
+            sleep_ms(GREEN_DELAY_MS)
+            current_state = STATE_NS_YELLOW
+            
+        elif current_state == STATE_NS_YELLOW:
+            print("State: NS Yellow")
+            alvik.left_led.set_color(1, 1, 0)
+            alvik.right_led.set_color(1, 0, 0)
+            sleep_ms(YELLOW_DELAY_MS)
+            current_state = STATE_ALL_RED
+            
+        elif current_state == STATE_EW_GREEN:
+            print("State: EW Green")
+            alvik.left_led.set_color(1, 0, 0)
             alvik.right_led.set_color(0, 1, 0)
-            alvik.set_wheels_speed(PATROL_SPEED, PATROL_SPEED)
+            last_green_direction = DIRECTION_EW
+            sleep_ms(GREEN_DELAY_MS)
+            current_state = STATE_EW_YELLOW
+        
+        elif current_state == STATE_EW_YELLOW:
+            print("State: EW Yellow")
+            alvik.left_led.set_color(1, 0, 0)
+            alvik.right_led.set_color(1, 1, 0)
+            sleep_ms(YELLOW_DELAY_MS)
+            current_state = STATE_ALL_RED
 
-            # Transition Check: Is there an intruder?
-            if closest_distance < ALERT_DISTANCE:
-                print("Intruder detected! Changing state to ALERT")
-                # Stop the robot immediately
-                alvik.set_wheels_speed(0, 0)
-                # Change the state
-                current_state = ALERT
-                # IMPORTANT: Reset the spin counter every time we enter the alert state.
-                spin_counter = 0
-
-        # --- STATE 2: ALERT ---
-        elif current_state == ALERT:
-            # Action: Perform ONE spin and increment the counter.
-            # This block will run multiple times until the counter is high enough.
-            print(f"Alert! Spin #{spin_counter + 1}")
+        elif current_state == STATE_ALL_RED:
+            print("State: All Red")
             alvik.left_led.set_color(1, 0, 0)
             alvik.right_led.set_color(1, 0, 0)
-            alvik.rotate(ALERT_SPIN_DEGREES) # Perform the alert spin
-            spin_counter = spin_counter + 1
+            sleep_ms(ALL_RED_DELAY_MS)
 
-            # Transition Check: Have we spun enough times?
-            if spin_counter >= ALERT_SPINS:
-                print("Alert over. Changing state to PATROLLING")
-                # Change the state back to patrolling
-                current_state = PATROLLING
-        
-        sleep_ms(20)
+            if walk_request_pending:
+                current_state = STATE_WALK
+            elif last_green_direction == DIRECTION_NS:
+                current_state = STATE_EW_GREEN
+            else:
+                current_state = STATE_NS_GREEN
+                
+        elif current_state == STATE_WALK:
+            print("State: WALK")
+            walk_request_pending = False
+            # NEW: Turn Nano LED off now that the walk cycle has started.
+            nano_led.off()
+            
+            alvik.left_led.set_color(0, 0, 1)
+            alvik.right_led.set_color(0, 0, 1)
+            sleep_ms(WALK_DELAY_MS)
+            
+            # Transition to the new flashing state
+            current_state = STATE_FLASHING_WARN
+
+        elif current_state == STATE_FLASHING_WARN:
+            print("State: Flashing Warning")
+            for _ in range(4):
+                alvik.left_led.set_color(0, 0, 1)
+                alvik.right_led.set_color(0, 0, 1)
+                sleep_ms(FLASH_DELAY_MS)
+                alvik.left_led.set_color(0, 0, 0)
+                alvik.right_led.set_color(0, 0, 0)
+                sleep_ms(FLASH_DELAY_MS)
+            
+            current_state = STATE_ALL_RED
 
 finally:
+    print("Program finished. Stopping robot.")
+    # Ensure all LEDs are off at the end.
+    nano_led.off()
     alvik.stop()
-    print("Guard duty finished.")
+
