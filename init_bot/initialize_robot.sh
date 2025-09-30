@@ -1,5 +1,5 @@
 #!/bin/bash
-# v19 - Fixed silent rm failure on directories by stripping trailing slash.
+# v20 - Implement intelligent sync: only delete remote files not present locally.
 
 # ==============================================================================
 # Alvik Robot Synchronization Script
@@ -36,7 +36,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Running initialize_robot.sh - v19"
+echo "Running initialize_robot.sh - v20"
 
 # --- Validate Arguments ---
 if [ -z "$SOURCE_DIR" ]; then
@@ -67,27 +67,21 @@ CONNECT_ARGS=("connect" "${PORT}")
 # --- EXECUTION ---
 
 echo "🚀 Starting SYNCHRONIZATION for device..."
-echo "   (This will delete non-whitelisted remote files)"
+echo "   (This will delete stale remote files)"
 
-# --- Read Ignore File to build Whitelist ---
+# --- Read Ignore File to build Whitelist and Ignore List ---
 ROBOTIGNORE_FILE="${SOURCE_DIR}/${ROBOTIGNORE_FILENAME}"
-# The /workspace directory is always protected.
 WHITELIST=("/workspace")
-IGNORE_LIST=() # This list will be used for the copy phase
+IGNORE_LIST=()
 
 if [ -f "$ROBOTIGNORE_FILE" ]; then
     echo "------------------------------------------"
     echo "🔎 Found ignore file: $ROBOTIGNORE_FILE"
-    # Read file line-by-line into an array for compatibility with older shells.
     while IFS= read -r line; do
-        # Skip comments and empty lines
-        if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then
-            continue
-        fi
+        if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then continue; fi
         IGNORE_LIST+=("$line")
     done < "$ROBOTIGNORE_FILE"
     
-    # Add items from the ignore file to the main WHITELIST for the cleanup phase
     for item in "${IGNORE_LIST[@]}"; do
         WHITELIST+=("/${item}")
     done
@@ -98,20 +92,39 @@ fi
 
 echo "ℹ️ The '/workspace' directory on the robot is protected from deletion."
 
+# --- Get Local File List (respecting ignore list) ---
+echo "------------------------------------------"
+echo "🔎 Reading local file system from '$SOURCE_DIR'..."
+LOCAL_FILES=()
+while IFS= read -r item_path; do
+    item_name=$(basename "$item_path")
+    if [ "$item_name" = "$ROBOTIGNORE_FILENAME" ]; then continue; fi
+    is_ignored=false
+    for ignored_item in "${IGNORE_LIST[@]}"; do
+        if [[ "$item_name" == "$ignored_item" ]]; then
+            is_ignored=true
+            break
+        fi
+    done
+    if [ "$is_ignored" = false ]; then
+        LOCAL_FILES+=("$item_name")
+    fi
+done < <(find "$SOURCE_DIR" -mindepth 1 -maxdepth 1)
+echo "✅ Local file system read."
 
-# --- Clean Device ---
+
+# --- Clean Stale Files from Device ---
 echo "------------------------------------------"
 echo "🔎 Reading remote file system..."
 REMOTE_FILES=$(mpremote "${CONNECT_ARGS[@]}" ls : 2>/dev/null || true)
 echo "✅ Remote file system read."
 echo "------------------------------------------"
-echo "🧹 Cleaning the device (respecting whitelist)..."
+echo "🧹 Cleaning stale files from the device..."
 
 while IFS= read -r line; do
     if [ -z "$line" ] || [[ "$line" == "ls :"* ]]; then continue; fi
 
     item_name=$(echo "$line" | sed 's/^[ ]*[0-9]*[ ]*//')
-    # FIX: Strip trailing slash from directory names to ensure rm works correctly.
     item_name=${item_name%/}
     normalized_path="/${item_name}"
 
@@ -123,45 +136,34 @@ while IFS= read -r line; do
         fi
     done
     
-    if [ "$on_whitelist" = false ]; then
-        path_to_delete=":${item_name}"
-        echo "   - Deleting '$path_to_delete'"
-        mpremote "${CONNECT_ARGS[@]}" rm -r "$path_to_delete" > /dev/null 2>&1 || true
-    else
+    if [ "$on_whitelist" = true ]; then
         echo "   - Keeping '/${item_name}' (whitelisted)"
-    fi
-done <<< "$REMOTE_FILES"
-echo "✅ Device cleaned."
-
-# --- Copy Files ---
-echo "------------------------------------------"
-echo "📂 Copying new files to the device from '$SOURCE_DIR'..."
-
-# Use find to get a list of all files and directories to copy
-find "$SOURCE_DIR" -mindepth 1 -maxdepth 1 | while IFS= read -r item_path; do
-    item_name=$(basename "$item_path")
-    
-    # Always skip the ignore file itself
-    if [ "$item_name" = "$ROBOTIGNORE_FILENAME" ]; then
-        echo "   - Skipping copy of '$ROBOTIGNORE_FILENAME'"
         continue
     fi
 
-    # Check against the user-defined ignore list
-    is_ignored=false
-    for ignored_item in "${IGNORE_LIST[@]}"; do
-        if [[ "$item_name" == "$ignored_item" ]]; then
-            is_ignored=true
+    is_in_source=false
+    for local_item in "${LOCAL_FILES[@]}"; do
+        if [[ "$item_name" == "$local_item" ]]; then
+            is_in_source=true
             break
         fi
     done
 
-    if [ "$is_ignored" = true ]; then
-        echo "   - Skipping '$item_name' (ignored by .robotignore)"
-        continue
+    if [ "$is_in_source" = false ]; then
+        path_to_delete=":${item_name}"
+        echo "   - Deleting '$path_to_delete' (stale)"
+        mpremote "${CONNECT_ARGS[@]}" rm -r "$path_to_delete" > /dev/null 2>&1 || true
     fi
-    
-    echo "   - Copying '$item_name' to ':'"
+done <<< "$REMOTE_FILES"
+echo "✅ Stale files cleaned."
+
+# --- Copy Files ---
+echo "------------------------------------------"
+echo "📂 Copying new/changed files to the device from '$SOURCE_DIR'..."
+
+for item_name in "${LOCAL_FILES[@]}"; do
+    item_path="${SOURCE_DIR}/${item_name}"
+    echo "   - Syncing '$item_name' to ':'"
     mpremote "${CONNECT_ARGS[@]}" cp -r "$item_path" ":"
 done
 
