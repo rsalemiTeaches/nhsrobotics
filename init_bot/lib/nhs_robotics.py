@@ -1,15 +1,66 @@
-###########################################################
-#                NHS Robotics Helper Library              #
-#                                                         #
-# A collection of helper functions and classes to make    #
-# programming the Alvik easier for beginner projects.     #
-###########################################################
+# nhs_robotics.py v6 (Class-based OLED - Fully Documented)
 
-# Import necessary libraries. These are used by the helper
-# functions and classes below.
 import qwiic_buzzer
-from qwiic_i2c.micropython_i2c import MicroPythonI2C # Use the Qwiic I2C library
+from qwiic_i2c.micropython_i2c import MicroPythonI2C as I2CDriver
 from nanolib import NanoLED
+import ssd1306
+from machine import Pin, I2C
+
+# This print statement helps confirm the correct library is loaded.
+print("Loading nhs_robotics.py v6 (Final)")
+
+
+# --- oLED Display Class ---
+class oLED:
+    """
+    A simplified interface for the 128x32 I2C OLED display.
+    This class automatically handles I2C setup and provides easy-to-use
+    methods for displaying text.
+    """
+    def __init__(self):
+        # Configuration is hardcoded here so students don't need it.
+        SCL_PIN = 12
+        SDA_PIN = 11
+        I2C_ADDRESS = 0x3c
+        OLED_WIDTH = 128
+        OLED_HEIGHT = 32
+        
+        self.display = None 
+        
+        try:
+            # Create a native MicroPython I2C object, which the official
+            # ssd1306 library is now confirmed to work with.
+            i2c = I2C(1, scl=Pin(SCL_PIN), sda=Pin(SDA_PIN))
+            
+            # Initialize the OLED display driver from the ssd1306 library
+            self.display = ssd1306.SSD1306_I2C(OLED_WIDTH, OLED_HEIGHT, i2c, I2C_ADDRESS)
+            
+            self.clear()
+            print("OLED display initialized successfully.")
+
+        except Exception as e:
+            print(f"Error: Failed to initialize OLED display. Check connection. ({e})")
+
+    def clear(self):
+        """Clears the entire screen."""
+        if self.display:
+            self.display.fill(0)
+            self.display.show()
+
+    def show_lines(self, line1="", line2="", line3=""):
+        """
+        The easiest way to display text. Clears the screen and shows up to
+        three lines of text at once.
+        """
+        if self.display:
+            self.display.fill(0) 
+            self.display.text(line1, 0, 0)
+            self.display.text(line2, 0, 10)
+            self.display.text(line3, 0, 20)
+            self.display.show()
+
+
+# --- Original code from your library ---
 
 def get_closest_distance(d1, d2, d3, d4, d5):
     """
@@ -37,36 +88,27 @@ class Buzzer:
         self.duration = 100
         self._buzzer = None
         
-        # Define dummy attributes first to prevent crashes if init fails
         self.NOTE_C4, self.NOTE_G3, self.NOTE_A3, self.NOTE_B3, self.NOTE_REST = (0,0,0,0,0)
         self.EFFECT_SIREN, self.EFFECT_YES, self.EFFECT_NO, self.EFFECT_LAUGH, self.EFFECT_CRY = (0,0,0,0,0)
 
         try:
-            # Use the MicroPythonI2C class from the qwiic_i2c library
-            # This is the correct driver that is compatible with the SparkFun library
-            i2c_driver = MicroPythonI2C(scl=scl_pin, sda=sda_pin)
-            
-            # Create the buzzer object using the correct I2C driver
+            i2c_driver = I2CDriver(scl=scl_pin, sda=sda_pin)
             self._buzzer = qwiic_buzzer.QwiicBuzzer(i2c_driver=i2c_driver)
 
-            # Now, the .begin() method should work as expected.
             if self._buzzer.begin() == False:
                 print("Buzzer not found. Please check your connection.")
                 self._buzzer = None
-                return # Stop initialization if buzzer not found
+                return 
             
             print("Buzzer attached successfully.")
-            # Lock the volume to LOW as requested
             self._volume = self._buzzer.VOLUME_LOW
             
-            # Expose the note constants for students to use
             self.NOTE_C4 = self._buzzer.NOTE_C4
             self.NOTE_G3 = self._buzzer.NOTE_G3
             self.NOTE_A3 = self._buzzer.NOTE_A3
             self.NOTE_B3 = self._buzzer.NOTE_B3
             self.NOTE_REST = 0
             
-            # Expose constants for the most useful sound effects
             self.EFFECT_SIREN = 0
             self.EFFECT_YES = 2
             self.EFFECT_NO = 4
@@ -111,3 +153,5 @@ class Buzzer:
         """
         if self._buzzer:
             self._buzzer.play_sound_effect(effect_number, self._volume)
+
+# This library was co-authored with Google's Gemini AI.
