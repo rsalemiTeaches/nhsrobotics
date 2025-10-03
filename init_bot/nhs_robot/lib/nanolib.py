@@ -57,13 +57,32 @@ class NanoLED:
             g (int): The green value, 1 for ON, 0 for OFF.
             b (int): The blue value, 1 for ON, 0 for OFF.
         """
-        # --- MODIFIED LOGIC ---
         # Convert binary (0/1) input to 8-bit (0/255) scale for internal use.
         r = 1 if r != 0 else 0
         g = 1 if g != 0 else 0
         b = 1 if b != 0 else 0
         self._color = (r * 255, g * 255, b * 255)
         self._update_led()
+
+    # --- NEW FUNCTION ---
+    def set_rgb(self, r, g, b):
+        """
+        Sets the color of the LED using 8-bit RGB values (0-255).
+        This allows for setting any custom color.
+        
+        Args:
+            r (int): The red value, from 0 to 255.
+            g (int): The green value, from 0 to 255.
+            b (int): The blue value, from 0 to 255.
+        """
+        # Clamp values to the valid 0-255 range to prevent errors.
+        r = max(0, min(255, int(r)))
+        g = max(0, min(255, int(g)))
+        b = max(0, min(255, int(b)))
+        
+        self._color = (r, g, b)
+        self._update_led()
+    # --- END NEW FUNCTION ---
 
     def set_brightness(self, percentage):
         """
