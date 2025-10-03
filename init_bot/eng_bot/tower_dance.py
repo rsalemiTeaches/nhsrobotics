@@ -52,7 +52,7 @@ try:
         # --- 1. Forward/Backward Movement ---
 
         # Choose a random distance between 3 and 9 centimeters.
-        move_distance_cm = random.uniform(3, 9)
+        move_distance_cm = random.uniform(3, 8)
         
         # Choose a random direction (1 for forward, -1 for backward).
         move_direction = random.choice([1, -1])
