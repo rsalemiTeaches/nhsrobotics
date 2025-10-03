@@ -1,84 +1,96 @@
-# Alvik Tower Dance Code
-# This program makes the Alvik robot move randomly on a platform
-# without falling off, to test the stability of a student-built tower.
+# Alvik Tower Dance Code - Stress Test Version (Distance-Based)
+# This program makes the Alvik robot perform a series of random
+# forward, backward, and turning motions for a fixed duration to test
+# the stability of the student-built tower. This version uses the
+# official distance and rotation functions from the library.
 
 # Import necessary libraries
-from arduino_alvik import Alvik
+from arduino_alvik import ArduinoAlvik
 import time
 import random
 
 # --- Constants ---
-# The distance (in mm) from the ToF sensor that we consider a "cliff" or edge.
-# If the sensor reading is GREATER than this, we've found an edge.
-CLIFF_THRESHOLD = 150
-
-# The speed for forward and turning movements (0-100).
-# A lower speed is safer for this project.
-MOVE_SPEED = 30
-TURN_SPEED = 40
+# The total duration of the test dance in seconds.
+TEST_DURATION = 30
 
 # --- Main Program ---
 try:
-    # Initialize the Alvik robot. This is always the first step.
-    alvik = Alvik()
+    # Initialize the Alvik robot.
+    alvik = ArduinoAlvik()
+    # ** Wake up the robot's hardware. **
+    alvik.begin()
 
-    # The main loop. It will continue running until the user presses
-    # the 'X' (cancel) button on the Alvik.
-    while not alvik.get_touch_cancel():
-
-        # --- Forward Movement Phase ---
-        # Set LEDs to green to show we are safely moving forward.
+    # --- Wait for Start Signal ---
+    print("Ready to dance... Press OK (checkmark) to start.")
+    # Loop indefinitely, blinking the LEDs, until the OK button is pressed.
+    while not alvik.get_touch_ok():
         alvik.left_led.set_color(0, 1, 0)  # Green
         alvik.right_led.set_color(0, 1, 0) # Green
+        time.sleep(0.25)
+        alvik.left_led.set_color(0, 0, 0)  # Off
+        alvik.right_led.set_color(0, 0, 0) # Off
+        time.sleep(0.25)
 
-        # Start moving forward.
-        alvik.set_motors(MOVE_SPEED, MOVE_SPEED)
+        # Allow user to cancel the program while waiting
+        if alvik.get_touch_cancel():
+            raise KeyboardInterrupt("Program cancelled by user before dance started.")
 
-        # Keep checking the distance sensor. As long as the distance is LESS
-        # than our threshold, it means the robot sees the platform and is safe.
-        while alvik.get_distance() < CLIFF_THRESHOLD:
-            # A small delay to prevent the loop from running too fast.
-            time.sleep(0.01)
-            # If the user presses X during this inner loop, break out.
-            if alvik.get_touch_cancel():
-                break
+    # --- Start the Timed Dance ---
+    # Get the start time of the test.
+    start_time = time.time()
+
+    print(f"Starting {TEST_DURATION} second tower dance...")
+
+    # The main loop. It runs as long as the elapsed time is less than the total test duration
+    # AND the user has not pressed the 'X' (cancel) button.
+    while (time.time() - start_time) < TEST_DURATION and not alvik.get_touch_cancel():
+
+        # Set LEDs to blue to indicate the test is running.
+        alvik.left_led.set_color(0, 0, 1)  # Blue
+        alvik.right_led.set_color(0, 0, 1) # Blue
+
+        # --- 1. Forward/Backward Movement ---
+
+        # Choose a random distance between 3 and 9 centimeters.
+        move_distance_cm = random.uniform(3, 9)
         
-        # If the loop above breaks, it means a cliff has been detected!
-        # Now, execute the avoidance maneuver.
+        # Choose a random direction (1 for forward, -1 for backward).
+        move_direction = random.choice([1, -1])
 
-        # --- Avoidance Maneuver Phase ---
-        # Immediately stop the motors.
-        alvik.stop()
-
-        # Set LEDs to red to indicate an edge was detected.
-        alvik.left_led.set_color(1, 0, 0)  # Red
-        alvik.right_led.set_color(1, 0, 0) # Red
+        # Move the specified distance. The function defaults to 'cm'.
+        alvik.move(move_distance_cm * move_direction)
         time.sleep(0.2) # A brief pause
 
-        # Back up for a short, fixed duration to get away from the edge.
-        alvik.set_motors(-MOVE_SPEED, -MOVE_SPEED)
-        time.sleep(0.5)
-        alvik.stop()
-        time.sleep(0.2)
+        # --- 2. Return to Start ---
 
-        # Choose a random direction to turn (1 for right, -1 for left).
-        turn_direction = random.choice([-1, 1])
+        # Move in the opposite direction for the SAME distance to return to the center.
+        alvik.move(-move_distance_cm * move_direction)
+        time.sleep(0.2) # A brief pause
 
-        # Choose a random duration for the turn to make it unpredictable.
-        turn_duration = random.uniform(0.4, 0.8) # Turn for 0.4 to 0.8 seconds
+        # --- 3. Turning Movement ---
+        
+        # Choose a random angle to turn in degrees.
+        turn_angle = random.randint(45, 120)
 
-        # Execute the turn.
-        alvik.set_motors(TURN_SPEED * turn_direction, -TURN_SPEED * turn_direction)
-        time.sleep(turn_duration)
-        alvik.stop()
-        time.sleep(0.2)
+        # Choose a random turn direction (1 for right, -1 for left).
+        turn_direction = random.choice([1, -1])
+
+        # Execute the turn for the specified angle. 
+        # The speed argument is removed as it caused the error.
+        alvik.rotate(turn_angle * turn_direction)
+        time.sleep(0.2) # A brief pause before the next cycle
+
+    # After the loop, check why it ended.
+    if alvik.get_touch_cancel():
+        print("Emergency stop button pressed.")
+    else:
+        print("Dance complete.")
 
 finally:
     # This 'finally' block is MANDATORY for all Alvik programs.
-    # It ensures that no matter what happens (even an error or the user
-    # pressing 'X'), the motors will be safely turned off.
+    # It ensures that no matter what happens, the motors will be safely turned off.
     alvik.stop()
-    # Turn off the LEDs as well.
+    # Turn off the LEDs.
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
     print("Program stopped safely.")
