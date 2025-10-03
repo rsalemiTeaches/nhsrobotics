@@ -1,138 +1,85 @@
-#!/bin/bash
-# v8 - Corrected cleanup logic
+# Alvik Tower Dance Code
+# This program makes the Alvik robot move randomly on a platform
+# without falling off, to test the stability of a student-built tower.
 
-# ==============================================================================
-# Alvik Robot Initialization Script (with Update Mode)
-#
-# This script synchronizes a MicroPython device to a desired state.
-#
-# ==============================================================================
+# Import necessary libraries
+from arduino_alvik import Alvik
+import time
+import random
 
-set -e # Exit immediately if a command exits with a non-zero status.
+# --- Constants ---
+# The distance (in mm) from the ToF sensor that we consider a "cliff" or edge.
+# If the sensor reading is GREATER than this, we've found an edge.
+CLIFF_THRESHOLD = 150
 
-# --- CONFIGURATION ---
-WHITELIST=("/lib" "/solutions")
+# The speed for forward and turning movements (0-100).
+# A lower speed is safer for this project.
+MOVE_SPEED = 30
+TURN_SPEED = 40
 
-FULL_COPY_LIST=("config.py" "main.py" "batterycheck.py" "demo" "lib" "projects" "firmware.bin")
-DESTINATION_LIST=(":" ":" ":" ":" ":" ":")
+# --- Main Program ---
+try:
+    # Initialize the Alvik robot. This is always the first step.
+    alvik = Alvik()
 
-UPDATE_COPY_LIST=("lib")
+    # The main loop. It will continue running until the user presses
+    # the 'X' (cancel) button on the Alvik.
+    while not alvik.get_touch_cancel():
 
-# --- SCRIPT LOGIC ---
-MODE="full"
-PORT=""
+        # --- Forward Movement Phase ---
+        # Set LEDs to green to show we are safely moving forward.
+        alvik.left_led.set_color(0, 1, 0)  # Green
+        alvik.right_led.set_color(0, 1, 0) # Green
 
-# --- Argument Parsing ---
-while [[ $# -gt 0 ]]; do
-    key="$1"
-    case $key in
-        -u|--update)
-        MODE="update"
-        shift
-        ;;
-        -p|--port)
-        PORT="$2"
-        shift 2
-        ;;
-        *)
-        echo "Unknown option: $1"
-        exit 1
-        ;;
-    esac
-done
+        # Start moving forward.
+        alvik.set_motors(MOVE_SPEED, MOVE_SPEED)
 
-echo "Running initialize_robot.sh - v8"
-
-# --- Auto-detect port and build command arguments ---
-if [ -z "$PORT" ]; then
-    echo "🔎 Port not specified. Auto-detecting Alvik..."
-    PORT=$(mpremote connect list | grep 'usbmodem' | awk '{print $1}' | head -n 1)
-    if [ -z "$PORT" ]; then
-        echo "❌ ERROR: No Alvik robot found. Please connect the robot and try again, or specify a port with -p."
-        exit 1
-    fi
-    echo "✅ Found Alvik on port: $PORT"
-fi
-
-# CORRECTED: Use an array for command arguments for robustness.
-CONNECT_ARGS=("connect" "${PORT}")
-
-
-# --- EXECUTION ---
-
-if [ "$MODE" = "full" ]; then
-    echo "🚀 Starting FULL INSTALLATION for device..."
-    echo "   (This will delete existing files)"
-    
-    echo "------------------------------------------"
-    echo "🔎 Reading remote file system..."
-    # Use the argument array for the command
-    REMOTE_FILES=$(mpremote "${CONNECT_ARGS[@]}" ls -r :)
-    echo "✅ Remote file system read."
-    echo "------------------------------------------"
-    echo "🧹 Cleaning the device (keeping whitelist)..."
-
-    while IFS= read -r path; do
-        if [ -z "$path" ]; then continue; fi
-        normalized_path="/${path#*:}"
-        on_whitelist=false
-        for whitelisted_item in "${WHITELIST[@]}"; do
-            if [[ "$normalized_path" == "$whitelisted_item"* ]]; then
-                on_whitelist=true
+        # Keep checking the distance sensor. As long as the distance is LESS
+        # than our threshold, it means the robot sees the platform and is safe.
+        while alvik.get_distance() < CLIFF_THRESHOLD:
+            # A small delay to prevent the loop from running too fast.
+            time.sleep(0.01)
+            # If the user presses X during this inner loop, break out.
+            if alvik.get_touch_cancel():
                 break
-            fi
-        done
-        if [ "$on_whitelist" = false ]; then
-            echo "   - Deleting '$path'"
-            mpremote "${CONNECT_ARGS[@]}" rm -r "$path" > /dev/null 2>&1 || true
-        else
-            echo "   - Keeping '$path' (whitelisted)"
-        fi
-    done <<< "$REMOTE_FILES"
-    echo "✅ Device cleaned."
-    
-    # --- FIX ---
-    # The redundant /lib cleanup block that was here has been removed.
-    # The main loop above now correctly handles the whitelist.
+        
+        # If the loop above breaks, it means a cliff has been detected!
+        # Now, execute the avoidance maneuver.
 
-    echo "------------------------------------------"
-    echo "📂 Copying new files to the device..."
-    for i in "${!FULL_COPY_LIST[@]}"; do
-        source_item="${FULL_COPY_LIST[$i]}"
-        dest_item="${DESTINATION_LIST[$i]}"
-        if [ -e "$source_item" ]; then
-            echo "   - Copying '$source_item' to '$dest_item'"
-            mpremote "${CONNECT_ARGS[@]}" cp -r "$source_item" "$dest_item"
-        else
-            echo "   - WARNING: Local file '$source_item' not found. Skipping."
-        fi
-    done
-    echo "✅ File copy complete."
+        # --- Avoidance Maneuver Phase ---
+        # Immediately stop the motors.
+        alvik.stop()
 
-elif [ "$MODE" = "update" ]; then
-    echo "🚀 Starting LIBRARY UPDATE for device..."
-    echo "   (This will NOT delete any files)"
-    echo "------------------------------------------"
-    echo "📂 Syncing updated library files to the device..."
+        # Set LEDs to red to indicate an edge was detected.
+        alvik.left_led.set_color(1, 0, 0)  # Red
+        alvik.right_led.set_color(1, 0, 0) # Red
+        time.sleep(0.2) # A brief pause
 
-    for item in "${UPDATE_COPY_LIST[@]}"; do
-        if [ ! -e "$item" ]; then
-            echo "   - WARNING: Local item '$item' not found. Skipping."
-            continue
-        fi
+        # Back up for a short, fixed duration to get away from the edge.
+        alvik.set_motors(-MOVE_SPEED, -MOVE_SPEED)
+        time.sleep(0.5)
+        alvik.stop()
+        time.sleep(0.2)
 
-        if [ -d "$item" ]; then
-            source_path_glob="${item}/*"
-            dest_path=":${item}/"
-            echo "   - Syncing contents of '$item' to '$dest_path'"
-            mpremote "${CONNECT_ARGS[@]}" cp -r ${source_path_glob} "${dest_path}"
-        else
-            source_path="$item"
-            dest_path=":"
-            echo "   - Copying file '$source_path' to '$dest_path'"
-            mpremote "${CONNECT_ARGS[@]}" cp "$source_path" "$dest_path"
-        fi
-    done
-    echo "✅ Update complete."
-fi
+        # Choose a random direction to turn (1 for right, -1 for left).
+        turn_direction = random.choice([-1, 1])
+
+        # Choose a random duration for the turn to make it unpredictable.
+        turn_duration = random.uniform(0.4, 0.8) # Turn for 0.4 to 0.8 seconds
+
+        # Execute the turn.
+        alvik.set_motors(TURN_SPEED * turn_direction, -TURN_SPEED * turn_direction)
+        time.sleep(turn_duration)
+        alvik.stop()
+        time.sleep(0.2)
+
+finally:
+    # This 'finally' block is MANDATORY for all Alvik programs.
+    # It ensures that no matter what happens (even an error or the user
+    # pressing 'X'), the motors will be safely turned off.
+    alvik.stop()
+    # Turn off the LEDs as well.
+    alvik.left_led.set_color(0, 0, 0)
+    alvik.right_led.set_color(0, 0, 0)
+    print("Program stopped safely.")
 
