@@ -84,7 +84,7 @@ try:
             nano_led.set_rgb(r, g, b)
 
         # --- 1. Forward/Backward Movement ---
-        move_distance_cm = random.uniform(3, 9)
+        move_distance_cm = random.uniform(3, 6)
         move_direction = random.choice([1, -1])
         alvik.move(move_distance_cm * move_direction)
         time.sleep(0.2)
