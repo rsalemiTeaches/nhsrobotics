@@ -1,5 +1,5 @@
 #!/bin/bash
-# v22 - Add auto-creation of safety marker file in /workspace.
+# v23 - Replaced faulty 'rsync' with a reliable 'cp' loop.
 
 # ==============================================================================
 # Alvik Robot Synchronization Script
@@ -36,7 +36,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Running initialize_robot.sh - v22"
+echo "Running initialize_robot.sh - v23"
 
 # --- Validate Arguments ---
 if [ -z "$SOURCE_DIR" ]; then
@@ -66,7 +66,6 @@ CONNECT_ARGS=("connect" "${PORT}")
 # --- Ensure /workspace directory and safety file exist ---
 echo "------------------------------------------"
 echo "🛠️  Ensuring /workspace directory and safety file exist..."
-# Try to list the workspace directory. If the command fails, the directory doesn't exist.
 if ! mpremote "${CONNECT_ARGS[@]}" ls :workspace > /dev/null 2>&1; then
     echo "   - /workspace not found. Creating it..."
     mpremote "${CONNECT_ARGS[@]}" mkdir :workspace
@@ -75,11 +74,9 @@ else
     echo "   - ✅ /workspace already exists."
 fi
 
-# Check for the safety file
 SAFETY_FILE_PATH=":workspace/STORE_FILES_HERE_FOR_SAFETY.md"
 if ! mpremote "${CONNECT_ARGS[@]}" ls "${SAFETY_FILE_PATH}" > /dev/null 2>&1; then
     echo "   - Safety marker file not found. Creating it..."
-    # Use mpremote exec to run a small piece of MicroPython to create the file
     mpremote "${CONNECT_ARGS[@]}" exec "with open('/workspace/STORE_FILES_HERE_FOR_SAFETY.md', 'w') as f: f.write('# This is a safe place for your files!')"
     echo "   - ✅ Safety marker file created."
 else
@@ -88,14 +85,12 @@ fi
 
 
 # --- Build Whitelist ---
-WHITELIST=("/workspace") # Start with the mandatory safe directory
+WHITELIST=("/workspace") 
 if [ -f "${SOURCE_DIR}/${ROBOTIGNORE_FILENAME}" ]; then
     echo "------------------------------------------"
     echo "Found .robotignore file. Building whitelist..."
     while IFS= read -r line; do
-        # Ignore comments and empty lines
         if [[ -n "$line" && ! "$line" =~ ^\s*# ]]; then
-            # Ensure path starts with a slash for consistent matching
             WHITELIST+=("/${line}")
             echo "   - Adding '/${line}' to whitelist."
         fi
@@ -105,6 +100,7 @@ fi
 # --- Get File Lists ---
 echo "------------------------------------------"
 echo "🔎 Reading local and remote file systems..."
+# Get a list of top-level files/dirs in the source directory
 LOCAL_FILES=($(cd "$SOURCE_DIR" && ls -A))
 REMOTE_FILES=$(mpremote "${CONNECT_ARGS[@]}" ls -r :)
 echo "✅ File systems read."
@@ -154,9 +150,17 @@ echo "✅ Stale files cleaned."
 echo "------------------------------------------"
 echo "📂 Copying new/changed files to the device from '$SOURCE_DIR'..."
 
-# Use rsync to copy files. It is more efficient than a simple cp loop.
-mpremote "${CONNECT_ARGS[@]}" rsync -m "$SOURCE_DIR" ":"
+# CORRECTED: Loop through local files and use 'cp' instead of 'rsync'.
+for item in "${LOCAL_FILES[@]}"; do
+    # Skip the .robotignore file itself
+    if [[ "$item" == "$ROBOTIGNORE_FILENAME" ]]; then
+        continue
+    fi
+    source_path="${SOURCE_DIR}/${item}"
+    dest_path=":"
+    echo "   - Copying '${item}' to '${dest_path}'"
+    mpremote "${CONNECT_ARGS[@]}" cp -r "${source_path}" "${dest_path}"
+done
 
 echo "✅ Synchronization complete."
-
 
