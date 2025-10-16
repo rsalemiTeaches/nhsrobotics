@@ -1,5 +1,5 @@
 #!/bin/bash
-# v20 - Implement intelligent sync: only delete remote files not present locally.
+# v22 - Add auto-creation of safety marker file in /workspace.
 
 # ==============================================================================
 # Alvik Robot Synchronization Script
@@ -36,7 +36,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Running initialize_robot.sh - v20"
+echo "Running initialize_robot.sh - v22"
 
 # --- Validate Arguments ---
 if [ -z "$SOURCE_DIR" ]; then
@@ -63,66 +63,59 @@ fi
 # Use an array for command arguments for robustness.
 CONNECT_ARGS=("connect" "${PORT}")
 
-
-# --- EXECUTION ---
-
-echo "🚀 Starting SYNCHRONIZATION for device..."
-echo "   (This will delete stale remote files)"
-
-# --- Read Ignore File to build Whitelist and Ignore List ---
-ROBOTIGNORE_FILE="${SOURCE_DIR}/${ROBOTIGNORE_FILENAME}"
-WHITELIST=("/workspace")
-IGNORE_LIST=()
-
-if [ -f "$ROBOTIGNORE_FILE" ]; then
-    echo "------------------------------------------"
-    echo "🔎 Found ignore file: $ROBOTIGNORE_FILE"
-    while IFS= read -r line; do
-        if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then continue; fi
-        IGNORE_LIST+=("$line")
-    done < "$ROBOTIGNORE_FILE"
-    
-    for item in "${IGNORE_LIST[@]}"; do
-        WHITELIST+=("/${item}")
-    done
+# --- Ensure /workspace directory and safety file exist ---
+echo "------------------------------------------"
+echo "🛠️  Ensuring /workspace directory and safety file exist..."
+# Try to list the workspace directory. If the command fails, the directory doesn't exist.
+if ! mpremote "${CONNECT_ARGS[@]}" ls :workspace > /dev/null 2>&1; then
+    echo "   - /workspace not found. Creating it..."
+    mpremote "${CONNECT_ARGS[@]}" mkdir :workspace
+    echo "   - ✅ /workspace created."
 else
-    echo "------------------------------------------"
-    echo "🔎 No .robotignore file found."
+    echo "   - ✅ /workspace already exists."
 fi
 
-echo "ℹ️ The '/workspace' directory on the robot is protected from deletion."
+# Check for the safety file
+SAFETY_FILE_PATH=":workspace/STORE_FILES_HERE_FOR_SAFETY.md"
+if ! mpremote "${CONNECT_ARGS[@]}" ls "${SAFETY_FILE_PATH}" > /dev/null 2>&1; then
+    echo "   - Safety marker file not found. Creating it..."
+    # Use mpremote exec to run a small piece of MicroPython to create the file
+    mpremote "${CONNECT_ARGS[@]}" exec "with open('/workspace/STORE_FILES_HERE_FOR_SAFETY.md', 'w') as f: f.write('# This is a safe place for your files!')"
+    echo "   - ✅ Safety marker file created."
+else
+    echo "   - ✅ Safety marker file already exists."
+fi
 
-# --- Get Local File List (respecting ignore list) ---
-echo "------------------------------------------"
-echo "🔎 Reading local file system from '$SOURCE_DIR'..."
-LOCAL_FILES=()
-while IFS= read -r item_path; do
-    item_name=$(basename "$item_path")
-    if [ "$item_name" = "$ROBOTIGNORE_FILENAME" ]; then continue; fi
-    is_ignored=false
-    for ignored_item in "${IGNORE_LIST[@]}"; do
-        if [[ "$item_name" == "$ignored_item" ]]; then
-            is_ignored=true
-            break
+
+# --- Build Whitelist ---
+WHITELIST=("/workspace") # Start with the mandatory safe directory
+if [ -f "${SOURCE_DIR}/${ROBOTIGNORE_FILENAME}" ]; then
+    echo "------------------------------------------"
+    echo "Found .robotignore file. Building whitelist..."
+    while IFS= read -r line; do
+        # Ignore comments and empty lines
+        if [[ -n "$line" && ! "$line" =~ ^\s*# ]]; then
+            # Ensure path starts with a slash for consistent matching
+            WHITELIST+=("/${line}")
+            echo "   - Adding '/${line}' to whitelist."
         fi
-    done
-    if [ "$is_ignored" = false ]; then
-        LOCAL_FILES+=("$item_name")
-    fi
-done < <(find "$SOURCE_DIR" -mindepth 1 -maxdepth 1)
-echo "✅ Local file system read."
+    done < "${SOURCE_DIR}/${ROBOTIGNORE_FILENAME}"
+fi
 
-
-# --- Clean Stale Files from Device ---
+# --- Get File Lists ---
 echo "------------------------------------------"
-echo "🔎 Reading remote file system..."
-REMOTE_FILES=$(mpremote "${CONNECT_ARGS[@]}" ls : 2>/dev/null || true)
-echo "✅ Remote file system read."
+echo "🔎 Reading local and remote file systems..."
+LOCAL_FILES=($(cd "$SOURCE_DIR" && ls -A))
+REMOTE_FILES=$(mpremote "${CONNECT_ARGS[@]}" ls -r :)
+echo "✅ File systems read."
+
+
+# --- Clean Stale Files ---
 echo "------------------------------------------"
 echo "🧹 Cleaning stale files from the device..."
 
 while IFS= read -r line; do
-    if [ -z "$line" ] || [[ "$line" == "ls :"* ]]; then continue; fi
+    if [ -z "$line" ] || [[ "$line" == "ls :/"* ]]; then continue; fi
 
     item_name=$(echo "$line" | sed 's/^[ ]*[0-9]*[ ]*//')
     item_name=${item_name%/}
@@ -161,11 +154,9 @@ echo "✅ Stale files cleaned."
 echo "------------------------------------------"
 echo "📂 Copying new/changed files to the device from '$SOURCE_DIR'..."
 
-for item_name in "${LOCAL_FILES[@]}"; do
-    item_path="${SOURCE_DIR}/${item_name}"
-    echo "   - Syncing '$item_name' to ':'"
-    mpremote "${CONNECT_ARGS[@]}" cp -r "$item_path" ":"
-done
+# Use rsync to copy files. It is more efficient than a simple cp loop.
+mpremote "${CONNECT_ARGS[@]}" rsync -m "$SOURCE_DIR" ":"
 
 echo "✅ Synchronization complete."
+
 
