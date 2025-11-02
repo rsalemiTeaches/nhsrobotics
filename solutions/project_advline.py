@@ -1,9 +1,9 @@
 #############################
 #         Project 11        #
-#          Line Racer       #
+#     Advanced Line Racer   #
 #############################
 
-# This project uses a fine-grained state machine
+# This project uses a more advanced, fine-grained state machine
 # to navigate the line and avoid an obstacle. Each step of the
 # avoidance maneuver is its own state. It also adds sound
 # effects using the Qwiic Buzzer for better feedback.
@@ -29,20 +29,23 @@ LINE_FOUND_THRESHOLD = 400 # If the max sensor value is over this, we see the li
 SEARCH_SPEED = 20
 
 # Maneuver Configuration - Tuned for a quicker race
-# NOTE: Negative values turn the robot RIGHT, Positive values turn LEFT.
-AVOID_TURN_1 = -90 # First turn RIGHT, away from the line
+AVOID_TURN_1 = 90  # First turn away from the line
 AVOID_STRAIGHT_1 = 15
-AVOID_TURN_2 = 90  # Turn LEFT to be parallel
+AVOID_TURN_2 = -90 # Turn back to be parallel
 AVOID_STRAIGHT_2 = 25
-AVOID_TURN_3 = 90  # Turn LEFT again to head back towards the line
-ALIGN_TURN = -70   # Final turn RIGHT to align with the line
+AVOID_TURN_3 = -90 # Turn back towards the line
+ALIGN_TURN = 70   # A negative value correctly turns the robot LEFT
 
 # --- Helper Functions ---
 def get_turn_adjustment(left_val, center_val, right_val):
+    # We now check if the MAX sensor value is below a threshold.
+    # This is less sensitive than checking the sum.
     if max(left_val, center_val, right_val) < LINE_FOUND_THRESHOLD:
         return 0
+
     sum_values = (left_val * 1) + (center_val * 2) + (right_val * 3)
     sum_weight = left_val + center_val + right_val
+    # Add a check to prevent division by zero if sum_weight is 0
     if sum_weight == 0:
         return 0
     centroid = sum_values / sum_weight
@@ -53,6 +56,7 @@ def get_turn_adjustment(left_val, center_val, right_val):
 alvik = ArduinoAlvik()
 my_buzzer = Buzzer()
 
+# Start in the default state
 current_state = LINE_FOLLOWING
 
 try:
@@ -63,6 +67,7 @@ try:
     while True:
         if alvik.get_touch_ok():
             break
+        # Blinking startup lights...
         alvik.left_led.set_color(0, 0, 1)
         alvik.right_led.set_color(0, 0, 1)
         sleep_ms(100)
@@ -84,7 +89,6 @@ try:
 
         # --- THINK & ACT: The Fine-Grained State Machine ---
 
-        # This state is complete for you as an example.
         if current_state == LINE_FOLLOWING:
             alvik.left_led.set_color(0, 1, 0) # Green
             if closest_distance < OBSTACLE_DISTANCE:
@@ -94,35 +98,29 @@ try:
                 control_signal = adjustment * KP
                 alvik.set_wheels_speed(BASE_SPEED + control_signal, BASE_SPEED - control_signal)
 
-        # This state is also complete for you.
         elif current_state == SEE_OBSTACLE:
             alvik.set_wheels_speed(0, 0)
             my_buzzer.play_effect(my_buzzer.EFFECT_NO) # Warning sound
             print("State: SEE_OBSTACLE -> DRIVE_FROM_LINE")
             current_state = DRIVE_FROM_LINE
-            sleep_ms(500)
+            sleep_ms(500) # Pause to make the state change clear
 
         elif current_state == DRIVE_FROM_LINE:
             alvik.left_led.set_color(1, 1, 0) # Yellow
             alvik.right_led.set_color(1, 1, 0)
-            # WORK: Call alvik.rotate() and alvik.move() to perform the
-            # WORK: first part of the avoidance maneuver. Use the constants
-            # WORK: AVOID_TURN_1 and AVOID_STRAIGHT_1.
-
+            alvik.rotate(AVOID_TURN_1)
+            alvik.move(AVOID_STRAIGHT_1)
             print("State: DRIVE_FROM_LINE -> DRIVE_AROUND")
             current_state = DRIVE_AROUND
 
         elif current_state == DRIVE_AROUND:
             alvik.left_led.set_color(1, 1, 0) # Yellow
             alvik.right_led.set_color(1, 1, 0)
-            # WORK: Call alvik.rotate() and alvik.move() twice to complete
-            # WORK: the maneuver around the obstacle. Use the constants
-            # WORK: AVOID_TURN_2, AVOID_STRAIGHT_2, and AVOID_TURN_3.
-
-            # WORK: After the maneuver is done, set the current_state
-            # WORK: to LOOK_FOR_THE_LINE.
-
+            alvik.rotate(AVOID_TURN_2)
+            alvik.move(AVOID_STRAIGHT_2)
+            alvik.rotate(AVOID_TURN_3) # Perform final turn before searching
             print("State: DRIVE_AROUND -> LOOK_FOR_THE_LINE")
+            current_state = LOOK_FOR_THE_LINE
 
         elif current_state == LOOK_FOR_THE_LINE:
             alvik.left_led.set_color(0, 0, 1) # Blue
@@ -130,22 +128,21 @@ try:
             my_buzzer.set_frequency(1500)
             my_buzzer.set_duration(100)
             my_buzzer.on()
+            alvik.set_wheels_speed(SEARCH_SPEED, SEARCH_SPEED)
 
-            # WORK: Set the wheel speed to SEARCH_SPEED to drive forward.
+            # Transition check: Have we found the line?
+            # Use the new, more robust check.
+            if max(l_sensor, c_sensor, r_sensor) > LINE_FOUND_THRESHOLD:
+                current_state = FOUND_THE_LINE
 
-            # WORK: Write an if statement to check if the robot has found the
-            # WORK: line again. Use max() and LINE_FOUND_THRESHOLD.
-            # WORK: If it has found the line, change the current_state to FOUND_THE_LINE.
-
-
-        # WORK: Write the entire final state, `FOUND_THE_LINE`, from scratch.
-        # WORK: It should be an `elif` block that checks if the
-        # WORK: current_state is equal to FOUND_THE_LINE.
-        # WORK: Inside, it should:
-        # WORK: 1. Stop the robot.
-        # WORK: 2. Play the "Yes" sound effect.
-        # WORK: 3. Perform the final alignment turn using ALIGN_TURN.
-        # WORK: 4. Change the current_state back to LINE_FOLLOWING.
+        elif current_state == FOUND_THE_LINE:
+            alvik.set_wheels_speed(0, 0)
+            my_buzzer.play_effect(my_buzzer.EFFECT_YES) # Found it!
+            print("State: Aligning with line...")
+            alvik.rotate(ALIGN_TURN) # Line up
+            print("State: -> LINE_FOLLOWING")
+            current_state = LINE_FOLLOWING
+            sleep_ms(250)
 
         sleep_ms(20)
 
