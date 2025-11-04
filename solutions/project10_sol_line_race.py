@@ -22,17 +22,17 @@ LOOK_FOR_THE_LINE = 5
 FOUND_THE_LINE = 6
 
 # --- Configuration ---
-BASE_SPEED = 40
+BASE_SPEED = 35
 OBSTACLE_DISTANCE = 7  # How close to get before avoiding.
-KP = 25.0
+KP = 50.0
 LINE_FOUND_THRESHOLD = 400 # If the max sensor value is over this, we see the line.
 SEARCH_SPEED = 20
 
 # Maneuver Configuration - Tuned for a quicker race
 AVOID_TURN_1 = 90  # First turn away from the line
-AVOID_STRAIGHT_1 = 15
+AVOID_STRAIGHT_1 = 10
 AVOID_TURN_2 = -90 # Turn back to be parallel
-AVOID_STRAIGHT_2 = 25
+AVOID_STRAIGHT_2 = 20
 AVOID_TURN_3 = -90 # Turn back towards the line
 ALIGN_TURN = 70   # A negative value correctly turns the robot LEFT
 
@@ -54,7 +54,7 @@ def get_turn_adjustment(left_val, center_val, right_val):
 
 # --- Main Program ---
 alvik = ArduinoAlvik()
-my_buzzer = Buzzer()
+# my_buzzer = Buzzer()
 
 # Start in the default state
 current_state = LINE_FOLLOWING
@@ -100,7 +100,7 @@ try:
 
         elif current_state == SEE_OBSTACLE:
             alvik.set_wheels_speed(0, 0)
-            my_buzzer.play_effect(my_buzzer.EFFECT_NO) # Warning sound
+   #         my_buzzer.play_effect(my_buzzer.EFFECT_NO) # Warning sound
             print("State: SEE_OBSTACLE -> DRIVE_FROM_LINE")
             current_state = DRIVE_FROM_LINE
             sleep_ms(500) # Pause to make the state change clear
@@ -125,9 +125,9 @@ try:
         elif current_state == LOOK_FOR_THE_LINE:
             alvik.left_led.set_color(0, 0, 1) # Blue
             alvik.right_led.set_color(0, 0, 1)
-            my_buzzer.set_frequency(1500)
-            my_buzzer.set_duration(100)
-            my_buzzer.on()
+        #    my_buzzer.set_frequency(1500)
+        #    my_buzzer.set_duration(100)
+       #     my_buzzer.on()
             alvik.set_wheels_speed(SEARCH_SPEED, SEARCH_SPEED)
 
             # Transition check: Have we found the line?
@@ -137,7 +137,7 @@ try:
 
         elif current_state == FOUND_THE_LINE:
             alvik.set_wheels_speed(0, 0)
-            my_buzzer.play_effect(my_buzzer.EFFECT_YES) # Found it!
+    #        my_buzzer.play_effect(my_buzzer.EFFECT_YES) # Found it!
             print("State: Aligning with line...")
             alvik.rotate(ALIGN_TURN) # Line up
             print("State: -> LINE_FOLLOWING")
@@ -147,6 +147,6 @@ try:
         sleep_ms(20)
 
 finally:
-    my_buzzer.off()
+ #   my_buzzer.off()
     alvik.stop()
     print("Race finished.")
