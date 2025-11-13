@@ -7,8 +7,7 @@
 
 from arduino_alvik import ArduinoAlvik
 import time
-# We removed NanoLED, as this demo uses the main Alvik LEDs.
-# from nhs_robotics import NanoLED 
+from nhs_robotics import NanoLED 
 
 # ---------------------------------------------------------------------
 # PART 1: THE BUTTON CLASS
