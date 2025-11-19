@@ -8,7 +8,7 @@
 # # WORK: sections to complete the logic.
 
 from arduino_alvik import ArduinoAlvik
-import time
+from time import sleep_ms
 from nhs_robotics import get_closest_distance
 
 # ---------------------------------------------------------------------
@@ -23,19 +23,19 @@ STATE_AVOID_1_TURN_LEFT_45 = 3 # Turn 45 degrees LEFT
 STATE_AVOID_2_DRIVE = 4        # Drive forward
 STATE_AVOID_3_TURN_RIGHT_90 = 5 # Turn 90 degrees RIGHT
 STATE_AVOID_4_FIND_LINE = 6    # Drive forward until center sensor finds line
-
+STATE_TURN_TO_LINE = 7
 # --- Sensor Thresholds ---
-OBSTACLE_DISTANCE = 15  # How close to get before avoiding (in cm)
+OBSTACLE_DISTANCE = 7  # How close to get before avoiding (in cm)
 LINE_BLACK_THRESHOLD = 700 # Value to be "on the line"
 
 # --- Motor Speeds ---
-RACE_SPEED = 60      # Base speed for line following
+RACE_SPEED = 35      # Base speed for line following
 FIND_LINE_SPEED = 30 # Speed for re-acquiring the line
 
 # --- Maneuver Constants ---
 # WORK: Tune these values!
 AVOID_TURN_1 = 45   # Step 1: Turn 45 degrees LEFT
-AVOID_DRIVE_CM = 25   # Step 2: Drive 25 cm
+AVOID_DRIVE_CM = 15   # Step 2: Drive 25 cm
 AVOID_TURN_2 = -90  # Step 3: Turn 90 degrees RIGHT
 
 # ---------------------------------------------------------------------
@@ -62,7 +62,7 @@ def get_turn_adjustment(l_sensor, c_sensor, r_sensor):
     error = centroid - 2.0
     
     # KP is the "Proportional Gain"
-    KP = 25
+    KP = 50
     
     adjustment = error * KP
     return adjustment
@@ -100,10 +100,10 @@ try:
             # --- ACT ---
             alvik.left_led.set_color(0, 0, 1) # Blue
             alvik.right_led.set_color(0, 0, 1) # Blue
-            time.sleep(0.2)
+            sleep_ms(200)
             alvik.left_led.set_color(0, 0, 0) # Off
             alvik.right_led.set_color(0, 0, 0) # Off
-            time.sleep(0.2)
+            sleep_ms(200)
             
             # --- THINK (Transitions) ---
             if alvik.get_touch_ok():
@@ -124,8 +124,8 @@ try:
             # --- THINK (Transitions) ---
             if sees_obstacle:
                print("Obstacle detected! Starting avoidance...")
-               alvik.stop()
-               current_state = STATE_AVOID_1_TURN_LEFT_45
+               alvik.set_wheels_speed(0,0)
+               current_state = STATE_AVOID_1_TURN_LEFT_45 
 
 
         elif current_state == STATE_AVOID_1_TURN_LEFT_45:
@@ -171,18 +171,14 @@ try:
             alvik.right_led.set_color(1, 0, 1)
             
             alvik.set_wheels_speed(FIND_LINE_SPEED, FIND_LINE_SPEED)
-
-            # --- THINK (Transitions) ---
-            # WORK: Check if the CENTER line sensor is
-            # back on the black line.
             
-            # if c_sensor > LINE_BLACK_THRESHOLD:
-            #    print("Line found (center sensor)! Resuming race...")
-            #    alvik.stop()
-            #    current_state = ???
-            pass # Remove this 'pass'
-        
-
+            if c_sensor > LINE_BLACK_THRESHOLD/2:
+                print("Line found (center sensor)! Resuming race...")
+                alvik.set_wheels_speed(0,0)
+                current_state = STATE_TURN_TO_LINE
+        elif current_state == STATE_TURN_TO_LINE:
+            alvik.rotate(45)
+            current_state = STATE_RACING
         else:
             # Unknown state? Safety default.
             print(f"Error: Unknown state! ({current_state})")
@@ -190,7 +186,7 @@ try:
 
         
         # --- Yield ---
-        time.sleep(0.01)
+        sleep_ms(10)
 
 finally:
     # Cleanup code
