@@ -38,18 +38,26 @@ class WebGamepad:
         self._setup_server()
 
     def _setup_wifi(self):
-        print(f"Creating WiFi: {self.ssid}...")
+        # Only set up WiFi if we aren't already connected
         self.ap = network.WLAN(network.AP_IF)
-        self.ap.config(essid=self.ssid, password=self.password)
-        self.ap.active(True)
-        while not self.ap.active():
-            time.sleep(0.1)
+        if not self.ap.active():
+            print(f"Creating WiFi: {self.ssid}...")
+            self.ap.config(essid=self.ssid, password=self.password)
+            self.ap.active(True)
+            while not self.ap.active():
+                time.sleep(0.1)
+        
         self.ip_address = self.ap.ifconfig()[0]
         print(f"Success! Connect to {self.ssid}")
         print(f"Open Browser to: http://{self.ip_address}")
 
     def _setup_server(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        
+        # --- FIX FOR EADDRINUSE ERROR ---
+        # This option allows us to reuse the port immediately after stopping
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        
         self.socket.bind(('', 80))
         self.socket.listen(5)
         self.socket.setblocking(False)
@@ -83,20 +91,21 @@ class WebGamepad:
     def _parse_data(self, req_str):
         try:
             # Extract "ax=0,0,0,0&btn=12"
-            parts = req_str.split(' ')[1].split('?')[1]
-            pairs = parts.split('&')
-            
-            for p in pairs:
-                key, val = p.split('=')
+            if '?' in req_str and ' ' in req_str:
+                parts = req_str.split(' ')[1].split('?')[1]
+                pairs = parts.split('&')
                 
-                if key == 'ax':
-                    # val is "0,0,0,0"
-                    ax_vals = val.split(',')
-                    for i in range(4):
-                        self.axes[i] = int(ax_vals[i])
-                        
-                if key == 'btn':
-                    self.buttons = int(val)
+                for p in pairs:
+                    key, val = p.split('=')
+                    
+                    if key == 'ax':
+                        # val is "0,0,0,0"
+                        ax_vals = val.split(',')
+                        for i in range(4):
+                            self.axes[i] = int(ax_vals[i])
+                            
+                    if key == 'btn':
+                        self.buttons = int(val)
                     
         except Exception:
             pass
