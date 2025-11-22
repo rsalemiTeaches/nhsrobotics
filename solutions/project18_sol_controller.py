@@ -1,203 +1,68 @@
-# Project 17: The Web RC Car (Mobile + Chromebook Edition)
+# Project 17: The Ultimate Remote Control
 #
-# GOAL:
-# 1. Host a Website that supports BOTH Gamepads and Touchscreens.
-# 2. Use 'ontouchstart' to drive while holding a button.
-# 3. Stop immediately when the button is released.
+# GOAL: Use the WebGamepad library to drive the robot.
+# 
+# CONTROLS:
+# Left Stick:  Drive (Speed)
+# Right Stick: Turn (Steering)
+# Button A:    Honk Horn
+# Button B:    Turbo Boost!
 
-import network
-import socket
-import json
 from arduino_alvik import ArduinoAlvik
-from time import sleep_ms
+from web_gamepad import WebGamepad
+import time
 
-# --- Configuration ---
-SSID = "Alvik-RC"
-PASSWORD = "password123"
-
-print("Starting Project 17: Mobile RC...")
+# --- Setup ---
 alvik = ArduinoAlvik()
 alvik.begin()
 
-# --- 1. Create WiFi Hotspot ---
-ap = network.WLAN(network.AP_IF)
-ap.config(essid=SSID, password=PASSWORD)
-ap.active(True)
+# Create the Gamepad Connection
+# This will print the IP address to the console
+gamepad = WebGamepad()
 
-while not ap.active():
-    pass
-
-ip = ap.ifconfig()[0]
-print(f"WiFi Created: {SSID}")
-print(f"Go to URL: http://{ip}")
-
-# --- 2. The Mobile-Friendly Website ---
-html_page = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Alvik Mobile</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <style>
-        body { 
-            font-family: sans-serif; 
-            text-align: center; 
-            background: #222; 
-            color: #fff;
-            touch-action: none; /* Prevents scrolling while driving */
-            user-select: none;  /* Prevents highlighting text */
-        }
-        h1 { margin-bottom: 5px; color: #00ff00; }
-        
-        /* Grid layout for the D-Pad */
-        .control-grid {
-            display: grid;
-            grid-template-columns: 100px 100px 100px;
-            grid-template-rows: 100px 100px 100px;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 20px;
-        }
-        
-        .btn {
-            background: #444;
-            border: 2px solid #666;
-            border-radius: 15px;
-            color: white;
-            font-size: 24px;
-            font-weight: bold;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .btn:active { background: #00ff00; color: black; border-color: #fff; }
-        
-        /* Button Positioning */
-        .up    { grid-column: 2; grid-row: 1; background: #005500; }
-        .left  { grid-column: 1; grid-row: 2; background: #555500; }
-        .stop  { grid-column: 2; grid-row: 2; background: #550000; }
-        .right { grid-column: 3; grid-row: 2; background: #555500; }
-        .down  { grid-column: 2; grid-row: 3; background: #005500; }
-        
-        .status-box { margin-top: 20px; font-size: 14px; color: #aaa; }
-    </style>
-</head>
-<body>
-    <h1>Alvik Remote</h1>
-    
-    <div class="control-grid">
-        <!-- Touch Buttons -->
-        <!-- onpointerdown handles both Mouse Clicks AND Touch Taps -->
-        <div class="btn up"    onpointerdown="drive(60, 60)"   onpointerup="stop()" onpointerleave="stop()">▲</div>
-        <div class="btn left"  onpointerdown="drive(-50, 50)"  onpointerup="stop()" onpointerleave="stop()">◀</div>
-        <div class="btn stop"  onpointerdown="stop()">STOP</div>
-        <div class="btn right" onpointerdown="drive(50, -50)"  onpointerup="stop()" onpointerleave="stop()">▶</div>
-        <div class="btn down"  onpointerdown="drive(-60, -60)" onpointerup="stop()" onpointerleave="stop()">▼</div>
-    </div>
-
-    <div class="status-box">
-        Works with Touch OR Gamepad<br>
-        Last Command: <span id="debug">None</span>
-    </div>
-
-    <script>
-        // --- TOUCH LOGIC ---
-        function drive(l, r) {
-            sendDrive(l, r);
-            document.getElementById('debug').innerText = "L:" + l + " R:" + r;
-        }
-
-        function stop() {
-            sendDrive(0, 0);
-            document.getElementById('debug').innerText = "STOP";
-        }
-
-        function sendDrive(l, r) {
-            fetch('/drive?l=' + l + '&r=' + r).catch(e => console.log(e));
-        }
-
-        // --- GAMEPAD LOGIC (Background) ---
-        let gpLastL = 0;
-        let gpLastR = 0;
-
-        function gamepadLoop() {
-            const gamepads = navigator.getGamepads();
-            const gp = gamepads[0];
-
-            if (gp) {
-                // Only override touch if the joystick is actually moved
-                let rawL = gp.axes[1]; 
-                let rawR = gp.axes[3]; 
-                let speedL = Math.round(rawL * -80);
-                let speedR = Math.round(rawR * -80);
-
-                if (Math.abs(speedL) < 10) speedL = 0;
-                if (Math.abs(speedR) < 10) speedR = 0;
-
-                // Only send if values changed significantly
-                if (speedL !== gpLastL || speedR !== gpLastR) {
-                    sendDrive(speedL, speedR);
-                    gpLastL = speedL;
-                    gpLastR = speedR;
-                    document.getElementById('debug').innerText = "Gamepad Active";
-                }
-            }
-            requestAnimationFrame(gamepadLoop);
-        }
-        gamepadLoop();
-    </script>
-</body>
-</html>
-"""
-
-# --- 3. Start Web Server ---
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind(('', 80))
-s.listen(5)
-s.setblocking(False)
-
-print("Mobile Server Listening...")
-alvik.left_led.set_color(0, 0, 1) # Blue = Ready
+print("Ready to Race!")
+alvik.left_led.set_color(0, 0, 1) # Blue light means ready
 
 try:
     while not alvik.get_touch_cancel():
-        try:
-            conn, addr = s.accept()
-            request = conn.recv(1024)
-            req_str = str(request)
-            
-            if "GET / " in req_str or "GET /index" in req_str:
-                conn.send('HTTP/1.1 200 OK\n')
-                conn.send('Content-Type: text/html\n')
-                conn.send('Connection: close\n\n')
-                conn.sendall(html_page)
-                
-            elif "GET /drive" in req_str:
-                try:
-                    # Parse /drive?l=50&r=50
-                    parts = req_str.split(' ')[1]
-                    params = parts.split('?')[1]
-                    pairs = params.split('&')
-                    l_speed = 0
-                    r_speed = 0
-                    for p in pairs:
-                        key, val = p.split('=')
-                        if key == 'l': l_speed = int(val)
-                        if key == 'r': r_speed = int(val)
-                    
-                    alvik.set_wheels_speed(l_speed, r_speed)
-                    conn.send('HTTP/1.1 200 OK\n\n')
-                except:
-                    pass
-            
-            conn.close()
-        except OSError:
-            pass
-            
+        
+        # 1. IMPORTANT: Process network data
+        gamepad.update()
+        
+        # 2. Read Inputs
+        # Axis 1 is Left Stick Up/Down (Inverted)
+        throttle = gamepad.get_axis(1) * -1 
+        
+        # Axis 2 is Right Stick Left/Right
+        steering = gamepad.get_axis(2)
+        
+        # 3. Handle Buttons
+        if gamepad.is_pressed(gamepad.BTN_A):
+            print("Honk!")
+            # Add buzzer code here if you have one!
+            alvik.left_led.set_color(1, 0, 0)
+        else:
+            alvik.left_led.set_color(0, 1, 0) # Green is normal
+
+        # Turbo Boost on Button B?
+        speed_multiplier = 0.5 # Normal speed 50%
+        if gamepad.is_pressed(gamepad.BTN_B):
+            speed_multiplier = 1.0 # Turbo 100%
+
+        # 4. Arcade Drive Logic
+        # Mix Throttle and Steering to get Left/Right motor speeds
+        left_motor = (throttle + steering) * speed_multiplier
+        right_motor = (throttle - steering) * speed_multiplier
+        
+        # 5. Drive the Robot
+        alvik.set_wheels_speed(left_motor, right_motor)
+        
+        # Small sleep to keep loop running smoothly
+        # (Too fast and the WiFi handling gets choppy)
+        time.sleep(0.01)
+
 except Exception as e:
-    print(e)
+    print(f"Error: {e}")
 
 finally:
     alvik.stop()

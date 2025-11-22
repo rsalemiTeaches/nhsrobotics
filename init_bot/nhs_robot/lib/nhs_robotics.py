@@ -3,6 +3,7 @@
 import qwiic_buzzer
 from qwiic_i2c.micropython_i2c import MicroPythonI2C as I2CDriver
 from nanolib import NanoLED
+from web_gamepad import WebGamepad
 import ssd1306
 from machine import Pin, I2C
 
