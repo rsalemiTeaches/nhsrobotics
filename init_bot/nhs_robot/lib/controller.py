@@ -1,6 +1,6 @@
 # Library: Alvik Web Controller
-# Version: V10
-# Features: Singleton, Flow Control, Robust Cleanup, NO Verbose (Fixes Freeze)
+# Version: V11
+# Features: Singleton, Flow Control, Robust Cleanup, Connection Tracking
 # Created with the help of Gemini Pro
 
 import network
@@ -24,7 +24,10 @@ class Controller:
 
         self.ssid = ssid
         self.password = password
-        # verbose argument kept for backward compatibility but ignored
+        
+        # --- CONNECTION TRACKING ---
+        # We use this to tell if the Chromebook is actually talking to us.
+        self.last_packet_time = 0
         
         # --- STATE VARIABLES ---
         self.left_stick_x = 0.0
@@ -180,6 +183,9 @@ class Controller:
             if "GET / " in req: return "HOME"
             
             if "/update?" in req:
+                # Update timestamp on valid data
+                self.last_packet_time = time.ticks_ms()
+                
                 params = req.split('?')[1].split(' ')[0].split('&')
                 mask = 0
                 for p in params:
@@ -207,6 +213,12 @@ class Controller:
             return "UNKNOWN"
         except Exception:
             return "ERROR"
+            
+    def is_connected(self):
+        """Returns True if we have received data in the last 1.5 seconds."""
+        if self.last_packet_time == 0:
+            return False
+        return time.ticks_diff(time.ticks_ms(), self.last_packet_time) < 1500
 
     def update(self):
         if self.socket is None: return
