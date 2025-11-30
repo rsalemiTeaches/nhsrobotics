@@ -1,6 +1,6 @@
 # Library: Alvik Web Controller
-# Version: V11
-# Features: Singleton, Flow Control, Robust Cleanup, Connection Tracking
+# Version: V13
+# Features: Singleton, Flow Control, Robust Cleanup, Connection Tracking, Cache Buster
 # Created with the help of Gemini Pro
 
 import network
@@ -26,7 +26,6 @@ class Controller:
         self.password = password
         
         # --- CONNECTION TRACKING ---
-        # We use this to tell if the Chromebook is actually talking to us.
         self.last_packet_time = 0
         
         # --- STATE VARIABLES ---
@@ -49,6 +48,7 @@ class Controller:
         self.socket = None
         
         # HTML/JS Code
+        # V13 Update: Added 'z' (Timestamp) to fetch URL to prevent browser caching
         self.html = """
         <!DOCTYPE html>
         <html>
@@ -70,6 +70,7 @@ class Controller:
           
           <div class="box">
             <table style="margin: 0 auto;">
+              <tr><td>LX: <span id="lx">0</span></td><td>RX: <span id="rx">0</span></td></tr>
               <tr><td>LY: <span id="ly">0</span></td><td>RY: <span id="ry">0</span></td></tr>
               <tr><td>L2: <span id="l2">0</span></td><td>R2: <span id="r2">0</span></td></tr>
             </table>
@@ -132,6 +133,8 @@ class Controller:
               let l2 = gp.buttons[6].value;
               let r2 = gp.buttons[7].value;
 
+              document.getElementById("lx").innerText = lx.toFixed(1);
+              document.getElementById("rx").innerText = rx.toFixed(1);
               document.getElementById("ly").innerText = ly.toFixed(1);
               document.getElementById("ry").innerText = ry.toFixed(1);
               document.getElementById("l2").innerText = l2.toFixed(1);
@@ -150,7 +153,9 @@ class Controller:
 
               // 3. Send
               busy = true; 
-              fetch(`/update?ax=${lx.toFixed(2)},${ly.toFixed(2)},${rx.toFixed(2)},${ry.toFixed(2)}&tr=${l2.toFixed(2)},${r2.toFixed(2)}&mk=${mask}`)
+              // CACHE BUSTER: We add &z=Timestamp to ensure every URL is unique.
+              // This forces the browser to send the packet even if data hasn't changed.
+              fetch(`/update?ax=${lx.toFixed(2)},${ly.toFixed(2)},${rx.toFixed(2)},${ry.toFixed(2)}&tr=${l2.toFixed(2)},${r2.toFixed(2)}&mk=${mask}&z=${Date.now()}`)
                 .then(response => { busy = false; }) 
                 .catch(e => { busy = false; });      
             }
@@ -189,7 +194,11 @@ class Controller:
                 params = req.split('?')[1].split(' ')[0].split('&')
                 mask = 0
                 for p in params:
-                    key, val = p.split('=')
+                    # Robust splitting to handle potential malformed cache busters
+                    parts = p.split('=')
+                    if len(parts) != 2: continue
+                    key, val = parts
+                    
                     if key == 'ax':
                         vals = val.split(',')
                         self.left_stick_x  = float(vals[0])
@@ -240,3 +249,4 @@ class Controller:
             finally:
                 if cl:
                     cl.close()
+                    
