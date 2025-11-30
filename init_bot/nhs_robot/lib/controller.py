@@ -1,36 +1,50 @@
 # Library: Alvik Web Controller
-# Hides the complexity of WiFi, Sockets, and HTML parsing.
-#
-# Usage:
-#   ctl = Controller(ssid="Alvik-Student-1")
-#   ctl.begin()
-#   ctl.update()
-#   print(ctl.left_stick_y)
-
+# Features: Bitmasking, Analog Triggers, Inverted Y-Axis, Verbose Toggle
 import network
 import socket
 import select
 import time
 
 class Controller:
-    def __init__(self, ssid="Alvik-Link", password="password"):
-        # Configuration
+    def __init__(self, ssid="Alvik-Link", password="password", verbose=False):
         self.ssid = ssid
         self.password = password
+        self.verbose = verbose
         
-        # State Variables (Accessible by Student)
-        self.left_stick_y = 0.0   # -1.0 to 1.0
-        self.right_stick_y = 0.0  # -1.0 to 1.0
-        self.button_x = False
-        self.button_o = False
-        self.connected = False
+        # --- STATE VARIABLES ---
         
-        # Internal Networking
+        # Joysticks (Float -1.0 to 1.0)
+        self.left_stick_x = 0.0
+        self.left_stick_y = 0.0
+        self.right_stick_x = 0.0
+        self.right_stick_y = 0.0
+        
+        # Analog Triggers (Float 0.0 to 1.0)
+        self.L2 = 0.0
+        self.R2 = 0.0
+        
+        # 17 Buttons (Dictionary of Booleans)
+        self.buttons = {
+            'cross': False, 'circle': False, 'square': False, 'triangle': False, # 0-3
+            'L1': False, 'R1': False, 'L2': False, 'R2': False,                  # 4-7
+            'share': False, 'options': False, 'L3': False, 'R3': False,          # 8-11
+            'up': False, 'down': False, 'left': False, 'right': False,           # 12-15
+            'ps': False                                                          # 16
+        }
+        
+        # --- INTERNAL TRACKING ---
+        self._last_buttons = self.buttons.copy()
+        self._last_axes = {
+            'left_stick_x': 0.0, 'left_stick_y': 0.0,
+            'right_stick_x': 0.0, 'right_stick_y': 0.0,
+            'L2': 0.0, 'R2': 0.0
+        }
+        
+        # Networking
         self.ap = network.WLAN(network.AP_IF)
         self.socket = None
         
-        # The Webpage that runs on the Chromebook/Phone
-        # We inject the SSID into the title so the student knows they are on the right page
+        # HTML/JS Code
         self.html = """
         <!DOCTYPE html>
         <html>
@@ -40,22 +54,26 @@ class Controller:
             body { font-family: sans-serif; background: #222; color: #fff; text-align: center; }
             .box { padding: 20px; background: #444; margin: 20px auto; max-width: 400px; border-radius: 10px; }
             .active { background: #00AA00 !important; }
-            h1 { margin-bottom: 5px; }
+            td { padding: 5px 10px; }
           </style>
         </head>
         <body>
-          <h1>""" + self.ssid + """ Controller</h1>
-          <div id="status" class="box">1. Connect Controller via Bluetooth<br>2. Press any button</div>
-          <div class="box">Left: <span id="l_val">0</span> | Right: <span id="r_val">0</span></div>
+          <h1>""" + self.ssid + """</h1>
+          <div id="status" class="box">Connect Controller + Press Button</div>
+          
+          <div class="box">
+            <table>
+              <tr><td>LY: <span id="ly">0</span></td><td>RY: <span id="ry">0</span></td></tr>
+              <tr><td>L2: <span id="l2">0</span></td><td>R2: <span id="r2">0</span></td></tr>
+            </table>
+          </div>
 
           <script>
             let interval = null;
             
-            // Detect Controller
             window.addEventListener("gamepadconnected", (e) => {
-              document.getElementById("status").innerText = "Controller Active!";
+              document.getElementById("status").innerText = "Active!";
               document.getElementById("status").classList.add("active");
-              // Start sending data 10 times a second (100ms)
               if (!interval) interval = setInterval(sendData, 100);
             });
 
@@ -70,26 +88,36 @@ class Controller:
               const gp = navigator.getGamepads()[0];
               if (!gp) return;
 
-              // Read Joysticks (Standard Mapping)
-              // Axis 1 = Left Stick Y, Axis 3 = Right Stick Y
-              // Invert them so Up is Positive
-              let ly = -gp.axes[1];
-              let ry = -gp.axes[3];
-              let btnX = gp.buttons[0].pressed ? 1 : 0; // X Button (A on Xbox)
-              let btnO = gp.buttons[1].pressed ? 1 : 0; // Circle Button (B on Xbox)
-
-              // Deadzone
+              // 1. Axes (Invert Y so Up is Positive)
+              let lx = gp.axes[0];
+              let ly = -gp.axes[1]; 
+              let rx = gp.axes[2];
+              let ry = -gp.axes[3]; 
+              
+              if (Math.abs(lx) < 0.1) lx = 0;
               if (Math.abs(ly) < 0.1) ly = 0;
+              if (Math.abs(rx) < 0.1) rx = 0;
               if (Math.abs(ry) < 0.1) ry = 0;
 
-              // Update Screen
-              document.getElementById("l_val").innerText = ly.toFixed(1);
-              document.getElementById("r_val").innerText = ry.toFixed(1);
+              let l2 = gp.buttons[6].value;
+              let r2 = gp.buttons[7].value;
 
-              // Send to Robot via HTTP GET (Fast & Simple)
-              // We use fetch with 'no-cors' to be fast/lazy
-              fetch(`/update?ly=${ly.toFixed(2)}&ry=${ry.toFixed(2)}&bx=${btnX}&bo=${btnO}`)
-                .catch(e => console.log("Lag..."));
+              document.getElementById("ly").innerText = ly.toFixed(1);
+              document.getElementById("ry").innerText = ry.toFixed(1);
+              document.getElementById("l2").innerText = l2.toFixed(1);
+              document.getElementById("r2").innerText = r2.toFixed(1);
+
+              // 2. Button Bitmask
+              let mask = 0;
+              for (let i = 0; i < gp.buttons.length; i++) {
+                if (gp.buttons[i].pressed) {
+                  mask += (1 << i);
+                }
+              }
+
+              // 3. Send
+              fetch(`/update?ax=${lx.toFixed(2)},${ly.toFixed(2)},${rx.toFixed(2)},${ry.toFixed(2)}&tr=${l2.toFixed(2)},${r2.toFixed(2)}&mk=${mask}`)
+                .catch(e => {});
             }
           </script>
         </body>
@@ -97,75 +125,93 @@ class Controller:
         """
 
     def begin(self):
-        """Starts the WiFi AP and Web Server"""
-        print(f"Creating WiFi: {self.ssid} ...")
+        print(f"WiFi: {self.ssid} / {self.password}")
         self.ap.active(True)
         self.ap.config(essid=self.ssid, password=self.password)
+        while not self.ap.active(): time.sleep(0.1)
+        print(f"IP: {self.ap.ifconfig()[0]}")
         
-        while not self.ap.active():
-            time.sleep(0.1)
-            
-        print(f"WiFi Active! IP: {self.ap.ifconfig()[0]}")
-        
-        # Setup Non-Blocking Socket
         addr = socket.getaddrinfo('0.0.0.0', 80)[0][-1]
         self.socket = socket.socket()
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(addr)
         self.socket.listen(1)
-        print("Server listening on Port 80")
-        print("Go to http://192.168.4.1 in your browser.")
+
+    def _check_verbose(self):
+        """Internal Check: Toggles verbose on PS button press"""
+        # Rising Edge Detection for PS Button
+        if self.buttons['ps'] and not self._last_buttons['ps']:
+            self.verbose = not self.verbose
+            print(f"[Controller] Verbose Mode: {'ON' if self.verbose else 'OFF'}")
+        
+        self._last_buttons['ps'] = self.buttons['ps']
+        
+        if not self.verbose: return
+        
+        # Print Button Changes
+        for key, val in self.buttons.items():
+            if key == 'ps': continue 
+            if val != self._last_buttons[key]:
+                status = "PRESSED" if val else "RELEASED"
+                print(f"[Controller] {key}: {status}")
+                self._last_buttons[key] = val
+        
+        # Print Axis Changes
+        current_axes = {
+            'LY': self.left_stick_y, 'RY': self.right_stick_y,
+            'LX': self.left_stick_x, 'RX': self.right_stick_x,
+            'L2': self.L2, 'R2': self.R2
+        }
+        for key, val in current_axes.items():
+            if abs(val - self._last_axes.get(key, 0)) > 0.01:
+                print(f"[Controller] {key}: {val:.2f}")
+                self._last_axes[key] = val
 
     def parse_request(self, request):
-        """Extracts data from URL: /update?ly=0.5&ry=-0.5&bx=1..."""
         try:
-            # We are looking for the path inside "GET /update?..."
-            request_str = request.decode('utf-8')
-            line = request_str.split('\r\n')[0] # First line only
+            req = request.decode('utf-8').split('\r\n')[0]
+            if "GET / " in req: return "HOME"
             
-            if "GET / " in line:
-                return "HOME"
-            
-            if "/update?" in line:
-                # Poor man's parsing to avoid heavy URL libraries
-                # Example: /update?ly=1.00&ry=-0.50&bx=0&bo=1
-                params = line.split('?')[1].split(' ')[0]
-                pairs = params.split('&')
-                for p in pairs:
+            if "/update?" in req:
+                params = req.split('?')[1].split(' ')[0].split('&')
+                mask = 0
+                for p in params:
                     key, val = p.split('=')
-                    if key == 'ly': self.left_stick_y = float(val)
-                    if key == 'ry': self.right_stick_y = float(val)
-                    if key == 'bx': self.button_x = (val == '1')
-                    if key == 'bo': self.button_o = (val == '1')
-                return "DATA"
+                    if key == 'ax':
+                        vals = val.split(',')
+                        self.left_stick_x  = float(vals[0])
+                        self.left_stick_y  = float(vals[1])
+                        self.right_stick_x = float(vals[2])
+                        self.right_stick_y = float(vals[3])
+                    if key == 'tr':
+                        vals = val.split(',')
+                        self.L2 = float(vals[0])
+                        self.R2 = float(vals[1])
+                    if key == 'mk':
+                        mask = int(val)
                 
+                # Unpack Bitmask
+                btn_names = ['cross', 'circle', 'square', 'triangle', 'L1', 'R1', 'L2', 'R2', 
+                             'share', 'options', 'L3', 'R3', 'up', 'down', 'left', 'right', 'ps']
+                
+                for i, name in enumerate(btn_names):
+                    self.buttons[name] = bool((mask >> i) & 1)
+                
+                self._check_verbose()
+                return "DATA"
             return "UNKNOWN"
-        except:
-            return "ERROR"
+        except: return "ERROR"
 
     def update(self):
-        """Check for new data packets (Call this in your loop!)"""
-        # Non-blocking check: Is there data waiting?
-        # r = ready to read, w = ready to write, e = errors
-        r, w, e = select.select([self.socket], [], [], 0)
-        
+        r, _, _ = select.select([self.socket], [], [], 0)
         if r:
             try:
-                cl, addr = self.socket.accept()
-                request = cl.recv(1024)
-                
-                req_type = self.parse_request(request)
-                
-                # Send Response
-                if req_type == "HOME":
-                    # Send the HTML Page
+                cl, _ = self.socket.accept()
+                req = cl.recv(1024)
+                if self.parse_request(req) == "HOME":
                     cl.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
                     cl.send(self.html)
                 else:
-                    # Fast acknowledgement for data updates
                     cl.send('HTTP/1.0 200 OK\r\n\r\n')
-                    
                 cl.close()
-            except OSError:
-                pass
-            
+            except: pass
