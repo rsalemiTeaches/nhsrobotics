@@ -1,5 +1,8 @@
 # Library: Alvik Web Controller
-# Features: Bitmasking, Analog Triggers, Inverted Y-Axis, Verbose Toggle
+# Version: V02
+# Features: Bitmasking, Analog Triggers, Inverted Y-Axis, Verbose Toggle, Visual Debug
+# Created with the help of Gemini Pro
+
 import network
 import socket
 import select
@@ -45,6 +48,7 @@ class Controller:
         self.socket = None
         
         # HTML/JS Code
+        # V02 Update: Added visual button grid for debugging
         self.html = """
         <!DOCTYPE html>
         <html>
@@ -55,6 +59,11 @@ class Controller:
             .box { padding: 20px; background: #444; margin: 20px auto; max-width: 400px; border-radius: 10px; }
             .active { background: #00AA00 !important; }
             td { padding: 5px 10px; }
+            
+            /* Grid for Buttons */
+            .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 400px; margin: 0 auto; }
+            .btn { background: #555; padding: 10px; border-radius: 5px; font-size: 10px; text-transform: uppercase; }
+            .pressed { background: #00FF00 !important; color: #000; font-weight: bold; }
           </style>
         </head>
         <body>
@@ -66,6 +75,30 @@ class Controller:
               <tr><td>LY: <span id="ly">0</span></td><td>RY: <span id="ry">0</span></td></tr>
               <tr><td>L2: <span id="l2">0</span></td><td>R2: <span id="r2">0</span></td></tr>
             </table>
+          </div>
+
+          <div class="grid">
+             <div id="btn0" class="btn">Cross</div>
+             <div id="btn1" class="btn">Circle</div>
+             <div id="btn2" class="btn">Square</div>
+             <div id="btn3" class="btn">Tri</div>
+             
+             <div id="btn4" class="btn">L1</div>
+             <div id="btn5" class="btn">R1</div>
+             <div id="btn6" class="btn">L2</div>
+             <div id="btn7" class="btn">R2</div>
+             
+             <div id="btn8" class="btn">Share</div>
+             <div id="btn9" class="btn">Opt</div>
+             <div id="btn10" class="btn">L3</div>
+             <div id="btn11" class="btn">R3</div>
+             
+             <div id="btn12" class="btn">Up</div>
+             <div id="btn13" class="btn">Down</div>
+             <div id="btn14" class="btn">Left</div>
+             <div id="btn15" class="btn">Right</div>
+             
+             <div id="btn16" class="btn" style="grid-column: span 4">PS Button</div>
           </div>
 
           <script>
@@ -107,11 +140,22 @@ class Controller:
               document.getElementById("l2").innerText = l2.toFixed(1);
               document.getElementById("r2").innerText = r2.toFixed(1);
 
-              // 2. Button Bitmask
+              // 2. Button Bitmask & Visual Grid
               let mask = 0;
               for (let i = 0; i < gp.buttons.length; i++) {
+                // Update Bitmask
                 if (gp.buttons[i].pressed) {
                   mask += (1 << i);
+                }
+                
+                // Update Visual Grid
+                let btnEl = document.getElementById("btn" + i);
+                if (btnEl) {
+                    if (gp.buttons[i].pressed) {
+                        btnEl.classList.add("pressed");
+                    } else {
+                        btnEl.classList.remove("pressed");
+                    }
                 }
               }
 
@@ -215,3 +259,4 @@ class Controller:
                     cl.send('HTTP/1.0 200 OK\r\n\r\n')
                 cl.close()
             except: pass
+            
