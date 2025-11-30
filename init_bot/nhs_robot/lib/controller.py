@@ -1,6 +1,6 @@
 # Library: Alvik Web Controller
-# Version: V03
-# Features: Bitmasking, Analog Triggers, Inverted Y-Axis, Visual Debug, Full Axis Display
+# Version: V10
+# Features: Singleton, Flow Control, Robust Cleanup, NO Verbose (Fixes Freeze)
 # Created with the help of Gemini Pro
 
 import network
@@ -9,46 +9,43 @@ import select
 import time
 
 class Controller:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        """Implements the Singleton pattern."""
+        if cls._instance is None:
+            cls._instance = super(Controller, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self, ssid="Alvik-Link", password="password", verbose=False):
+        if self._initialized:
+            return
+
         self.ssid = ssid
         self.password = password
-        self.verbose = verbose
+        # verbose argument kept for backward compatibility but ignored
         
         # --- STATE VARIABLES ---
-        
-        # Joysticks (Float -1.0 to 1.0)
         self.left_stick_x = 0.0
         self.left_stick_y = 0.0
         self.right_stick_x = 0.0
         self.right_stick_y = 0.0
-        
-        # Analog Triggers (Float 0.0 to 1.0)
         self.L2 = 0.0
         self.R2 = 0.0
         
-        # 17 Buttons (Dictionary of Booleans)
         self.buttons = {
-            'cross': False, 'circle': False, 'square': False, 'triangle': False, # 0-3
-            'L1': False, 'R1': False, 'L2': False, 'R2': False,                  # 4-7
-            'share': False, 'options': False, 'L3': False, 'R3': False,          # 8-11
-            'up': False, 'down': False, 'left': False, 'right': False,           # 12-15
-            'ps': False                                                          # 16
+            'cross': False, 'circle': False, 'square': False, 'triangle': False,
+            'L1': False, 'R1': False, 'L2': False, 'R2': False,
+            'share': False, 'options': False, 'L3': False, 'R3': False,
+            'up': False, 'down': False, 'left': False, 'right': False,
+            'ps': False
         }
         
-        # --- INTERNAL TRACKING ---
-        self._last_buttons = self.buttons.copy()
-        self._last_axes = {
-            'left_stick_x': 0.0, 'left_stick_y': 0.0,
-            'right_stick_x': 0.0, 'right_stick_y': 0.0,
-            'L2': 0.0, 'R2': 0.0
-        }
-        
-        # Networking
         self.ap = network.WLAN(network.AP_IF)
         self.socket = None
         
         # HTML/JS Code
-        # V03 Update: Added LX and RX to the debug table
         self.html = """
         <!DOCTYPE html>
         <html>
@@ -59,8 +56,6 @@ class Controller:
             .box { padding: 20px; background: #444; margin: 20px auto; max-width: 400px; border-radius: 10px; }
             .active { background: #00AA00 !important; }
             td { padding: 5px 10px; text-align: left; }
-            
-            /* Grid for Buttons */
             .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 400px; margin: 0 auto; }
             .btn { background: #555; padding: 10px; border-radius: 5px; font-size: 10px; text-transform: uppercase; }
             .pressed { background: #00FF00 !important; color: #000; font-weight: bold; }
@@ -72,7 +67,6 @@ class Controller:
           
           <div class="box">
             <table style="margin: 0 auto;">
-              <tr><td>LX: <span id="lx">0</span></td><td>RX: <span id="rx">0</span></td></tr>
               <tr><td>LY: <span id="ly">0</span></td><td>RY: <span id="ry">0</span></td></tr>
               <tr><td>L2: <span id="l2">0</span></td><td>R2: <span id="r2">0</span></td></tr>
             </table>
@@ -83,32 +77,29 @@ class Controller:
              <div id="btn1" class="btn">Circle</div>
              <div id="btn2" class="btn">Square</div>
              <div id="btn3" class="btn">Tri</div>
-             
              <div id="btn4" class="btn">L1</div>
              <div id="btn5" class="btn">R1</div>
              <div id="btn6" class="btn">L2</div>
              <div id="btn7" class="btn">R2</div>
-             
              <div id="btn8" class="btn">Share</div>
              <div id="btn9" class="btn">Opt</div>
              <div id="btn10" class="btn">L3</div>
              <div id="btn11" class="btn">R3</div>
-             
              <div id="btn12" class="btn">Up</div>
              <div id="btn13" class="btn">Down</div>
              <div id="btn14" class="btn">Left</div>
              <div id="btn15" class="btn">Right</div>
-             
              <div id="btn16" class="btn" style="grid-column: span 4">PS Button</div>
           </div>
 
           <script>
             let interval = null;
-            
+            let busy = false; // Flow Control Flag
+
             window.addEventListener("gamepadconnected", (e) => {
               document.getElementById("status").innerText = "Active!";
               document.getElementById("status").classList.add("active");
-              if (!interval) interval = setInterval(sendData, 100);
+              if (!interval) interval = setInterval(sendData, 50);
             });
 
             window.addEventListener("gamepaddisconnected", (e) => {
@@ -121,8 +112,10 @@ class Controller:
             function sendData() {
               const gp = navigator.getGamepads()[0];
               if (!gp) return;
+              
+              if (busy) return;
 
-              // 1. Axes (Invert Y so Up is Positive)
+              // 1. Axes
               let lx = gp.axes[0];
               let ly = -gp.axes[1]; 
               let rx = gp.axes[2];
@@ -136,43 +129,39 @@ class Controller:
               let l2 = gp.buttons[6].value;
               let r2 = gp.buttons[7].value;
 
-              // Update Screen Debug
-              document.getElementById("lx").innerText = lx.toFixed(1);
-              document.getElementById("rx").innerText = rx.toFixed(1);
               document.getElementById("ly").innerText = ly.toFixed(1);
               document.getElementById("ry").innerText = ry.toFixed(1);
               document.getElementById("l2").innerText = l2.toFixed(1);
               document.getElementById("r2").innerText = r2.toFixed(1);
 
-              // 2. Button Bitmask & Visual Grid
+              // 2. Buttons
               let mask = 0;
               for (let i = 0; i < gp.buttons.length; i++) {
-                // Update Bitmask
-                if (gp.buttons[i].pressed) {
-                  mask += (1 << i);
-                }
-                
-                // Update Visual Grid
+                if (gp.buttons[i].pressed) mask += (1 << i);
                 let btnEl = document.getElementById("btn" + i);
                 if (btnEl) {
-                    if (gp.buttons[i].pressed) {
-                        btnEl.classList.add("pressed");
-                    } else {
-                        btnEl.classList.remove("pressed");
-                    }
+                    if (gp.buttons[i].pressed) btnEl.classList.add("pressed");
+                    else btnEl.classList.remove("pressed");
                 }
               }
 
               // 3. Send
+              busy = true; 
               fetch(`/update?ax=${lx.toFixed(2)},${ly.toFixed(2)},${rx.toFixed(2)},${ry.toFixed(2)}&tr=${l2.toFixed(2)},${r2.toFixed(2)}&mk=${mask}`)
-                .catch(e => {});
+                .then(response => { busy = false; }) 
+                .catch(e => { busy = false; });      
             }
           </script>
         </body>
         </html>
         """
+        self._initialized = True
 
     def begin(self):
+        if self.socket is not None:
+            print("[Controller] Already running. Skipping initialization.")
+            return
+
         print(f"WiFi: {self.ssid} / {self.password}")
         self.ap.active(True)
         self.ap.config(essid=self.ssid, password=self.password)
@@ -184,36 +173,6 @@ class Controller:
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind(addr)
         self.socket.listen(1)
-
-    def _check_verbose(self):
-        """Internal Check: Toggles verbose on PS button press"""
-        # Rising Edge Detection for PS Button
-        if self.buttons['ps'] and not self._last_buttons['ps']:
-            self.verbose = not self.verbose
-            print(f"[Controller] Verbose Mode: {'ON' if self.verbose else 'OFF'}")
-        
-        self._last_buttons['ps'] = self.buttons['ps']
-        
-        if not self.verbose: return
-        
-        # Print Button Changes
-        for key, val in self.buttons.items():
-            if key == 'ps': continue 
-            if val != self._last_buttons[key]:
-                status = "PRESSED" if val else "RELEASED"
-                print(f"[Controller] {key}: {status}")
-                self._last_buttons[key] = val
-        
-        # Print Axis Changes
-        current_axes = {
-            'LY': self.left_stick_y, 'RY': self.right_stick_y,
-            'LX': self.left_stick_x, 'RX': self.right_stick_x,
-            'L2': self.L2, 'R2': self.R2
-        }
-        for key, val in current_axes.items():
-            if abs(val - self._last_axes.get(key, 0)) > 0.01:
-                print(f"[Controller] {key}: {val:.2f}")
-                self._last_axes[key] = val
 
     def parse_request(self, request):
         try:
@@ -238,28 +197,34 @@ class Controller:
                     if key == 'mk':
                         mask = int(val)
                 
-                # Unpack Bitmask
                 btn_names = ['cross', 'circle', 'square', 'triangle', 'L1', 'R1', 'L2', 'R2', 
                              'share', 'options', 'L3', 'R3', 'up', 'down', 'left', 'right', 'ps']
                 
                 for i, name in enumerate(btn_names):
                     self.buttons[name] = bool((mask >> i) & 1)
                 
-                self._check_verbose()
                 return "DATA"
             return "UNKNOWN"
-        except: return "ERROR"
+        except Exception:
+            return "ERROR"
 
     def update(self):
+        if self.socket is None: return
+
         r, _, _ = select.select([self.socket], [], [], 0)
         if r:
+            cl = None
             try:
                 cl, _ = self.socket.accept()
+                cl.settimeout(0.5) 
                 req = cl.recv(1024)
                 if self.parse_request(req) == "HOME":
                     cl.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
                     cl.send(self.html)
                 else:
                     cl.send('HTTP/1.0 200 OK\r\n\r\n')
-                cl.close()
-            except: pass
+            except Exception as e:
+                print(f"Error {e}")
+            finally:
+                if cl:
+                    cl.close()
