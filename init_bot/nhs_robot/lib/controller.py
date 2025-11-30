@@ -1,6 +1,6 @@
 # Library: Alvik Web Controller
-# Version: V02
-# Features: Bitmasking, Analog Triggers, Inverted Y-Axis, Verbose Toggle, Visual Debug
+# Version: V03
+# Features: Bitmasking, Analog Triggers, Inverted Y-Axis, Visual Debug, Full Axis Display
 # Created with the help of Gemini Pro
 
 import network
@@ -48,7 +48,7 @@ class Controller:
         self.socket = None
         
         # HTML/JS Code
-        # V02 Update: Added visual button grid for debugging
+        # V03 Update: Added LX and RX to the debug table
         self.html = """
         <!DOCTYPE html>
         <html>
@@ -58,7 +58,7 @@ class Controller:
             body { font-family: sans-serif; background: #222; color: #fff; text-align: center; }
             .box { padding: 20px; background: #444; margin: 20px auto; max-width: 400px; border-radius: 10px; }
             .active { background: #00AA00 !important; }
-            td { padding: 5px 10px; }
+            td { padding: 5px 10px; text-align: left; }
             
             /* Grid for Buttons */
             .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 400px; margin: 0 auto; }
@@ -71,7 +71,8 @@ class Controller:
           <div id="status" class="box">Connect Controller + Press Button</div>
           
           <div class="box">
-            <table>
+            <table style="margin: 0 auto;">
+              <tr><td>LX: <span id="lx">0</span></td><td>RX: <span id="rx">0</span></td></tr>
               <tr><td>LY: <span id="ly">0</span></td><td>RY: <span id="ry">0</span></td></tr>
               <tr><td>L2: <span id="l2">0</span></td><td>R2: <span id="r2">0</span></td></tr>
             </table>
@@ -135,6 +136,9 @@ class Controller:
               let l2 = gp.buttons[6].value;
               let r2 = gp.buttons[7].value;
 
+              // Update Screen Debug
+              document.getElementById("lx").innerText = lx.toFixed(1);
+              document.getElementById("rx").innerText = rx.toFixed(1);
               document.getElementById("ly").innerText = ly.toFixed(1);
               document.getElementById("ry").innerText = ry.toFixed(1);
               document.getElementById("l2").innerText = l2.toFixed(1);
@@ -259,4 +263,3 @@ class Controller:
                     cl.send('HTTP/1.0 200 OK\r\n\r\n')
                 cl.close()
             except: pass
-            
