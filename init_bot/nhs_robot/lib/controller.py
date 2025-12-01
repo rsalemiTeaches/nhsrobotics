@@ -230,7 +230,8 @@ class Controller:
         return time.ticks_diff(time.ticks_ms(), self.last_packet_time) < 1500
 
     def update(self):
-        if self.socket is None: return
+        if self.socket is None: 
+            return
 
         r, _, _ = select.select([self.socket], [], [], 0)
         if r:
