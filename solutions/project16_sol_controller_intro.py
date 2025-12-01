@@ -26,12 +26,11 @@ nano_led.off()
 # 3. Start Controller
 print("--------------------------------")
 print(f" WIFI CREATED:  {MY_NAME}")
-print(f" PASSWORD:      password")
-print(f" GO TO BROWSER: http://192.168.4.1")
+print(" PASSWORD:      password")
+print(" GO TO BROWSER: http://192.168.4.1")
 print("--------------------------------")
 
 ctl = Controller(ssid=MY_NAME)
-ctl.begin()
 
 # 4. Create Button Objects (THE LAMBDA BRIDGE)
 # We map specific controller buttons to our Button class
