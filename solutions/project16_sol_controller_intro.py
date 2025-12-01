@@ -1,5 +1,5 @@
 # Project 16: Remote Control Link
-# Version: V01
+# Version: V02
 # Created with the help of Gemini Pro
 #
 # MISSION:
@@ -41,7 +41,6 @@ print("--------------------------------")
 # 4. Start the Web Controller
 # We use the Singleton pattern, so this is safe even if called twice
 ctl = Controller(ssid=MY_NAME)
-ctl.begin()
 
 # 5. Define Controller Buttons (The "Lambda Bridge")
 # We map the text names from the controller to our Button class
