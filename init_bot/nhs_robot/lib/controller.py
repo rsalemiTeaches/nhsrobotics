@@ -1,10 +1,9 @@
 # Library: Alvik Web Controller
 # Features: Graphical UI (File Based), Bitmasking, Analog Triggers
 #
-# Version: V09
-# FIX: Moved HTML content to external 'controller.html' file.
-# FIX: Added templating to replace '{{ssid}}' with actual name.
-# FIX: Retained 300.0s (5 min) safety timeout.
+# Version: V10
+# FIX: 'controller.html' path is now relative to this script.
+#      This solves the "FileNotFound" error when running from root while files are in /lib.
 
 import network
 import socket
@@ -44,7 +43,8 @@ class Controller:
             'cross': False, 'circle': False, 'square': False, 'triangle': False,
             'L1': False, 'R1': False, 'L2': False, 'R2': False,
             'share': False, 'options': False, 'L3': False, 'R3': False,
-            'up': False, 'down': False, 'left': False, 'right': False, 'ps': False
+            'up': False, 'down': False, 'left': False, 'right': False,
+            'ps': False
         }
 
         # Connection Safety
@@ -69,17 +69,36 @@ class Controller:
 
         self._initialized = True
 
-        # --- HTML PAGE (FILE LOAD) ---
-        # V09 Change: Read from external file instead of hardcoded string
+        # --- HTML PAGE (SMART FILE LOAD) ---
+        # V10 Change: Determine path relative to this script
+        self.html = ""
+        
+        # 1. Determine where this script (controller.py) lives
         try:
-            with open('controller.html', 'r') as f:
+            # __file__ is 'lib/controller.py'
+            base_path = __file__.rsplit('/', 1)[0] 
+            file_path = f"{base_path}/controller.html"
+        except:
+            # Fallback if __file__ fails
+            file_path = "controller.html"
+
+        # 2. Try to open the file
+        try:
+            with open(file_path, 'r') as f:
                 self.html = f.read()
-                # Template Replacement:
-                # We look for {{ssid}} in the file and replace it with self.ssid
+                # Template Replacement
                 self.html = self.html.replace('{{ssid}}', self.ssid)
+                print(f"Controller: Loaded UI from {file_path}")
         except OSError:
-            print("ERROR: controller.html not found on device!")
-            self.html = "<h1>Error: controller.html missing. Upload the file!</h1>"
+            # Fallback: Try root if lib failed
+            try:
+                with open('controller.html', 'r') as f:
+                    self.html = f.read()
+                    self.html = self.html.replace('{{ssid}}', self.ssid)
+                    print("Controller: Loaded UI from root")
+            except OSError:
+                print(f"ERROR: Could not find 'controller.html' in {file_path} or root.")
+                self.html = "<h1>Error: controller.html missing. Check /lib folder!</h1>"
 
     def is_connected(self):
         """Returns True if a valid packet was received in the last 300.0 seconds (5 mins)."""
@@ -173,3 +192,4 @@ class Controller:
                 cl.close()
             except OSError:
                 pass
+            
