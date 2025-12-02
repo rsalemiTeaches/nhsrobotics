@@ -52,62 +52,67 @@ print("Connected!")
 alvik.left_led.set_color(0, 1, 0)
 alvik.right_led.set_color(0, 1, 0)
 
+try:
 # --- MAIN LOOP ---
-while True:
-    # 1. Update Data
-    ctl.update()
+    while True:
+        # 1. Update Data
+        ctl.update()
 
-    # 2. Safety Check (Link Lost?)
-    if not ctl.is_connected():
-        print("Link Lost!")
-        alvik.stop()
-        # Blink Red until reconnected
-        while not ctl.is_connected():
-            alvik.left_led.set_color(1, 0, 0)
-            alvik.right_led.set_color(0, 0, 0)
-            time.sleep(0.1)
-            alvik.left_led.set_color(0, 0, 0)
-            alvik.right_led.set_color(1, 0, 0)
-            time.sleep(0.1)
-            ctl.update()
-        print("Link Restored.")
+        # 2. Safety Check (Link Lost?)
+        if not ctl.is_connected():
+            print("Link Lost!")
+            # Blink Red until reconnected
+            while not ctl.is_connected():
+                alvik.left_led.set_color(1, 0, 0)
+                alvik.right_led.set_color(0, 0, 0)
+                time.sleep(0.1)
+                alvik.left_led.set_color(0, 0, 0)
+                alvik.right_led.set_color(1, 0, 0)
+                time.sleep(0.1)
+                ctl.update()
+            print("Link Restored.")
 
-    # 3. Drive Logic (Tank)
-    alvik.set_wheels_speed(ctl.left_stick_y * MAX_SPEED, ctl.right_stick_y * MAX_SPEED)
+        # 3. Drive Logic (Tank)
+        alvik.set_wheels_speed(ctl.left_stick_y * MAX_SPEED, ctl.right_stick_y * MAX_SPEED)
 
-    # 4. BUTTON LED MAPPING
-    # Default: Green (Connected)
-    l_r, l_g, l_b = 0, 1, 0
-    r_r, r_g, r_b = 0, 1, 0
+        # 4. BUTTON LED MAPPING
+        # Default: Green (Connected)
+        l_r, l_g, l_b = 0, 1, 0
+        r_r, r_g, r_b = 0, 1, 0
 
-    # --- RIGHT SIDE (Controls Right LED) ---
-    if ctl.buttons['cross']:    r_r, r_g, r_b = 1, 0, 0  # Red
-    if ctl.buttons['circle']:   r_r, r_g, r_b = 1, 0, 1  # Purple
-    if ctl.buttons['triangle']: r_r, r_g, r_b = 0, 0, 1  # Blue
-    if ctl.buttons['square']:   r_r, r_g, r_b = 1, 1, 0  # Yellow
-    if ctl.buttons['R1']:       r_r, r_g, r_b = 1, 1, 1  # White
-    if ctl.buttons['R3']:       r_r, r_g, r_b = 0, 1, 1  # Cyan
-    if ctl.buttons['options']:  r_r, r_g, r_b = 0, 0, 0  # Off
-    if ctl.buttons['R2']:       r_r, r_g, r_b = 1, 0.5, 0 # Orange (Digital Press)
+        # --- RIGHT SIDE (Controls Right LED) ---
+        if ctl.buttons['cross']:    r_r, r_g, r_b = 1, 0, 0  # Red
+        if ctl.buttons['circle']:   r_r, r_g, r_b = 1, 0, 1  # Purple
+        if ctl.buttons['triangle']: r_r, r_g, r_b = 0, 0, 1  # Blue
+        if ctl.buttons['square']:   r_r, r_g, r_b = 1, 1, 0  # Yellow
+        if ctl.buttons['R1']:       r_r, r_g, r_b = 1, 1, 1  # White
+        if ctl.buttons['R3']:       r_r, r_g, r_b = 0, 1, 1  # Cyan
+        if ctl.buttons['options']:  break
+        if ctl.buttons['R2']:       r_r, r_g, r_b = 1, 0.5, 0 # Orange (Digital Press)
 
-    # --- LEFT SIDE (Controls Left LED) ---
-    if ctl.buttons['down']:     l_r, l_g, l_b = 1, 0, 0  # Red
-    if ctl.buttons['right']:    l_r, l_g, l_b = 1, 0, 1  # Purple
-    if ctl.buttons['up']:       l_r, l_g, l_b = 0, 0, 1  # Blue
-    if ctl.buttons['left']:     l_r, l_g, l_b = 1, 1, 0  # Yellow
-    if ctl.buttons['L1']:       l_r, l_g, l_b = 1, 1, 1  # White
-    if ctl.buttons['L3']:       l_r, l_g, l_b = 0, 1, 1  # Cyan
-    if ctl.buttons['share']:    l_r, l_g, l_b = 0, 0, 0  # Off
-    if ctl.buttons['L2']:       l_r, l_g, l_b = 1, 0.5, 0 # Orange (Digital Press)
+        # --- LEFT SIDE (Controls Left LED) ---
+        if ctl.buttons['down']:     l_r, l_g, l_b = 1, 0, 0  # Red
+        if ctl.buttons['right']:    l_r, l_g, l_b = 1, 0, 1  # Purple
+        if ctl.buttons['up']:       l_r, l_g, l_b = 0, 0, 1  # Blue
+        if ctl.buttons['left']:     l_r, l_g, l_b = 1, 1, 0  # Yellow
+        if ctl.buttons['L1']:       l_r, l_g, l_b = 1, 1, 1  # White
+        if ctl.buttons['L3']:       l_r, l_g, l_b = 0, 1, 1  # Cyan
+        if ctl.buttons['share']:    l_r, l_g, l_b = 0, 0, 0  # Off
+        if ctl.buttons['L2']:       l_r, l_g, l_b = 1, 0.5, 0 # Orange (Digital Press)
 
-    # --- CENTER ---
-    if ctl.buttons['ps']:
-        l_r, l_g, l_b = 1, 1, 1 # Both White
-        r_r, r_g, r_b = 1, 1, 1
+        # --- CENTER ---
+        if ctl.buttons['ps']:
+            l_r, l_g, l_b = 1, 1, 1 # Both White
+            r_r, r_g, r_b = 1, 1, 1
 
-    # Apply Colors
-    alvik.left_led.set_color(l_r, l_g, l_b)
-    alvik.right_led.set_color(r_r, r_g, r_b)
+        # Apply Colors
+        alvik.left_led.set_color(l_r, l_g, l_b)
+        alvik.right_led.set_color(r_r, r_g, r_b)
 
-    time.sleep(0.01)
-    
+        time.sleep(0.01)
+finally:
+    alvik.set_wheels_speed(0, 0)
+    alvik.left_led.set_color(0, 0, 0)
+    alvik.right_led.set_color(0, 0, 0)
+    print("Program Ended. Motors Stopped, LEDs Off.")
+    alvik.stop()
