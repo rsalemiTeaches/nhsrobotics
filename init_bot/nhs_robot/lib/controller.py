@@ -37,6 +37,7 @@ class Controller:
         self.right_stick_y = 0.0
         self.L2 = 0.0
         self.R2 = 0.0
+        self.last_packet_time = -500.0
         
         # 17 Buttons
         self.buttons = {
@@ -48,7 +49,6 @@ class Controller:
         }
 
         # Connection Safety
-        self.last_packet_time = 0
         
         # --- WIFI SETUP (AP MODE) ---
         self.ap = network.WLAN(network.AP_IF)
