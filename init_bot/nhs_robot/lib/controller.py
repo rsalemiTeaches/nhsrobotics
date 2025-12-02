@@ -1,7 +1,7 @@
 # Library: Alvik Web Controller
 # Features: Graphical UI (File Based), Bitmasking, Analog Triggers
 #
-# Version: V10
+# Version: V10.1
 # FIX: 'controller.html' path is now relative to this script.
 #      This solves the "FileNotFound" error when running from root while files are in /lib.
 
@@ -38,6 +38,8 @@ class Controller:
         self.L2 = 0.0
         self.R2 = 0.0
         self.last_packet_time = -500.0
+        self.connected = False
+
         
         # 17 Buttons
         self.buttons = {
@@ -102,7 +104,7 @@ class Controller:
 
     def is_connected(self):
         """Returns True if a valid packet was received in the last 300.0 seconds (5 mins)."""
-        return (time.time() - self.last_packet_time) < 300.0
+        return ((time.time() - self.last_packet_time) < 300.0) and self.connected
 
     def _check_verbose(self):
         if self.verbose:
@@ -115,7 +117,6 @@ class Controller:
             
             # Update Heartbeat on Home Page Load (GET / )
             if req_line.startswith('GET / '): 
-                self.last_packet_time = time.time()
                 return "HOME"
             
             # If no '?' is found, we can't parse parameters
@@ -124,7 +125,7 @@ class Controller:
             
             # Mark connection as active immediately upon receiving data
             self.last_packet_time = time.time()
-
+            self.connected = True
             # Robustly extract query string: GET /update?ax=... HTTP/1.1
             url_part = req_line.split(' ')[1]
             query_string = url_part.split('?')[1]

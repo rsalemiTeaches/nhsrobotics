@@ -1,88 +1,113 @@
-# Project 16: Remote Control Link
-# Architecture: Controller -> Lambda -> Button
+# Project 16: Remote Control Link & Button Test
+# Version: V03
+# FIX: Added "Waiting for Connection" loop to prevent immediate Blue LEDs.
+# FEATURE: Mapped EVERY button to a unique LED color/position.
 
 from arduino_alvik import ArduinoAlvik
-# NOW: We import all our tools from your single library!
-from nhs_robotics import NanoLED, Button, Controller
+# We import Controller from your library
+from nhs_robotics import NanoLED, Controller
 import machine
 import ubinascii
 import time
 
-# --- SETUP ---
-# 1. Generate Unique Name
+# --- CONFIGURATION ---
+MAX_SPEED = 50  # RPM
+
+# --- SETUP HARDWARE ---
+alvik = ArduinoAlvik()
+alvik.begin()
+
+# NanoLED (Top Board)
+nano_led = NanoLED()
+nano_led.set_color(1, 1, 0) # Booting Yellow
+nano_led.off() 
+
+# --- WIFI SETUP ---
 id_hex = ubinascii.hexlify(machine.unique_id()).decode()
 MY_NAME = f"Alvik-{id_hex[-4:].upper()}"
 
-alvik = ArduinoAlvik()
-alvik.begin()
-alvik.left_led.set_color(1, 1, 0) # Yellow = Booting
-
-# 2. Setup NanoLED
-nano_led = NanoLED()
-# Set color to Yellow so we can control brightness later
-nano_led.set_color(1, 1, 0) 
-nano_led.off() 
-
-# 3. Start Controller
 print("--------------------------------")
 print(f" WIFI CREATED:  {MY_NAME}")
-print(" PASSWORD:      password")
-print(" GO TO BROWSER: http://192.168.4.1")
+print(f" PASSWORD:      password")
+print(f" GO TO BROWSER: http://192.168.4.1")
 print("--------------------------------")
 
 ctl = Controller(ssid=MY_NAME)
 
-# 4. Create Button Objects (THE LAMBDA BRIDGE)
-# We map specific controller buttons to our Button class
-cross_btn    = Button(lambda: ctl.buttons['cross'])
-triangle_btn = Button(lambda: ctl.buttons['triangle'])
-bumper_R1    = Button(lambda: ctl.buttons['R1'])
-up_btn       = Button(lambda: ctl.buttons['up'])
+# --- CRITICAL FIX: WAITING LOOP ---
+# The robot will now Blink Yellow until the Controller says "Connected"
+print("Waiting for connection...")
+while not ctl.is_connected():
+    alvik.left_led.set_color(1, 1, 0) # Yellow
+    alvik.right_led.set_color(0, 0, 0)
+    time.sleep(0.1)
+    alvik.left_led.set_color(0, 0, 0)
+    alvik.right_led.set_color(1, 1, 0)
+    time.sleep(0.1)
+    ctl.update()
 
-print("Ready! Connect Chromebook to WiFi.")
-alvik.left_led.set_color(0, 0, 1) 
-alvik.right_led.set_color(0, 0, 1)
+# --- CONNECTION SUCCESS ---
+print("Connected!")
+# Default State: Green (Link Active)
+alvik.left_led.set_color(0, 1, 0)
+alvik.right_led.set_color(0, 1, 0)
 
 # --- MAIN LOOP ---
 while True:
-    # A. Update Data
+    # 1. Update Data
     ctl.update()
-    
-    # B. Driving
-    speed_L = ctl.left_stick_y * 50
-    speed_R = ctl.right_stick_y * 50
-    alvik.set_wheels_speed(speed_L, speed_R)
-    
-    # C. Analog Brightness
-    # ctl.R2 is 0.0 to 1.0. We convert to 0-100%
-    if ctl.R2 < 0.05:
-        nano_led.off()
-    else:
-        brightness_percent = int(ctl.R2 * 100)
-        nano_led.set_brightness(brightness_percent)
-    
-    # D. Events
-    if cross_btn.get_touch():
-        print("ACTION: Red Headlights")
-        alvik.left_led.set_color(1, 0, 0)
-        alvik.right_led.set_color(1, 0, 0)
 
-    if triangle_btn.get_touch():
-        print("ACTION: Green LEDs")
-        alvik.left_led.set_color(0, 1, 0) 
-        alvik.right_led.set_color(0, 1, 0)
-        nano_led.set_color(0, 1, 0)
-        
-    if bumper_R1.get_touch():
-        print("ACTION: Blue LEDs")
-        alvik.left_led.set_color(0, 0, 1)
-        alvik.right_led.set_color(0, 0, 1)
-        nano_led.set_color(0, 0, 1)
+    # 2. Safety Check (Link Lost?)
+    if not ctl.is_connected():
+        print("Link Lost!")
+        alvik.stop()
+        # Blink Red until reconnected
+        while not ctl.is_connected():
+            alvik.left_led.set_color(1, 0, 0)
+            alvik.right_led.set_color(0, 0, 0)
+            time.sleep(0.1)
+            alvik.left_led.set_color(0, 0, 0)
+            alvik.right_led.set_color(1, 0, 0)
+            time.sleep(0.1)
+            ctl.update()
+        print("Link Restored.")
 
-    if up_btn.get_touch():
-        print("ACTION: Purple LEDs")
-        alvik.left_led.set_color(1, 0, 1)
-        alvik.right_led.set_color(1, 0, 1)
-        nano_led.set_color(1, 0, 1)
-        
+    # 3. Drive Logic (Tank)
+    alvik.set_wheels_speed(ctl.left_stick_y * MAX_SPEED, ctl.right_stick_y * MAX_SPEED)
+
+    # 4. BUTTON LED MAPPING
+    # Default: Green (Connected)
+    l_r, l_g, l_b = 0, 1, 0
+    r_r, r_g, r_b = 0, 1, 0
+
+    # --- RIGHT SIDE (Controls Right LED) ---
+    if ctl.buttons['cross']:    r_r, r_g, r_b = 1, 0, 0  # Red
+    if ctl.buttons['circle']:   r_r, r_g, r_b = 1, 0, 1  # Purple
+    if ctl.buttons['triangle']: r_r, r_g, r_b = 0, 0, 1  # Blue
+    if ctl.buttons['square']:   r_r, r_g, r_b = 1, 1, 0  # Yellow
+    if ctl.buttons['R1']:       r_r, r_g, r_b = 1, 1, 1  # White
+    if ctl.buttons['R3']:       r_r, r_g, r_b = 0, 1, 1  # Cyan
+    if ctl.buttons['options']:  r_r, r_g, r_b = 0, 0, 0  # Off
+    if ctl.buttons['R2']:       r_r, r_g, r_b = 1, 0.5, 0 # Orange (Digital Press)
+
+    # --- LEFT SIDE (Controls Left LED) ---
+    if ctl.buttons['down']:     l_r, l_g, l_b = 1, 0, 0  # Red
+    if ctl.buttons['right']:    l_r, l_g, l_b = 1, 0, 1  # Purple
+    if ctl.buttons['up']:       l_r, l_g, l_b = 0, 0, 1  # Blue
+    if ctl.buttons['left']:     l_r, l_g, l_b = 1, 1, 0  # Yellow
+    if ctl.buttons['L1']:       l_r, l_g, l_b = 1, 1, 1  # White
+    if ctl.buttons['L3']:       l_r, l_g, l_b = 0, 1, 1  # Cyan
+    if ctl.buttons['share']:    l_r, l_g, l_b = 0, 0, 0  # Off
+    if ctl.buttons['L2']:       l_r, l_g, l_b = 1, 0.5, 0 # Orange (Digital Press)
+
+    # --- CENTER ---
+    if ctl.buttons['ps']:
+        l_r, l_g, l_b = 1, 1, 1 # Both White
+        r_r, r_g, r_b = 1, 1, 1
+
+    # Apply Colors
+    alvik.left_led.set_color(l_r, l_g, l_b)
+    alvik.right_led.set_color(r_r, r_g, r_b)
+
     time.sleep(0.01)
+    
