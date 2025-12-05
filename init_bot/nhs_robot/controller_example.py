@@ -5,6 +5,9 @@ import machine
 import ubinascii
 import time
 
+# --- CONFIGURATION ---
+MAX_SPEED = 50 # Maximum speed in RPM. Change to -50 if robot runs backward!
+
 # --- SETUP ---
 # 1. Generate Unique Name for Wi-Fi
 id_hex = ubinascii.hexlify(machine.unique_id()).decode()
@@ -18,8 +21,8 @@ alvik.left_led.set_color(1, 1, 0) # Yellow = Waiting for Wi-Fi
 # 3. Start Controller Server
 print("--------------------------------")
 print(f" WIFI CREATED:  {MY_NAME}")
-print(" PASSWORD:      password")
-print(" GO TO BROWSER: http://192.168.4.1")
+print(f" PASSWORD:      password")
+print(f" GO TO BROWSER: http://192.168.4.1")
 print("--------------------------------")
 
 ctl = Controller(ssid=MY_NAME)
@@ -44,7 +47,15 @@ while True:
     # 1. VITAL: Update the controller listener
     ctl.update()
     
-    # 2. Check the 'cross' button directly
+    # 2. DRIVING LOGIC (Tank Drive)
+    # We multiply the stick position (-1.0 to 1.0) by our MAX_SPEED
+    speed_L = ctl.left_stick_y * MAX_SPEED
+    speed_R = ctl.right_stick_y * MAX_SPEED
+    
+    # Send the calculated speeds to the motors
+    alvik.set_wheels_speed(speed_L, speed_R)
+    
+    # 3. Check the 'cross' button directly for LEDs
     if ctl.buttons['cross']:
         # If held, turn Green
         alvik.left_led.set_color(0, 1, 0)
