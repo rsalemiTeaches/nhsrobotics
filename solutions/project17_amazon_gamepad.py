@@ -1,25 +1,19 @@
 # -----------------------------------------------------------------------------
-# SOLUTION: Gamepad Robot Control (Steering + Servo)
+# SOLUTION: Gamepad Robot Control (Tank Drive + Digital Lift)
 # -----------------------------------------------------------------------------
 #
 # GAMEPAD INPUT LIST:
 #
 # Analog Sticks (Floats from -1.0 to 1.0)
-#   ctl.left_stick_x    ctl.right_stick_x
-#   ctl.left_stick_y    ctl.right_stick_y (1.0 = Max Forward)
+#   ctl.left_stick_y   -> Left Motor Speed
+#   ctl.right_stick_y  -> Right Motor Speed
 #
-# Analog Triggers (Floats from 0.0 to 1.0)
-#   ctl.L2              ctl.R2            (1.0 = Fully Pressed)
+# D-Pad Buttons (Booleans)
+#   ctl.buttons['up']    -> Raise Lift (Servo 0)
+#   ctl.buttons['down']  -> Lower Lift (Servo 180)
 #
-# Buttons (Booleans: True or False)
-#   ctl.buttons['cross']       ctl.buttons['triangle']
-#   ctl.buttons['square']      ctl.buttons['circle']
-#   ctl.buttons['up']          ctl.buttons['down']
-#   ctl.buttons['left']        ctl.buttons['right']
-#   ctl.buttons['L1']          ctl.buttons['R1']
-#   ctl.buttons['L3']          ctl.buttons['R3']
-#   ctl.buttons['share']       ctl.buttons['options']
-#   ctl.buttons['ps']
+# System Buttons
+#   ctl.buttons['options'] -> Exit Program
 #
 # -----------------------------------------------------------------------------
 
@@ -41,6 +35,11 @@ MY_NAME = f"Alvik-{id_hex[-4:].upper()}"
 # Initialize Robot
 alvik = ArduinoAlvik()
 alvik.begin()
+
+# Initialize Servo State (Start Raised/0)
+current_servo_angle = 0
+# Set initial position immediately
+alvik.set_servo_positions(current_servo_angle, 0)
 
 try:
     # Initialize Controller
@@ -76,52 +75,33 @@ try:
         ctl.update()
         
         # B. CHECK EXIT CONDITION
-        # Break the loop if 'options' is pressed to run the finally block
         if ctl.buttons['options']:
             print("Options pressed. Exiting...")
             break
 
-        # C. CALCULATE DRIVETRAIN (Steering Mix)
-        
-        # 1. Base Speed from Left Stick Y
-        # Prompt: "1 = max forward, -1 = max backward"
-        throttle = ctl.left_stick_y * MAX_SPEED
-        
-        # 2. Turn Percentage from Right Stick X
-        # Prompt: "RX controls steering by percentage"
-        # -1.0 = Left, 1.0 = Right
-        turn_pct = ctl.right_stick_x
-        
-        # Start with equal speed
-        left_speed = throttle
-        right_speed = throttle
-        
-        # Apply Steering Logic:
-        # "RX to the left means the left wheel is a 0 and right is drive speed"
-        if turn_pct < 0:
-            # Turning LEFT: Reduce Left Wheel
-            # If turn_pct is -1.0, factor becomes 0.0
-            left_speed = throttle * (1 + turn_pct)
-            
-        elif turn_pct > 0:
-            # Turning RIGHT: Reduce Right Wheel
-            # If turn_pct is 1.0, factor becomes 0.0
-            right_speed = throttle * (1 - turn_pct)
+        # C. CALCULATE DRIVETRAIN (Tank Control)
+        # Left Stick controls Left Wheel, Right Stick controls Right Wheel
+        left_speed = ctl.left_stick_y * MAX_SPEED
+        right_speed = ctl.right_stick_y * MAX_SPEED
 
-        # D. CALCULATE FORKLIFT (Servo)
-        # Prompt: "At R2=1.0 servo is 0. At R2=0 servo is 180."
-        # Equation: 180 - (R2 * 180)
-        servo_angle = int(180 - (ctl.R2 * 180))
+        # D. CALCULATE FORKLIFT (Digital Control)
+        # We check the buttons to update the state variable.
+        # The variable 'current_servo_angle' remembers the position.
         
+        if ctl.buttons['up']:
+            current_servo_angle = 0
+        elif ctl.buttons['down']:
+            current_servo_angle = 180
+            
         # E. APPLY OUTPUTS
         
         # Drive Motors
         alvik.set_wheels_speed(left_speed, right_speed)
         
         # Move Servos
-        # set_servo_positions(servo_1_angle, servo_2_angle)
-        # We set Servo 1 to our calculated angle, and Servo 2 to 0 (default)
-        alvik.set_servo_positions(servo_angle, 0)
+        # We constantly send the current angle (0 or 180) to Servo 1.
+        # Servo 2 is kept at 0.
+        alvik.set_servo_positions(current_servo_angle, 0)
         
         # F. SLEEP
         time.sleep_ms(10)
@@ -130,4 +110,5 @@ finally:
     # Safety Shutdown
     print("Stopping Robot...")
     alvik.set_wheels_speed(0,0)
+    alvik.set_servo_positions(180,0)
     alvik.stop()
