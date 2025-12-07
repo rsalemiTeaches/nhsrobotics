@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# SOLUTION: Gamepad Robot Control (Tank Drive + Digital Lift)
+# SOLUTION: Gamepad Robot Control (Tank Drive + Smooth Lift)
 # -----------------------------------------------------------------------------
 #
 # GAMEPAD INPUT LIST:
@@ -9,8 +9,8 @@
 #   ctl.right_stick_y  -> Right Motor Speed
 #
 # D-Pad Buttons (Booleans)
-#   ctl.buttons['up']    -> Raise Lift (Servo 0)
-#   ctl.buttons['down']  -> Lower Lift (Servo 180)
+#   ctl.buttons['up']    -> Raise Lift (Target 0)
+#   ctl.buttons['down']  -> Lower Lift (Target 180)
 #
 # System Buttons
 #   ctl.buttons['options'] -> Exit Program
@@ -27,6 +27,9 @@ import time
 
 # Speed Limit (0 to 100)
 MAX_SPEED = 50
+# Servo Smoothness (Degrees to move per loop)
+# Smaller number = Slower, Smoother movement
+SERVO_STEP = 4
 
 # Generate Unique Name for Wi-Fi based on the board's ID
 id_hex = ubinascii.hexlify(machine.unique_id()).decode()
@@ -36,8 +39,11 @@ MY_NAME = f"Alvik-{id_hex[-4:].upper()}"
 alvik = ArduinoAlvik()
 alvik.begin()
 
-# Initialize Servo State (Start Raised/0)
+# Initialize Servo State
+# 'current' is where the servo IS. 'target' is where we WANT it to be.
 current_servo_angle = 0
+target_servo_angle = 0
+
 # Set initial position immediately
 alvik.set_servo_positions(current_servo_angle, 0)
 
@@ -84,31 +90,44 @@ try:
         left_speed = ctl.left_stick_y * MAX_SPEED
         right_speed = ctl.right_stick_y * MAX_SPEED
 
-        # D. CALCULATE FORKLIFT (Digital Control)
-        # We check the buttons to update the state variable.
-        # The variable 'current_servo_angle' remembers the position.
+        # D. CALCULATE FORKLIFT (Target Selection)
+        # We only update the TARGET here. The moving happens in step E.
         
         if ctl.buttons['up']:
-            current_servo_angle = 0
+            target_servo_angle = 0
         elif ctl.buttons['down']:
-            current_servo_angle = 180
+            target_servo_angle = 180
             
-        # E. APPLY OUTPUTS
+        # E. SMOOTH SERVO MOVEMENT
+        # Loop through degrees: Move 'current' towards 'target' by the STEP amount
+        
+        if current_servo_angle < target_servo_angle:
+            current_servo_angle += SERVO_STEP
+            # Don't overshoot
+            if current_servo_angle > target_servo_angle:
+                current_servo_angle = target_servo_angle
+                
+        elif current_servo_angle > target_servo_angle:
+            current_servo_angle -= SERVO_STEP
+            # Don't overshoot
+            if current_servo_angle < target_servo_angle:
+                current_servo_angle = target_servo_angle
+
+        # F. APPLY OUTPUTS
         
         # Drive Motors
         alvik.set_wheels_speed(left_speed, right_speed)
         
         # Move Servos
-        # We constantly send the current angle (0 or 180) to Servo 1.
-        # Servo 2 is kept at 0.
         alvik.set_servo_positions(current_servo_angle, 0)
         
-        # F. SLEEP
+        # G. SLEEP
         time.sleep_ms(10)
 
 finally:
     # Safety Shutdown
     print("Stopping Robot...")
     alvik.set_wheels_speed(0,0)
+    # Lower the lift for safety
     alvik.set_servo_positions(180,0)
     alvik.stop()
