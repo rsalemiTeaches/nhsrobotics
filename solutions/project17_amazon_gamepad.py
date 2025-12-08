@@ -1,20 +1,17 @@
 # -----------------------------------------------------------------------------
-# SOLUTION: Gamepad Robot Control (Tank Drive + Smooth Lift)
+# PROJECT 17 SOLUTION: Gamepad Forklift (Tank Drive + Lift + Safety Fence)
 # -----------------------------------------------------------------------------
 #
-# GAMEPAD INPUT LIST:
+# CONTROLS:
+#   Left Stick Y   -> Left Motor (Tank)
+#   Right Stick Y  -> Right Motor (Tank)
+#   D-Pad Up       -> Raise Lift
+#   D-Pad Down     -> Lower Lift
+#   Options        -> Exit Program
 #
-# Analog Sticks (Floats from -1.0 to 1.0)
-#   ctl.left_stick_y   -> Left Motor Speed
-#   ctl.right_stick_y  -> Right Motor Speed
-#
-# D-Pad Buttons (Booleans)
-#   ctl.buttons['up']    -> Raise Lift (Target 0)
-#   ctl.buttons['down']  -> Lower Lift (Target 180)
-#
-# System Buttons
-#   ctl.buttons['options'] -> Exit Program
-#
+# SAFETY:
+#   The robot will refuse to drive FORWARD if it detects a black line.
+#   It will allows drive BACKWARD to escape the edge.
 # -----------------------------------------------------------------------------
 
 from arduino_alvik import ArduinoAlvik
@@ -28,10 +25,12 @@ import time
 # Speed Limit (0 to 100)
 MAX_SPEED = 50
 # Servo Smoothness (Degrees to move per loop)
-# Smaller number = Slower, Smoother movement
 SERVO_STEP = 4
+# Line Sensor Threshold (Higher = Darker)
+# > 300 usually indicates a black line on white paper
+LINE_THRESHOLD = 300
 
-# Generate Unique Name for Wi-Fi based on the board's ID
+# Generate Unique Name
 id_hex = ubinascii.hexlify(machine.unique_id()).decode()
 MY_NAME = f"Alvik-{id_hex[-4:].upper()}"
 
@@ -40,11 +39,8 @@ alvik = ArduinoAlvik()
 alvik.begin()
 
 # Initialize Servo State
-# 'current' is where the servo IS. 'target' is where we WANT it to be.
 current_servo_angle = 0
 target_servo_angle = 0
-
-# Set initial position immediately
 alvik.set_servo_positions(current_servo_angle, 0)
 
 try:
@@ -53,23 +49,17 @@ try:
     ctl = Controller(ssid=MY_NAME)
 
     # --- 2. CONNECTION LOOP ---
-    # Loop and blink Yellow until the Gamepad connects
     print("Waiting for controller connection...")
-
     while not ctl.is_connected():
-        # Vital: Check for network activity
         ctl.update()
-        
-        # Blink routine
-        alvik.left_led.set_color(1, 1, 0) # Yellow
+        # Blink Yellow
+        alvik.left_led.set_color(1, 1, 0)
         alvik.right_led.set_color(1, 1, 0)
         time.sleep(0.1)
-        
-        alvik.left_led.set_color(0, 0, 0) # Off
+        alvik.left_led.set_color(0, 0, 0)
         alvik.right_led.set_color(0, 0, 0)
         time.sleep(0.1)
 
-    # Connection Established - Turn Green
     print("Controller Connected!")
     alvik.left_led.set_color(0, 1, 0)
     alvik.right_led.set_color(0, 1, 0)
@@ -77,57 +67,70 @@ try:
 
     # --- 3. MAIN LOOP ---
     while True:
-        # A. UPDATE (Requirement: Always Call First)
+        # A. UPDATE
         ctl.update()
         
-        # B. CHECK EXIT CONDITION
+        # B. CHECK EXIT
         if ctl.buttons['options']:
             print("Options pressed. Exiting...")
             break
 
         # C. CALCULATE DRIVETRAIN (Tank Control)
-        # Left Stick controls Left Wheel, Right Stick controls Right Wheel
+        # Negative stick = Reverse, Positive stick = Forward
         left_speed = ctl.left_stick_y * MAX_SPEED
         right_speed = ctl.right_stick_y * MAX_SPEED
 
-        # D. CALCULATE FORKLIFT (Target Selection)
-        # We only update the TARGET here. The moving happens in step E.
+        # --- D. SAFETY FENCE LOGIC ---
+        # Read the 3 line sensors (Left, Center, Right)
+        l_sens, c_sens, r_sens = alvik.get_line_sensors()
         
+        # Check if ANY sensor sees the black line
+        if l_sens > LINE_THRESHOLD or c_sens > LINE_THRESHOLD or r_sens > LINE_THRESHOLD:
+            # SAFETY TRIGGERED: The robot is on the edge.
+            
+            # Logic: If the user is trying to drive FORWARD (speed > 0), stop them.
+            # If they are trying to drive BACKWARD (speed < 0), let them go.
+            
+            if left_speed > 0:
+                left_speed = 0
+            
+            if right_speed > 0:
+                right_speed = 0
+                
+            # Optional: Flash Red to warn the driver
+            alvik.left_led.set_color(1, 0, 0)
+            alvik.right_led.set_color(1, 0, 0)
+        else:
+            # Clear warning lights (Return to Green)
+            alvik.left_led.set_color(0, 1, 0)
+            alvik.right_led.set_color(0, 1, 0)
+
+        # E. CALCULATE FORKLIFT (Target Selection)
         if ctl.buttons['up']:
             target_servo_angle = 0
         elif ctl.buttons['down']:
             target_servo_angle = 180
             
-        # E. SMOOTH SERVO MOVEMENT
-        # Loop through degrees: Move 'current' towards 'target' by the STEP amount
-        
+        # F. SMOOTH SERVO MOVEMENT
         if current_servo_angle < target_servo_angle:
             current_servo_angle += SERVO_STEP
-            # Don't overshoot
             if current_servo_angle > target_servo_angle:
                 current_servo_angle = target_servo_angle
                 
         elif current_servo_angle > target_servo_angle:
             current_servo_angle -= SERVO_STEP
-            # Don't overshoot
             if current_servo_angle < target_servo_angle:
                 current_servo_angle = target_servo_angle
 
-        # F. APPLY OUTPUTS
-        
-        # Drive Motors
+        # G. APPLY OUTPUTS
         alvik.set_wheels_speed(left_speed, right_speed)
-        
-        # Move Servos
         alvik.set_servo_positions(current_servo_angle, 0)
         
-        # G. SLEEP
         time.sleep_ms(10)
 
 finally:
-    # Safety Shutdown
     print("Stopping Robot...")
     alvik.set_wheels_speed(0,0)
-    # Lower the lift for safety
+    # Lower lift for safety
     alvik.set_servo_positions(180,0)
     alvik.stop()
