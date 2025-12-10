@@ -1,3 +1,4 @@
 # import the demo
-import 
+import eggdrop
+
 

@@ -119,7 +119,7 @@ try:
             adjustment = get_turn_adjustment(l_sensor, c_sensor, r_sensor)
             left_speed = RACE_SPEED + adjustment
             right_speed = RACE_SPEED - adjustment
-            alvik.set_wheels_speed(left_speed, right_speed)
+            alvik.set_wheels_speed(left_speed, right_speed)c
             
             # --- THINK (Transitions) ---
             if sees_obstacle:
