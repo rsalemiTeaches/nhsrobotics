@@ -1,3 +1,5 @@
+# V03
+# This code written with the help of Gemini Pro
 from arduino_alvik import ArduinoAlvik
 from time import sleep_ms, ticks_ms, ticks_diff
 import math
@@ -5,8 +7,8 @@ import math
 # --- CONFIGURATION ---
 # Adjust this value! 
 # 1.0 is normal gravity. 
-# 4.0 means the robot experienced 4x gravity (a harsh crash).
-EGG_BREAK_THRESHOLD = 4.0 
+# 2.7 means the robot experienced 2.7x gravity.
+EGG_BREAK_THRESHOLD = 2.7 
 
 # Threshold to detect that a drop has finished/impact occurred
 IMPACT_TRIGGER = 2.0
@@ -30,8 +32,7 @@ class EggDropBot:
         return magnitude
 
     def set_color(self, r, g, b):
-        """Helper to set both LEDs."""
-        # Note: Adjust method names if your library version differs
+        """Helper to set both LEDs using 0 or 1."""
         self.alvik.left_led.set_color(r, g, b)
         self.alvik.right_led.set_color(r, g, b)
 
@@ -48,7 +49,7 @@ class EggDropBot:
                 if led_on:
                     self.set_color(0, 0, 0) # Off
                 else:
-                    self.set_color(0, 0, 100) # Blue
+                    self.set_color(0, 0, 1) # Blue
                 led_on = not led_on
                 last_blink = now
 
@@ -65,7 +66,7 @@ class EggDropBot:
     def measure_impact(self):
         """State 2: Impact Detected. Measuring peak force."""
         print("Impact detected! Measuring...")
-        self.set_color(100, 100, 0) # Yellow during calculation
+        self.set_color(1, 0, 1) # Purple during calculation
         
         max_g_seen = 0.0
         start_time = ticks_ms()
@@ -88,9 +89,9 @@ class EggDropBot:
         while True:
             # Blink Result
             if survived:
-                self.set_color(0, 100, 0) # Green
+                self.set_color(0, 1, 0) # Green
             else:
-                self.set_color(100, 0, 0) # Red
+                self.set_color(1, 0, 0) # Red
             
             sleep_ms(300)
             self.set_color(0, 0, 0)
@@ -110,6 +111,20 @@ class EggDropBot:
             peak_force = self.wait_for_drop()
             self.show_result(peak_force)
 
-
-bot = EggDropBot()
-bot.run()
+# Main Execution
+bot = None
+try:
+    bot = EggDropBot()
+    bot.run()
+except KeyboardInterrupt:
+    print("Program stopped by user.")
+except Exception as e:
+    print(f"An error occurred: {e}")
+finally:
+    # Ensure LEDs are off and motors stopped if program exits
+    if bot is not None:
+        bot.alvik.left_led.set_color(0, 0, 0)
+        bot.alvik.right_led.set_color(0, 0, 0)
+        bot.alvik.stop()
+    print("Cleaned up.")
+    
