@@ -1,4 +1,4 @@
-# V08
+# V09
 # This code written with the help of Gemini Pro
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import oLED
@@ -52,6 +52,35 @@ class MarsRover:
         self.oled.display.text(line1, 0, 0)
         self.oled.display.text(line2, 0, 10)
         self.oled.display.text(line3, 0, 20)
+        self.oled.display.show()
+
+    def draw_skull(self):
+        """Draws a pixel-art skull on the right side of the screen."""
+        if not self.oled_active:
+            return
+
+        # Position for the skull (Right side)
+        start_x = 110
+        start_y = 5
+
+        # Draw the main skull shape (White block)
+        self.oled.display.fill_rect(start_x + 2, start_y, 10, 8, 1)     # Cranium
+        self.oled.display.fill_rect(start_x, start_y + 3, 14, 5, 1)     # Wide part
+        self.oled.display.fill_rect(start_x + 3, start_y + 8, 8, 5, 1)  # Jaw
+
+        # Carve out the eyes (Black / Clear pixels)
+        self.oled.display.fill_rect(start_x + 2, start_y + 3, 3, 3, 0)
+        self.oled.display.fill_rect(start_x + 9, start_y + 3, 3, 3, 0)
+
+        # Carve out the nose (Black inverted V)
+        self.oled.display.line(start_x + 7, start_y + 7, start_x + 6, start_y + 9, 0)
+        self.oled.display.line(start_x + 7, start_y + 7, start_x + 8, start_y + 9, 0)
+
+        # Carve out the teeth (Black vertical lines)
+        self.oled.display.line(start_x + 5, start_y + 10, start_x + 5, start_y + 12, 0)
+        self.oled.display.line(start_x + 7, start_y + 10, start_x + 7, start_y + 12, 0)
+        self.oled.display.line(start_x + 9, start_y + 10, start_x + 9, start_y + 12, 0)
+
         self.oled.display.show()
 
     def get_g_force(self):
@@ -143,12 +172,16 @@ class MarsRover:
         # Update OLED - Prioritize the Target Comparison
         # Line 1: Force: 7.2 N
         # Line 2: Limit: 5.3 N
-        # Line 3: STATUS: SAFE
+        # Line 3: STATUS: SAFE (or FAIL)
         self.update_display(
             f"Force: {force_newtons:.1f} N",
             f"Limit: {SAFE_FORCE_NEWTONS:.1f} N",
             status_text
         )
+
+        # If mission failed, stamp the skull on the screen
+        if not survived:
+            self.draw_skull()
 
         if survived:
             print("Mission Status: SUCCESS. Rover operational.")
