@@ -134,3 +134,4 @@ finally:
     # Lower lift for safety
     alvik.set_servo_positions(180,0)
     alvik.stop()
+     
