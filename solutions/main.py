@@ -1,5 +1,5 @@
 # Project 18: Capstone Step 1 - The Blind Approach
-# Version: V09
+# Version: V10
 #
 # OBJECTIVE:
 # 1. Start in IDLE (Fork Up).
@@ -8,7 +8,7 @@
 # 4. Handle the "Blind Spot" DYNAMICALLY.
 # 5. SAFETY: Allow 'X' button to cancel at any time.
 # 6. SHUTDOWN: Ensure motors and LEDs turn off on exit.
-# 7. DISPLAY: Show distance on oLED (Fixed Scope).
+# 7. DISPLAY: Show distance on oLED using show_lines().
 #
 # Created with the help of Gemini Pro
 
@@ -33,9 +33,8 @@ alvik.begin()
 screen = None
 try:
     screen = oLED()
-    screen.clear()
-    screen.text("Booting...", 0, 0)
-    screen.show()
+    # Simplified initialization using show_lines
+    screen.show_lines("Booting...", "Please Wait")
     print("OLED Initialized")
 except Exception as e:
     print(f"OLED Error: {e}")
@@ -48,9 +47,7 @@ try:
 except:
     print("Camera Error!")
     if screen:
-        screen.clear()
-        screen.text("Cam Error!", 0, 0)
-        screen.show()
+        screen.show_lines("Cam Error!", "Check Wiring")
     sys.exit()
 
 # --- HELPER FUNCTIONS ---
@@ -62,7 +59,6 @@ def set_fork_position(angle):
     180 = DOWN (Pickup)
     """
     # 1. Get current positions so we don't disturb Servo B
-    # returns a tuple or list: (pos_a, pos_b)
     current_positions = alvik.get_servo_positions()
     current_b = current_positions[1]
     
@@ -84,22 +80,20 @@ def check_cancel():
     if alvik.get_touch_cancel():
         raise SystemExit("User pressed 'X'")
 
-def update_display(text_line1, text_line2=""):
-    """Helper to write to OLED - Uses global 'screen' variable"""
+def update_display(line1, line2=""):
+    """Helper to write to OLED using the built-in library function"""
     global screen
     if screen:
         try:
-            screen.clear()
-            screen.text(str(text_line1), 0, 0)
-            screen.text(str(text_line2), 0, 10)
-            screen.show()
+            # show_lines handles clearing and refreshing internally
+            screen.show_lines(str(line1), str(line2))
         except Exception as e:
             print(f"Display Error: {e}")
 
 # --- MAIN PROGRAM ---
 try:
-    print("--- CAPSTONE STEP 1 (V09) ---")
-    update_display("Capstone V09", "Waiting...")
+    print("--- CAPSTONE STEP 1 (V10) ---")
+    update_display("Capstone V10", "Waiting...")
     print("Waiting for Button to start...")
     alvik.left_led.set_color(0, 1, 0) # Green (Ready)
 
@@ -192,10 +186,8 @@ except Exception as e:
     print(f"An error occurred: {e}")
     if screen:
         try:
-            screen.clear()
-            screen.text("Error:", 0, 0)
-            screen.text(str(e)[:16], 0, 10) # Truncate to fit
-            screen.show()
+            # Simplified error display
+            screen.show_lines("Error:", str(e)[:16])
         except:
             pass
 
@@ -205,4 +197,5 @@ finally:
     alvik.set_wheels_speed(0, 0)
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
+    alvik.stop()
     
