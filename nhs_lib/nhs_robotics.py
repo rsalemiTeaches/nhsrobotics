@@ -19,7 +19,7 @@ class oLED:
     This class automatically handles I2C setup and provides easy-to-use
     methods for displaying text.
     """
-    def __init__(self):
+    def __init__(self, i2cDriver = None):
         # Configuration is hardcoded here so students don't need it.
         SCL_PIN = 12
         SDA_PIN = 11
@@ -32,10 +32,11 @@ class oLED:
         try:
             # Create a native MicroPython I2C object, which the official
             # ssd1306 library is now confirmed to work with.
-            i2c = I2C(1, scl=Pin(SCL_PIN), sda=Pin(SDA_PIN))
+            if i2cDriver is None:
+                i2cDriver = I2C(scl=Pin(SCL_PIN), sda=Pin(SDA_PIN))
             
             # Initialize the OLED display driver from the ssd1306 library
-            self.display = ssd1306.SSD1306_I2C(OLED_WIDTH, OLED_HEIGHT, i2c, I2C_ADDRESS)
+            self.display = ssd1306.SSD1306_I2C(OLED_WIDTH, OLED_HEIGHT, i2cDriver, I2C_ADDRESS)
             
             self.clear()
             print("OLED display initialized successfully.")
