@@ -1,5 +1,5 @@
 # Project 18: Capstone Step 1 - The Blind Approach
-# Version: V08
+# Version: V09
 #
 # OBJECTIVE:
 # 1. Start in IDLE (Fork Up).
@@ -8,7 +8,7 @@
 # 4. Handle the "Blind Spot" DYNAMICALLY.
 # 5. SAFETY: Allow 'X' button to cancel at any time.
 # 6. SHUTDOWN: Ensure motors and LEDs turn off on exit.
-# 7. DISPLAY: Show distance on oLED.
+# 7. DISPLAY: Show distance on oLED (Fixed Scope).
 #
 # Created with the help of Gemini Pro
 
@@ -29,12 +29,14 @@ SPEED_APPROACH = 20      # Slow speed for safety
 alvik = ArduinoAlvik()
 alvik.begin()
 
-# Setup OLED
+# Setup OLED - Global Variable
+screen = None
 try:
     screen = oLED()
     screen.clear()
     screen.text("Booting...", 0, 0)
     screen.show()
+    print("OLED Initialized")
 except Exception as e:
     print(f"OLED Error: {e}")
 
@@ -45,7 +47,7 @@ try:
     huskylens.begin()
 except:
     print("Camera Error!")
-    if 'screen' in locals():
+    if screen:
         screen.clear()
         screen.text("Cam Error!", 0, 0)
         screen.show()
@@ -83,19 +85,21 @@ def check_cancel():
         raise SystemExit("User pressed 'X'")
 
 def update_display(text_line1, text_line2=""):
-    """Helper to write to OLED"""
-    try:
-        screen.clear()
-        screen.text(str(text_line1), 0, 0)
-        screen.text(str(text_line2), 0, 10)
-        screen.show()
-    except:
-        pass
+    """Helper to write to OLED - Uses global 'screen' variable"""
+    global screen
+    if screen:
+        try:
+            screen.clear()
+            screen.text(str(text_line1), 0, 0)
+            screen.text(str(text_line2), 0, 10)
+            screen.show()
+        except Exception as e:
+            print(f"Display Error: {e}")
 
 # --- MAIN PROGRAM ---
 try:
-    print("--- CAPSTONE STEP 1 (V08) ---")
-    update_display("Capstone V08", "Waiting...")
+    print("--- CAPSTONE STEP 1 (V09) ---")
+    update_display("Capstone V09", "Waiting...")
     print("Waiting for Button to start...")
     alvik.left_led.set_color(0, 1, 0) # Green (Ready)
 
@@ -186,13 +190,14 @@ except SystemExit:
     pass
 except Exception as e:
     print(f"An error occurred: {e}")
-    try:
-        screen.clear()
-        screen.text("Error:", 0, 0)
-        screen.text(str(e)[:16], 0, 10) # Truncate to fit
-        screen.show()
-    except:
-        pass
+    if screen:
+        try:
+            screen.clear()
+            screen.text("Error:", 0, 0)
+            screen.text(str(e)[:16], 0, 10) # Truncate to fit
+            screen.show()
+        except:
+            pass
 
 finally:
     # --- CLEANUP (Runs on Exit, Error, or Cancel) ---
