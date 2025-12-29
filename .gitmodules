@@ -1,6 +1,7 @@
 [submodule "libs_on_github/Qwiic_I2C_Py"]
     path = libs_on_github/Qwiic_I2C_Py
     url = https://github.com/rsalemiTeaches/Qwiic_I2C_Py
+	branch = master
 [submodule "libs_on_github/Qwiic_Buzzer_Py"]
     path = libs_on_github/Qwiic_Buzzer_Py
     url = https://github.com/sparkfun/Qwiic_Buzzer_Py
