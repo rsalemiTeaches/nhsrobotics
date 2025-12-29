@@ -226,7 +226,7 @@ try:
             if previous_state != STATE_SUCCESS:
                 print("State: SUCCESS")
                 update_display("Target Reached", "Done")
-                alvik.stop()
+                alvik.brake()
                 alvik.left_led.set_color(0, 1, 0)
                 alvik.right_led.set_color(0, 1, 0)
                 previous_state = STATE_SUCCESS
