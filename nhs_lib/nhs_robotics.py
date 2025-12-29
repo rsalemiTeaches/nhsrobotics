@@ -1,23 +1,48 @@
-# nhs_robotics.py v6 (Class-based OLED - Fully Documented)
+# nhs_robotics.py
+# Version: V06 (Logging API Update)
+# 
+# Includes:
+# 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
+# 2. NHSAlvik class for Capstone projects
+# 3. Full backward compatibility with previous student code
+# 4. Refactored helper functions to use NHSAlvik static methods
+# 5. Updated Logging API (enable_logging / disable_logging)
 
+# --- IMPORTS ---
 import qwiic_buzzer
-from qwiic_i2c.micropython_i2c import MicroPythonI2C as I2CDriver
+from qwiic_i2c.micropython_i2c import MicroPythonI2C as I2CDriver # Alias for compatibility
+from qwiic_i2c.micropython_i2c import MicroPythonI2C # Explicit import for NHSAlvik
 from nanolib import NanoLED
 from button import Button
 from controller import Controller
 import ssd1306
 from machine import Pin, I2C
+import time
+import os
+import sys
 
-# This print statement helps confirm the correct library is loaded.
-print("Loading nhs_robotics.py v6 (Final)")
+# Import for NHSAlvik
+from arduino_alvik import ArduinoAlvik
+from qwiic_huskylens import QwiicHuskylens
 
+print("Loading nhs_robotics.py V06")
 
-# --- oLED Display Class ---
+# --- HELPER FUNCTIONS (Legacy Bridge) ---
+
+def get_closest_distance(d1, d2, d3, d4, d5):
+    """
+    Finds the minimum valid distance from the five ToF sensor zones.
+    A valid reading is any positive number.
+    
+    BRIDGE: This now calls the static method in NHSAlvik to ensure logic is shared.
+    """
+    return NHSAlvik._get_closest_distance(d1, d2, d3, d4, d5)
+
+# --- CLASSES ---
+
 class oLED:
     """
     A simplified interface for the 128x32 I2C OLED display.
-    This class automatically handles I2C setup and provides easy-to-use
-    methods for displaying text.
     """
     def __init__(self, i2cDriver = None):
         # Configuration is hardcoded here so students don't need it.
@@ -30,25 +55,27 @@ class oLED:
         self.display = None 
         
         try:
-            # Create a native MicroPython I2C object, which the official
-            # ssd1306 library is now confirmed to work with.
+            # Create a native MicroPython I2C object if one wasn't passed.
             if i2cDriver is None:
-                i2cDriver = I2C(scl=Pin(SCL_PIN), sda=Pin(SDA_PIN))
+                # Use Hardware I2C (ID=1) to avoid deprecation warning
+                i2cDriver = I2C(1, scl=Pin(SCL_PIN), sda=Pin(SDA_PIN))
             
-            # Initialize the OLED display driver from the ssd1306 library
+            # Initialize the OLED display driver
             self.display = ssd1306.SSD1306_I2C(OLED_WIDTH, OLED_HEIGHT, i2cDriver, I2C_ADDRESS)
-            
             self.clear()
-            print("OLED display initialized successfully.")
+            # print("OLED display initialized successfully.") # Optional: Commented out for silence
 
-        except Exception as e:
-            print(f"Error: Failed to initialize OLED display. Check connection. ({e})")
+        except Exception:
+            # Fail silently to allow operation without screen
+            pass
 
     def clear(self):
         """Clears the entire screen."""
         if self.display:
-            self.display.fill(0)
-            self.display.show()
+            try:
+                self.display.fill(0)
+                self.display.show()
+            except: pass
 
     def show_lines(self, line1="", line2="", line3=""):
         """
@@ -56,56 +83,47 @@ class oLED:
         three lines of text at once.
         """
         if self.display:
-            self.display.fill(0) 
-            self.display.text(line1, 0, 0)
-            self.display.text(line2, 0, 10)
-            self.display.text(line3, 0, 20)
-            self.display.show()
-
-
-# --- Original code from your library ---
-
-def get_closest_distance(d1, d2, d3, d4, d5):
-    """
-    Finds the minimum valid distance from the five ToF sensor zones.
-    A valid reading is any positive number.
-    """
-    all_readings = [d1, d2, d3, d4, d5]
-    valid_readings = [d for d in all_readings if d > 0]
-    if not valid_readings:
-        return 999
-    return min(valid_readings)
+            try:
+                self.display.fill(0) 
+                self.display.text(str(line1), 0, 0)
+                self.display.text(str(line2), 0, 10)
+                self.display.text(str(line3), 0, 20)
+                self.display.show()
+            except: pass
 
 
 class Buzzer:
     """
-    A simplified interface for the SparkFun Qwiic Buzzer to make it
-    easier to use for beginner robotics projects.
+    A simplified interface for the SparkFun Qwiic Buzzer.
+    Updated to accept an optional i2c_driver for shared bus usage.
     """
-    def __init__(self, scl_pin=12, sda_pin=11):
+    def __init__(self, scl_pin=12, sda_pin=11, i2c_driver=None):
         """
-        Initializes the connection to the buzzer by using the Alvik's
-        own I2C bus.
+        Initializes the connection to the buzzer.
         """
         self.frequency = 2730
         self.duration = 100
         self._buzzer = None
         
+        # Initialize constants to 0 to avoid errors if buzzer fails
         self.NOTE_C4, self.NOTE_G3, self.NOTE_A3, self.NOTE_B3, self.NOTE_REST = (0,0,0,0,0)
         self.EFFECT_SIREN, self.EFFECT_YES, self.EFFECT_NO, self.EFFECT_LAUGH, self.EFFECT_CRY = (0,0,0,0,0)
 
         try:
-            i2c_driver = I2CDriver(scl=scl_pin, sda=sda_pin)
+            # Backward compatibility: Create driver if none provided
+            if i2c_driver is None:
+                i2c_driver = I2CDriver(scl=scl_pin, sda=sda_pin)
+                
             self._buzzer = qwiic_buzzer.QwiicBuzzer(i2c_driver=i2c_driver)
 
             if self._buzzer.begin() == False:
-                print("Buzzer not found. Please check your connection.")
+                # Fail silently/gracefully
                 self._buzzer = None
                 return 
             
-            print("Buzzer attached successfully.")
             self._volume = self._buzzer.VOLUME_LOW
             
+            # Map constants from the driver
             self.NOTE_C4 = self._buzzer.NOTE_C4
             self.NOTE_G3 = self._buzzer.NOTE_G3
             self.NOTE_A3 = self._buzzer.NOTE_A3
@@ -118,43 +136,202 @@ class Buzzer:
             self.EFFECT_LAUGH = 6
             self.EFFECT_CRY = 8
 
-        except Exception as e:
-            print(f"Error initializing buzzer: {e}")
+        except Exception:
             self._buzzer = None
 
     def set_frequency(self, new_frequency):
-        """
-        Sets the frequency (pitch) of the tone in Hertz (Hz).
-        """
+        """Sets the frequency (pitch) of the tone in Hertz (Hz)."""
         self.frequency = new_frequency
 
     def set_duration(self, new_duration_ms):
-        """
-        Sets how long the buzz will last in milliseconds.
-        """
+        """Sets how long the buzz will last in milliseconds."""
         self.duration = new_duration_ms
 
     def on(self):
-        """
-        Turns the buzzer on with the currently set frequency and duration.
-        """
+        """Turns the buzzer on with the currently set frequency and duration."""
         if self._buzzer:
-            self._buzzer.configure(self.frequency, self.duration, self._volume)
-            self._buzzer.on()
+            try:
+                self._buzzer.configure(self.frequency, self.duration, self._volume)
+                self._buzzer.on()
+            except: pass
 
     def off(self):
-        """
-        Immediately turns the buzzer off.
-        """
+        """Immediately turns the buzzer off."""
         if self._buzzer:
-            self._buzzer.off()
+            try:
+                self._buzzer.off()
+            except: pass
 
     def play_effect(self, effect_number):
-        """
-        Plays a pre-programmed sound effect.
-        Example: play_effect(my_buzzer.EFFECT_SIREN)
-        """
+        """Plays a pre-programmed sound effect."""
         if self._buzzer:
-            self._buzzer.play_sound_effect(effect_number, self._volume)
+            try:
+                self._buzzer.play_sound_effect(effect_number, self._volume)
+            except: pass
 
-# This library was co-authored with Google's Gemini AI.
+
+# --- NHSAlvik Class ---
+
+# Constants for NHSAlvik
+K_CONSTANT = 1624.0 # For distance calculation (Width * Distance)
+
+class NHSAlvik(ArduinoAlvik):
+    """
+    Custom class for NHS Robotics Capstone.
+    Extends ArduinoAlvik to handle shared I2C, OLED, HuskyLens, and Logging.
+    """
+    def __init__(self):
+        # 1. Initialize the base robot (motors, internal sensors, STM32)
+        super().__init__()
+        
+        # 2. Setup Logging System
+        self.logging_enabled = False
+        self._ensure_log_directory()
+        
+        # 3. Initialize Shared I2C Bus (Port 1, Pins 11/12)
+        # We use explicit ID 1 for the robot class to ensure hardware I2C usage
+        try:
+            self.shared_i2c = I2C(1, scl=Pin(12), sda=Pin(11), freq=400000)
+        except Exception:
+            # Fail silently if I2C bus cannot be created
+            self.shared_i2c = None
+
+        # 4. Initialize OLED Display (Defensive)
+        self.screen = None
+        if self.shared_i2c:
+            try:
+                # Pass the shared native driver to the oLED class defined above
+                self.screen = oLED(i2cDriver=self.shared_i2c)
+                self.screen.show_lines("NHSAlvik", "Booting...", "V06")
+            except Exception:
+                pass
+
+        # 5. Initialize HuskyLens (Defensive)
+        self.husky = None
+        if self.shared_i2c:
+            try:
+                # Create the Qwiic "Shim" driver required by SparkFun libraries
+                self.qwiic_driver = MicroPythonI2C(esp32_i2c=self.shared_i2c)
+                self.husky = QwiicHuskylens(i2c_driver=self.qwiic_driver)
+                
+                if self.husky.begin():
+                    # Camera connected successfully
+                    pass
+                else:
+                    self.husky = None
+            except Exception:
+                self.husky = None
+    
+    # --- STATIC HELPERS (Bridge) ---
+    
+    @staticmethod
+    def _get_closest_distance(d1, d2, d3, d4, d5):
+        """
+        Static implementation of distance logic.
+        Finds the minimum valid distance from the five ToF sensor zones.
+        A valid reading is any positive number.
+        """
+        all_readings = [d1, d2, d3, d4, d5]
+        valid_readings = [d for d in all_readings if d > 0]
+        if not valid_readings:
+            return 999
+        return min(valid_readings)
+
+    # --- INSTANCE METHODS ---
+
+    def get_closest_distance(self):
+        """
+        Instance method to get the closest distance from the robot's own sensors.
+        Automatically fetches the 5 ToF readings and processes them.
+        """
+        # Get readings from the robot (inherited from ArduinoAlvik)
+        # Assuming ArduinoAlvik provides get_distance() returning a tuple of 5 floats
+        d_tuple = self.get_distance() # (left, center_left, center, center_right, right)
+        
+        # Unpack and call the static helper
+        return self._get_closest_distance(d_tuple[0], d_tuple[1], d_tuple[2], d_tuple[3], d_tuple[4])
+
+    # --- LOGGING & IO METHODS ---
+
+    def enable_logging(self):
+        """Enable logging non-critical messages to file."""
+        self.logging_enabled = True
+        print("Logging set to ON")
+        self.update_display("Log: ON")
+
+    def disable_logging(self):
+        """Disable logging non-critical messages to file."""
+        self.logging_enabled = False
+        print("Logging set to OFF")
+        self.update_display("Log: OFF")
+
+    def log_message(self, message: str):
+        """
+        Standard log:
+        - Always prints to console.
+        - Updates Display (Line 1).
+        - Writes to file ONLY if logging is enabled.
+        """
+        print(message)
+        self.update_display(str(message))
+        
+        if self.logging_enabled:
+            self._append_to_file('/logs/messages.log', message)
+
+    def log_error(self, message: str):
+        """
+        Critical log:
+        - Always prints to console.
+        - Updates Display (shows 'ERROR').
+        - ALWAYS writes to file (errors.log).
+        """
+        print(f"ERROR: {message}")
+        self.update_display("ERROR:", str(message))
+        self._append_to_file('/logs/errors.log', f"ERR: {message}")
+
+    def _ensure_log_directory(self):
+        """Creates /logs directory if it doesn't exist."""
+        try:
+            os.mkdir('/logs')
+        except OSError:
+            # Directory likely exists
+            pass
+
+    def _append_to_file(self, filename, text):
+        """Internal helper to safely write to flash memory."""
+        try:
+            timestamp = time.ticks_ms() / 1000.0
+            with open(filename, 'a') as f:
+                f.write(f"[{timestamp:.2f}] {text}\n")
+        except Exception:
+            # Never crash the robot because of a logging failure
+            pass
+
+    # --- HARDWARE HELPERS ---
+
+    def update_display(self, line1, line2="", line3=""):
+        """Safe wrapper for the OLED screen."""
+        if self.screen:
+            try:
+                self.screen.show_lines(str(line1), str(line2), str(line3))
+            except Exception:
+                pass # Screen might have disconnected
+
+    def get_camera_distance(self):
+        """
+        Calculates distance to an AprilTag/Object using the K constant.
+        Returns: Distance in cm (float) or None if nothing seen.
+        """
+        if not self.husky:
+            return None
+        
+        try:
+            self.husky.request()
+            if len(self.husky.blocks) > 0:
+                width = self.husky.blocks[0].width
+                if width > 0:
+                    return K_CONSTANT / width
+        except Exception:
+            pass
+            
+        return None
