@@ -1,19 +1,16 @@
 # nhs_robotics.py
-# Version: V09 (Logging Final: Rotation, OLED Wrap, Single String)
+# Version: V15 (Final: SuperBot Composition + Logging Rename)
 # 
 # Includes:
 # 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
-# 2. NHSAlvik class for Capstone projects
+# 2. "SuperBot" Class: Wraps an existing ArduinoAlvik object to add features
+#    (Fixes singleton/hang issues by using Composition instead of Inheritance)
 # 3. Full backward compatibility with previous student code
-# 4. Refactored helper functions to use NHSAlvik static methods
-# 5. Updated Logging API (enable_logging / disable_logging)
-# 6. Improved OLED message wrapping and Log File Rotation
-# 7. Simplified Error/Message handling (Single string passed to all outputs)
 
 # --- IMPORTS ---
 import qwiic_buzzer
 from qwiic_i2c.micropython_i2c import MicroPythonI2C as I2CDriver # Alias for compatibility
-from qwiic_i2c.micropython_i2c import MicroPythonI2C # Explicit import for NHSAlvik
+from qwiic_i2c.micropython_i2c import MicroPythonI2C # Explicit import for SuperBot
 from nanolib import NanoLED
 from button import Button
 from controller import Controller
@@ -23,11 +20,11 @@ import time
 import os
 import sys
 
-# Import for NHSAlvik
+# Import for SuperBot
 from arduino_alvik import ArduinoAlvik
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V09")
+print("Loading nhs_robotics.py V15")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -36,9 +33,9 @@ def get_closest_distance(d1, d2, d3, d4, d5):
     Finds the minimum valid distance from the five ToF sensor zones.
     A valid reading is any positive number.
     
-    BRIDGE: This now calls the static method in NHSAlvik to ensure logic is shared.
+    BRIDGE: This now calls the static method in SuperBot to ensure logic is shared.
     """
-    return NHSAlvik._get_closest_distance(d1, d2, d3, d4, d5)
+    return SuperBot._get_closest_distance(d1, d2, d3, d4, d5)
 
 # --- CLASSES ---
 
@@ -172,54 +169,66 @@ class Buzzer:
             except: pass
 
 
-# --- NHSAlvik Class ---
+# --- "SuperBot" Class (Composition Pattern) ---
 
-# Constants for NHSAlvik
+# Constants for SuperBot
 K_CONSTANT = 1624.0 # For distance calculation (Width * Distance)
 
-class NHSAlvik(ArduinoAlvik):
+class SuperBot:
     """
-    Custom class for NHS Robotics Capstone.
-    Extends ArduinoAlvik to handle shared I2C, OLED, HuskyLens, and Logging.
+    The 'SuperBot' upgrade for the Alvik.
+    This class wraps an existing ArduinoAlvik object to add capabilities
+    like Logging, Screen management, and Vision, without interfering 
+    with the robot's internal drivers.
+    
+    Usage:
+      robot = ArduinoAlvik()
+      robot.begin()
+      bot = SuperBot(robot)
+      bot.log_info("Ready")
     """
-    def __init__(self):
-        # 1. Initialize the base robot (motors, internal sensors, STM32)
-        super().__init__()
+    def __init__(self, robot):
+        self.bot = robot # Use 'bot' as the attribute name per user request
         
-        # 2. Setup Logging System
-        self.logging_enabled = False
+        # 1. Setup Logging System
+        self.info_logging_enabled = False # Renamed per V15
         self._ensure_log_directory()
         self._rotate_logs() # Clean up old logs on boot
         
-        # 3. Initialize Shared I2C Bus (Port 1, Pins 11/12)
-        # We use explicit ID 1 for the robot class to ensure hardware I2C usage
+        # 2. Initialize Shared I2C Bus & Sensors
+        # Since robot.begin() should already be called before creating SuperBot,
+        # we can safely initialize sensors now.
+        self.shared_i2c = None
+        self.screen = None
+        self.husky = None
+        self.qwiic_driver = None
+        
+        self._init_peripherals()
+
+    def _init_peripherals(self):
+        """Internal method to setup I2C, OLED, and HuskyLens."""
+        # Initialize Shared I2C Bus (Port 1, Pins 11/12)
         try:
             self.shared_i2c = I2C(1, scl=Pin(12), sda=Pin(11), freq=400000)
         except Exception:
-            # Fail silently if I2C bus cannot be created
             self.shared_i2c = None
 
-        # 4. Initialize OLED Display (Defensive)
-        self.screen = None
+        # Initialize OLED Display
         if self.shared_i2c:
             try:
-                # Pass the shared native driver to the oLED class defined above
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("NHSAlvik", "Booting...", "V09")
+                self.screen.show_lines("SuperBot", "Online", "V15")
             except Exception:
                 pass
 
-        # 5. Initialize HuskyLens (Defensive)
-        self.husky = None
+        # Initialize HuskyLens
         if self.shared_i2c:
             try:
-                # Create the Qwiic "Shim" driver required by SparkFun libraries
                 self.qwiic_driver = MicroPythonI2C(esp32_i2c=self.shared_i2c)
                 self.husky = QwiicHuskylens(i2c_driver=self.qwiic_driver)
                 
                 if self.husky.begin():
-                    # Camera connected successfully
-                    pass
+                    pass # Success
                 else:
                     self.husky = None
             except Exception:
@@ -231,8 +240,6 @@ class NHSAlvik(ArduinoAlvik):
     def _get_closest_distance(d1, d2, d3, d4, d5):
         """
         Static implementation of distance logic.
-        Finds the minimum valid distance from the five ToF sensor zones.
-        A valid reading is any positive number.
         """
         all_readings = [d1, d2, d3, d4, d5]
         valid_readings = [d for d in all_readings if d > 0]
@@ -240,46 +247,59 @@ class NHSAlvik(ArduinoAlvik):
             return 999
         return min(valid_readings)
 
-    # --- INSTANCE METHODS ---
+    # --- SENSOR METHODS ---
 
     def get_closest_distance(self):
         """
-        Instance method to get the closest distance from the robot's own sensors.
-        Automatically fetches the 5 ToF readings and processes them.
+        Get the closest distance from the WRAPPED robot's sensors.
         """
-        # Get readings from the robot (inherited from ArduinoAlvik)
-        # Assuming ArduinoAlvik provides get_distance() returning a tuple of 5 floats
-        d_tuple = self.get_distance() # (left, center_left, center, center_right, right)
-        
-        # Unpack and call the static helper
+        d_tuple = self.bot.get_distance() # Calls the wrapped object via .bot
         return self._get_closest_distance(d_tuple[0], d_tuple[1], d_tuple[2], d_tuple[3], d_tuple[4])
+        
+    def get_camera_distance(self):
+        """
+        Calculates distance to an AprilTag/Object using the K constant.
+        Returns: Distance in cm (float) or None if nothing seen.
+        """
+        if not self.husky:
+            return None
+        
+        try:
+            self.husky.request()
+            if len(self.husky.blocks) > 0:
+                width = self.husky.blocks[0].width
+                if width > 0:
+                    return K_CONSTANT / width
+        except Exception:
+            pass
+            
+        return None
 
     # --- LOGGING & IO METHODS ---
 
-    def enable_logging(self):
+    def enable_info_logging(self): # Renamed V15
         """Enable logging non-critical messages to file."""
-        self.logging_enabled = True
+        self.info_logging_enabled = True
         print("Logging set to ON")
         self.update_display("Log: ON")
 
-    def disable_logging(self):
+    def disable_info_logging(self): # Renamed V15
         """Disable logging non-critical messages to file."""
-        self.logging_enabled = False
+        self.info_logging_enabled = False
         print("Logging set to OFF")
         self.update_display("Log: OFF")
 
-    def log_message(self, message: str):
+    def log_info(self, message: str): # Renamed V15
         """
         Standard log:
         - Always prints to console.
         - Updates Display (wrapping text across lines).
         - Writes to file ONLY if logging is enabled.
         """
-        # Single string passed everywhere
         print(message)
         self.update_display(message)
         
-        if self.logging_enabled:
+        if self.info_logging_enabled:
             self._append_to_file('/logs/messages.log', message)
 
     def log_error(self, message: str):
@@ -289,9 +309,7 @@ class NHSAlvik(ArduinoAlvik):
         - Updates Display (wrapping text across lines).
         - ALWAYS writes to file (errors.log).
         """
-        # Create single formatted string
         full_msg = f"ERROR: {message}"
-        
         print(full_msg)
         self.update_display(full_msg)
         self._append_to_file('/logs/errors.log', full_msg)
@@ -301,7 +319,6 @@ class NHSAlvik(ArduinoAlvik):
         try:
             os.mkdir('/logs')
         except OSError:
-            # Directory likely exists
             pass
 
     def _rotate_logs(self):
@@ -314,7 +331,6 @@ class NHSAlvik(ArduinoAlvik):
             log_path = '/logs/messages.log'
             bak_path = '/logs/messages.bak'
             
-            # Check if file exists
             try:
                 stat = os.stat(log_path)
                 size = stat[6] # Size is index 6
@@ -367,22 +383,4 @@ class NHSAlvik(ArduinoAlvik):
                 self.screen.show_lines(l1, l2, l3)
             except Exception:
                 pass # Screen might have disconnected
-
-    def get_camera_distance(self):
-        """
-        Calculates distance to an AprilTag/Object using the K constant.
-        Returns: Distance in cm (float) or None if nothing seen.
-        """
-        if not self.husky:
-            return None
-        
-        try:
-            self.husky.request()
-            if len(self.husky.blocks) > 0:
-                width = self.husky.blocks[0].width
-                if width > 0:
-                    return K_CONSTANT / width
-        except Exception:
-            pass
             
-        return None
