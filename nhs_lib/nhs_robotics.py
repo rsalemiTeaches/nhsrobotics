@@ -1,5 +1,5 @@
 # nhs_robotics.py
-# Version: V15 (Final: SuperBot Composition + Logging Rename)
+# Version: V16 (Rotation Policy applied to Errors + Messages)
 # 
 # Includes:
 # 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
@@ -24,7 +24,7 @@ import sys
 from arduino_alvik import ArduinoAlvik
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V15")
+print("Loading nhs_robotics.py V16")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -217,7 +217,7 @@ class SuperBot:
         if self.shared_i2c:
             try:
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V15")
+                self.screen.show_lines("SuperBot", "Online", "V16")
             except Exception:
                 pass
 
@@ -323,32 +323,39 @@ class SuperBot:
 
     def _rotate_logs(self):
         """
-        Checks size of messages.log. 
-        If > 20KB, renames it to messages.bak (overwriting old backup).
+        Checks size of messages.log AND errors.log. 
+        If either > 20KB, renames it to .bak (overwriting old backup).
         """
         MAX_SIZE = 20 * 1024 # 20KB limit
-        try:
-            log_path = '/logs/messages.log'
-            bak_path = '/logs/messages.bak'
-            
+        
+        # Helper to rotate a single file
+        def rotate_file(filename):
             try:
-                stat = os.stat(log_path)
-                size = stat[6] # Size is index 6
-            except OSError:
-                return # File doesn't exist, nothing to rotate
-
-            if size > MAX_SIZE:
-                print("Rotating logs...")
-                # Remove old backup if it exists
-                try:
-                    os.remove(bak_path)
-                except OSError:
-                    pass
+                log_path = f'/logs/{filename}'
+                bak_path = f'/logs/{filename.replace(".log", ".bak")}'
                 
-                # Rename current to backup
-                os.rename(log_path, bak_path)
-        except Exception:
-            pass # Fail silently on FS errors
+                try:
+                    stat = os.stat(log_path)
+                    size = stat[6] # Size is index 6
+                except OSError:
+                    return # File doesn't exist
+
+                if size > MAX_SIZE:
+                    print(f"Rotating {filename}...")
+                    # Remove old backup if it exists
+                    try:
+                        os.remove(bak_path)
+                    except OSError:
+                        pass
+                    
+                    # Rename current to backup
+                    os.rename(log_path, bak_path)
+            except Exception:
+                pass
+
+        # Rotate both log files
+        rotate_file('messages.log')
+        rotate_file('errors.log')
 
     def _append_to_file(self, filename, text):
         """Internal helper to safely write to flash memory."""
@@ -383,4 +390,3 @@ class SuperBot:
                 self.screen.show_lines(l1, l2, l3)
             except Exception:
                 pass # Screen might have disconnected
-            
