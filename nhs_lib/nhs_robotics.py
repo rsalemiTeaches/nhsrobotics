@@ -1,5 +1,5 @@
 # nhs_robotics.py
-# Version: V06 (Logging API Update)
+# Version: V09 (Logging Final: Rotation, OLED Wrap, Single String)
 # 
 # Includes:
 # 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
@@ -7,6 +7,8 @@
 # 3. Full backward compatibility with previous student code
 # 4. Refactored helper functions to use NHSAlvik static methods
 # 5. Updated Logging API (enable_logging / disable_logging)
+# 6. Improved OLED message wrapping and Log File Rotation
+# 7. Simplified Error/Message handling (Single string passed to all outputs)
 
 # --- IMPORTS ---
 import qwiic_buzzer
@@ -25,7 +27,7 @@ import sys
 from arduino_alvik import ArduinoAlvik
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V06")
+print("Loading nhs_robotics.py V09")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -187,6 +189,7 @@ class NHSAlvik(ArduinoAlvik):
         # 2. Setup Logging System
         self.logging_enabled = False
         self._ensure_log_directory()
+        self._rotate_logs() # Clean up old logs on boot
         
         # 3. Initialize Shared I2C Bus (Port 1, Pins 11/12)
         # We use explicit ID 1 for the robot class to ensure hardware I2C usage
@@ -202,7 +205,7 @@ class NHSAlvik(ArduinoAlvik):
             try:
                 # Pass the shared native driver to the oLED class defined above
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("NHSAlvik", "Booting...", "V06")
+                self.screen.show_lines("NHSAlvik", "Booting...", "V09")
             except Exception:
                 pass
 
@@ -269,11 +272,12 @@ class NHSAlvik(ArduinoAlvik):
         """
         Standard log:
         - Always prints to console.
-        - Updates Display (Line 1).
+        - Updates Display (wrapping text across lines).
         - Writes to file ONLY if logging is enabled.
         """
+        # Single string passed everywhere
         print(message)
-        self.update_display(str(message))
+        self.update_display(message)
         
         if self.logging_enabled:
             self._append_to_file('/logs/messages.log', message)
@@ -282,12 +286,15 @@ class NHSAlvik(ArduinoAlvik):
         """
         Critical log:
         - Always prints to console.
-        - Updates Display (shows 'ERROR').
+        - Updates Display (wrapping text across lines).
         - ALWAYS writes to file (errors.log).
         """
-        print(f"ERROR: {message}")
-        self.update_display("ERROR:", str(message))
-        self._append_to_file('/logs/errors.log', f"ERR: {message}")
+        # Create single formatted string
+        full_msg = f"ERROR: {message}"
+        
+        print(full_msg)
+        self.update_display(full_msg)
+        self._append_to_file('/logs/errors.log', full_msg)
 
     def _ensure_log_directory(self):
         """Creates /logs directory if it doesn't exist."""
@@ -296,6 +303,36 @@ class NHSAlvik(ArduinoAlvik):
         except OSError:
             # Directory likely exists
             pass
+
+    def _rotate_logs(self):
+        """
+        Checks size of messages.log. 
+        If > 20KB, renames it to messages.bak (overwriting old backup).
+        """
+        MAX_SIZE = 20 * 1024 # 20KB limit
+        try:
+            log_path = '/logs/messages.log'
+            bak_path = '/logs/messages.bak'
+            
+            # Check if file exists
+            try:
+                stat = os.stat(log_path)
+                size = stat[6] # Size is index 6
+            except OSError:
+                return # File doesn't exist, nothing to rotate
+
+            if size > MAX_SIZE:
+                print("Rotating logs...")
+                # Remove old backup if it exists
+                try:
+                    os.remove(bak_path)
+                except OSError:
+                    pass
+                
+                # Rename current to backup
+                os.rename(log_path, bak_path)
+        except Exception:
+            pass # Fail silently on FS errors
 
     def _append_to_file(self, filename, text):
         """Internal helper to safely write to flash memory."""
@@ -310,10 +347,24 @@ class NHSAlvik(ArduinoAlvik):
     # --- HARDWARE HELPERS ---
 
     def update_display(self, line1, line2="", line3=""):
-        """Safe wrapper for the OLED screen."""
+        """
+        Safe wrapper for the OLED screen.
+        If ONLY line1 is provided, it attempts to wrap it across lines 2 and 3.
+        """
         if self.screen:
             try:
-                self.screen.show_lines(str(line1), str(line2), str(line3))
+                l1 = str(line1)
+                l2 = str(line2)
+                l3 = str(line3)
+                
+                # Auto-wrap logic: If user sends one long string (l2/l3 empty), split it
+                if l2 == "" and l3 == "" and len(l1) > 16:
+                    # Basic wrap: 16 chars per line approx
+                    l2 = l1[16:32]
+                    l3 = l1[32:48] # Truncate after 48 chars total
+                    l1 = l1[0:16]
+                
+                self.screen.show_lines(l1, l2, l3)
             except Exception:
                 pass # Screen might have disconnected
 
