@@ -1,14 +1,11 @@
 # Project 18: Capstone Step 1 - The Blind Approach
-# Version: V11 (Added Blue Blinking in Idle State)
+# Version: V16 (Step-and-Scan / Zeno's Approach)
 #
 # OBJECTIVE:
-# 1. Start in IDLE (Fork Up) - BLINK BLUE.
-# 2. On Button Press -> Drop Fork -> Search.
-# 3. Drive to the target using the Camera.
-# 4. Handle the "Blind Spot" DYNAMICALLY.
-# 5. SAFETY: Allow 'X' button to cancel at any time.
-# 6. SHUTDOWN: Ensure motors and LEDs turn off on exit.
-# 7. DISPLAY: Show distance on oLED (Fixed Scope).
+# 1. State Machine: WAITING -> PREPARE -> SCAN -> STEP -> SCAN... -> BLIND -> SUCCESS.
+# 2. Strategy: Read distance, drive 50% of the way, stop, repeat.
+# 3. Tag Loss: If tag lost, use tracked position to finish the drive.
+# 4. Latency Fix: Camera is only queried when robot is stopped.
 #
 # Created with the help of Gemini Pro
 
@@ -21,209 +18,232 @@ import time
 import sys
 
 # --- CONSTANTS ---
-K_CONSTANT = 1624.0      # Calculated from your calibration
-BLIND_SPOT_THRESHOLD = 20.0 # If we lose tag closer than this, assume it's the Blind Spot
-TARGET_DIST_CM = 5.0     # Final goal distance from box
-SPEED_APPROACH = 20      # Slow speed for safety
+K_CONSTANT = 1624.0
+TARGET_DIST_CM = 5.0     # Goal: Stop 5cm away from the tag/box
+SPEED_APPROACH = 20
+
+# --- STATES ---
+STATE_WAITING = 0
+STATE_PREPARE = 1
+STATE_SCAN = 2           # Stop and read camera
+STATE_DRIVE_STEP = 3     # Drive half the distance
+STATE_WAIT_STEP = 4      # Wait for partial move to finish
+STATE_BLIND_CALC = 5     # Calculate final push
+STATE_BLIND_EXECUTE = 6  # Final drive
+STATE_SUCCESS = 7
 
 # --- HARDWARE SETUP ---
 alvik = ArduinoAlvik()
 alvik.begin()
 
-# 1. Initialize Shared Hardware I2C Bus
-# Use Bus 1 (Pins 12/11) to avoid deprecated SoftI2C warning
 print("Initializing Shared I2C Bus...")
 shared_i2c = I2C(1, scl=Pin(12), sda=Pin(11), freq=400000)
 
-# Setup OLED - Global Variable
 screen = None
 try:
-    # Pass the shared I2C bus to the OLED class
     screen = oLED(i2cDriver=shared_i2c)
-    # FIX: Use show_lines() instead of text() to access the wrapper method correctly
-    screen.show_lines("Booting...", "OLED Init OK")
-    print("OLED Initialized")
+    screen.show_lines("Booting...", "V16 Init")
 except Exception as e:
     print(f"OLED Error: {e}")
 
-# Camera
 try:
-    # Inject the shared I2C bus into the MicroPython wrapper
     alvik_i2c = MicroPythonI2C(esp32_i2c=shared_i2c)
     huskylens = QwiicHuskylens(i2c_driver=alvik_i2c)
     huskylens.begin()
     print("HuskyLens Initialized")
 except:
-    print("Camera Error!")
-    if screen:
-        screen.show_lines("Cam Error!", "Stopping")
+    if screen: screen.show_lines("Cam Error!", "Exit")
     sys.exit()
 
 # --- HELPER FUNCTIONS ---
 
 def set_fork_position(angle):
-    """
-    Moves Servo A (Fork) while keeping Servo B safely where it is.
-    0 = UP (Carry)
-    180 = DOWN (Pickup)
-    """
-    # 1. Get current positions so we don't disturb Servo B
-    # returns a tuple or list: (pos_a, pos_b)
-    current_positions = alvik.get_servo_positions()
-    current_b = current_positions[1]
-    
-    # 2. Update ONLY Servo A, keep B exactly the same
-    alvik.set_servo_positions(angle, current_b)
-    
-    time.sleep(0.5) # Wait for physical movement
+    pos = alvik.get_servo_positions()
+    alvik.set_servo_positions(angle, pos[1])
+    time.sleep(0.5)
 
 def get_distance_to_tag():
-    """Returns distance in CM or None if no tag seen."""
+    """Request new data from camera. blocking call."""
     huskylens.request()
     if len(huskylens.blocks) > 0:
         width = huskylens.blocks[0].width
-        # Prevent division by zero if width is somehow 0
         if width == 0: return None
         return K_CONSTANT / width
     return None
 
-def check_cancel():
-    """Checks if the X button is pressed. If so, raises exception to stop."""
-    if alvik.get_touch_cancel():
-        raise SystemExit("User pressed 'X'")
-
-def update_display(text_line1, text_line2=""):
-    """Helper to write to OLED - Uses global 'screen' variable"""
-    global screen
+def update_display(l1, l2=""):
     if screen:
         try:
-            # FIX: Use show_lines method from nhs_robotics.py
-            screen.show_lines(str(text_line1), str(text_line2))
-        except Exception as e:
-            print(f"Display Error: {e}")
+            screen.show_lines(str(l1), str(l2))
+        except: pass
 
-# --- MAIN PROGRAM ---
+# --- STATE VARIABLES ---
+current_state = STATE_WAITING
+previous_state = -1
+
+estimated_dist = 100.0   # Where we think we are
+step_size_cm = 0.0       # How far to move in the current step
+
+blink_timer = 0
+blink_on = False
+
+# --- MAIN LOOP ---
 try:
-    print("--- CAPSTONE STEP 1 (V11) ---")
-    update_display("Capstone V11", "Waiting...")
-    print("Waiting for Button to start...")
+    print("--- CAPSTONE V16 START ---")
     
-    # 1. STATE_IDLE
-    # Wait for user input
-    set_fork_position(0) # Ensure fork is UP
-
-    # Blink Logic Variables
-    blink_timer = time.ticks_ms()
-    blink_on = False
-
-    # Loop until center button is pressed
-    while not alvik.get_touch_center():
-        check_cancel() # Allow exit even while waiting
-        
-        # Blink Blue every 500ms
-        if time.ticks_diff(time.ticks_ms(), blink_timer) >= 500:
-            blink_on = not blink_on
-            if blink_on:
-                alvik.left_led.set_color(0, 0, 1)  # Blue
-                alvik.right_led.set_color(0, 0, 1) # Blue
-            else:
-                alvik.left_led.set_color(0, 0, 0)  # Off
-                alvik.right_led.set_color(0, 0, 0) # Off
-            blink_timer = time.ticks_ms()
-
-        time.sleep(0.05)
-
-    print("Starting Approach...")
-    update_display("Approach", "Starting...")
-    alvik.left_led.set_color(1, 1, 0) # Yellow (Working)
-    alvik.right_led.set_color(0, 0, 0) # Reset right LED to off for now
-
-    # 2. PREPARE
-    # Lower the fork before we get too close
-    set_fork_position(180) # Down
-
-    # 3. STATE_APPROACH (Visual Phase)
-    tag_limit_reached = False
-    last_known_dist = 100.0 # Start with a large number
-
     while True:
-        # A. Safety Check
-        check_cancel()
-        
-        # B. Sensor Data
-        dist = get_distance_to_tag()
-        
-        if dist is not None:
-            # --- CASE 1: TAG VISIBLE ---
-            print(f"Visual Distance: {dist:.1f} cm")
-            update_display("Visual Mode", f"Dist: {dist:.1f} cm")
-            last_known_dist = dist # Remember this!
-            
-            # Drive forward
-            alvik.set_wheels_speed(SPEED_APPROACH, SPEED_APPROACH)
-            alvik.right_led.set_color(0,1,0)
-            alvik.left_led.set_color(0,1,0)
-            
-        else:
-            # --- CASE 2: TAG LOST ---
-            # Did we lose it because we got too close (Blind Spot)?
-            # Or did we lose it because it's gone?
-            
-            if last_known_dist < BLIND_SPOT_THRESHOLD:
-                print(f"Tag lost at {last_known_dist:.1f}cm. Assuming Blind Spot.")
-                update_display("Tag Lost", "Blind Spot!")
-                tag_limit_reached = True
-                break # Exit loop to do final blind push
+        # --- GLOBAL CANCEL CHECK ---
+        if alvik.get_touch_cancel():
+            if current_state != STATE_WAITING:
+                print(">>> CANCEL DETECTED: Resetting to WAITING")
+                alvik.brake()
+                alvik.left_led.set_color(1, 0, 0)
+                alvik.right_led.set_color(1, 0, 0)
+                update_display("Canceled", "Resetting...")
+                time.sleep(1.0)
                 
-            else:
-                # Safety: Stop if we lose the tag unexpectedly far away
-                print("Tag lost! Stopping.")
-                update_display("Tag Lost", "Stopping")
+                current_state = STATE_WAITING
+                previous_state = -1
+                set_fork_position(0)
+            
+        # --- STATE MACHINE ---
+        
+        # 1. STATE_WAITING
+        if current_state == STATE_WAITING:
+            if previous_state != STATE_WAITING:
+                print("State: WAITING")
+                update_display("Waiting", "Press Center")
                 alvik.set_wheels_speed(0, 0)
-                alvik.right_led.set_color(1,0,0)
-                alvik.left_led.set_color(1,0,0)
+                set_fork_position(0)
+                blink_timer = time.ticks_ms()
+                previous_state = STATE_WAITING
+
+            if time.ticks_diff(time.ticks_ms(), blink_timer) >= 500:
+                blink_on = not blink_on
+                if blink_on:
+                    alvik.left_led.set_color(0, 0, 1)
+                    alvik.right_led.set_color(0, 0, 1)
+                else:
+                    alvik.left_led.set_color(0, 0, 0)
+                    alvik.right_led.set_color(0, 0, 0)
+                blink_timer = time.ticks_ms()
             
-        time.sleep(0.05)
-
-    # 4. STATE_APPROACH (Blind Phase)
-    if tag_limit_reached:
-        # Final check before the blind move
-        check_cancel()
-        
-        # Calculate remaining distance based on the LAST KNOWN distance
-        final_push_cm = last_known_dist - TARGET_DIST_CM
-        
-        if final_push_cm > 0:
-            print(f"Blind Drive: Moving {final_push_cm:.1f} cm...")
-            update_display("Blind Drive", f"Go {final_push_cm:.1f} cm")
+            if alvik.get_touch_center():
+                current_state = STATE_PREPARE
             
-            # NOTE: .move() is blocking. We cannot cancel *during* this specific move
-            # without more complex code, but it is short (~10cm).
-            alvik.move(final_push_cm) 
-        else:
-            print("Already at target distance!")
-            update_display("Blind Drive", "At Target")
+            time.sleep(0.05)
 
-    # 5. STOP
-    print("Target Reached!")
-    update_display("Target Reached!", "Done")
+        # 2. STATE_PREPARE
+        elif current_state == STATE_PREPARE:
+            print("State: PREPARE")
+            update_display("Preparing", "Fork Down")
+            alvik.left_led.set_color(1, 1, 0)
+            alvik.right_led.set_color(1, 1, 0)
+            
+            set_fork_position(180) 
+            current_state = STATE_SCAN
+            previous_state = STATE_PREPARE
 
-except SystemExit:
-    # Graceful exit for cancel button
-    pass
+        # 3. STATE_SCAN (The "Scan" Phase)
+        elif current_state == STATE_SCAN:
+            print("State: SCAN")
+            update_display("Scanning...", "")
+            alvik.set_wheels_speed(0, 0)
+            time.sleep(0.5) # Let robot settle before reading
+            
+            dist = get_distance_to_tag()
+            
+            if dist is not None:
+                print(f"Tag Seen: {dist:.1f} cm")
+                estimated_dist = dist # Update our truth
+                
+                # Logic: Drive half the distance
+                step_size_cm = estimated_dist / 2.0
+                
+                # Check: If step takes us closer than target (overshoot) or very close
+                # Just finish the job now.
+                remaining_after_step = estimated_dist - step_size_cm
+                
+                if remaining_after_step <= TARGET_DIST_CM:
+                    # The step is practically the final drive
+                    print("Close enough -> Final Drive")
+                    current_state = STATE_BLIND_CALC
+                else:
+                    print(f"Step: {step_size_cm:.1f} cm")
+                    current_state = STATE_DRIVE_STEP
+            else:
+                print("Tag Lost -> Blind Calculation")
+                current_state = STATE_BLIND_CALC
+                
+            previous_state = STATE_SCAN
+
+        # 4. STATE_DRIVE_STEP (The "Step" Phase)
+        elif current_state == STATE_DRIVE_STEP:
+            update_display("Stepping", f"{step_size_cm:.1f} cm")
+            alvik.move(step_size_cm, blocking=False)
+            
+            # Update our estimate IMMEDIATELY so if we lose tag next scan, we know where we are
+            estimated_dist -= step_size_cm
+            
+            current_state = STATE_WAIT_STEP
+            previous_state = STATE_DRIVE_STEP
+
+        # 5. STATE_WAIT_STEP
+        elif current_state == STATE_WAIT_STEP:
+            # Wait for the partial move to finish
+            if alvik.is_target_reached():
+                current_state = STATE_SCAN # Go back and verify
+            
+            previous_state = STATE_WAIT_STEP
+            time.sleep(0.1)
+
+        # 6. STATE_BLIND_CALC
+        elif current_state == STATE_BLIND_CALC:
+            print("State: BLIND CALC")
+            
+            final_push = estimated_dist - TARGET_DIST_CM
+            
+            if final_push > 0:
+                print(f"Final Push: {final_push:.1f} cm")
+                update_display("Final Push", f"{final_push:.1f} cm")
+                alvik.move(final_push, blocking=False)
+                current_state = STATE_BLIND_EXECUTE
+            else:
+                print("Already at Target")
+                current_state = STATE_SUCCESS
+            
+            previous_state = STATE_BLIND_CALC
+
+        # 7. STATE_BLIND_EXECUTE
+        elif current_state == STATE_BLIND_EXECUTE:
+            if alvik.is_target_reached():
+                current_state = STATE_SUCCESS
+            previous_state = STATE_BLIND_EXECUTE
+            time.sleep(0.1)
+
+        # 8. STATE_SUCCESS
+        elif current_state == STATE_SUCCESS:
+            if previous_state != STATE_SUCCESS:
+                print("State: SUCCESS")
+                update_display("Target Reached", "Done")
+                alvik.stop()
+                alvik.left_led.set_color(0, 1, 0)
+                alvik.right_led.set_color(0, 1, 0)
+                previous_state = STATE_SUCCESS
+            
+            time.sleep(0.1)
+
 except Exception as e:
-    print(f"An error occurred: {e}")
-    if screen:
-        try:
-            # FIX: Use show_lines for error display too
-            screen.show_lines("Error:", str(e)[:16])
-        except:
-            pass
+    print(f"CRITICAL ERROR: {e}")
+    if screen: screen.show_lines("Error", str(e)[:16])
+    for _ in range(5):
+        alvik.left_led.set_color(1,0,0)
+        time.sleep(0.2)
+        alvik.left_led.set_color(0,0,0)
+        time.sleep(0.2)
 
 finally:
-    # --- CLEANUP (Runs on Exit, Error, or Cancel) ---
-    print("Program Finished. Cleaning up...")
-    alvik.set_wheels_speed(0, 0)
-    alvik.left_led.set_color(0, 0, 0)
-    alvik.right_led.set_color(0, 0, 0)
+    print("Program End.")
     alvik.stop()
+    alvik.left_led.set_color(0,0,0)
+    alvik.right_led.set_color(0,0,0)
