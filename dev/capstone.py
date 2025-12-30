@@ -1,9 +1,9 @@
 # capstone.py
-# Version: V20
+# Version: V21
 # Purpose: Pick up box, Spin 180, Return to "Warehouse Edge", Drop Box.
 # Updates:
-#   - Corrected Line Threshold: BLACK_THRESHOLD = 500 (High value = Black Line).
-#   - Added STATE_DROP_BOX: Lowers the fork after finding the line.
+#   - Replaced IMU turn logic with simple dead reckoning rotate(180).
+#   - Removed unused yaw calculation code.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import Button
@@ -28,7 +28,7 @@ STATE_APPROACH_BLIND_FINISH = 4
 STATE_PICKUP_LIFT           = 9
 STATE_RETURN_SPIN           = 10
 STATE_RETURN_DRIVE          = 11
-STATE_DROP_BOX              = 12 # New: Put the box down
+STATE_DROP_BOX              = 12 
 STATE_MISSION_SUCCESS       = 6
 STATE_MISSION_FAIL          = 7
 STATE_EXIT                  = 99
@@ -41,7 +41,7 @@ alvik.begin()
 robot = ForkLiftBot(alvik)
 robot.enable_info_logging()
 
-robot.log_info("Initializing Capstone V20...")
+robot.log_info("Initializing Capstone V21...")
 
 # HARDWARE CHECK
 if robot.husky is None:
@@ -70,7 +70,7 @@ try:
         # STATE: IDLE
         # ------------------------------------------------------------------
         if current_state == STATE_IDLE:
-            robot.update_display("Capstone V20", "Center: GO", "Cancel: EXIT")
+            robot.update_display("Capstone V21", "Center: GO", "Cancel: EXIT")
             
             # Blink Blue
             if (time.ticks_ms() // 500) % 2 == 0:
@@ -220,10 +220,7 @@ try:
         # ------------------------------------------------------------------
         elif current_state == STATE_RETURN_SPIN:
             robot.log_info("Return: Spinning 180...")
-            current_yaw = robot.get_yaw()
-            target_yaw = current_yaw + 180
-            if target_yaw > 180: target_yaw -= 360
-            #robot.turn_to_heading(target_yaw, tolerance=3.0)
+            # Use simple open-loop rotate for 180 turn
             robot.bot.rotate(180)
             time.sleep(0.5)
             current_state = STATE_RETURN_DRIVE
