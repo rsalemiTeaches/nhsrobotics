@@ -12,17 +12,13 @@
 import qwiic_buzzer
 from qwiic_i2c.micropython_i2c import MicroPythonI2C as I2CDriver
 from qwiic_i2c.micropython_i2c import MicroPythonI2C
-from nanolib import NanoLED
-from button import Button
-from controller import Controller
 import ssd1306
 from machine import Pin, I2C
 import time
 import os
-import sys
 import math
+from nanolib import NanoLED
 
-from arduino_alvik import ArduinoAlvik
 from qwiic_huskylens import QwiicHuskylens
 
 print("Loading nhs_robotics.py V21")
@@ -33,6 +29,71 @@ def get_closest_distance(d1, d2, d3, d4, d5):
     return SuperBot._get_closest_distance(d1, d2, d3, d4, d5)
 
 # --- CLASSES ---
+# ---------------------------------------------------------------------
+# PART 1: THE BUTTON CLASS
+# ---------------------------------------------------------------------
+
+class Button:
+    """
+    A class to manage a button's state and detect a single "press" 
+    (a "rising edge") to prevent rapid repeats from holding it down.
+
+    This class works like a simple state machine with two states:
+    - STATE_UP: The button is not being pressed.
+    - STATE_PRESSED: The button is being held down.
+    
+    It only reports a "press" on the single frame when the button
+    goes from STATE_UP to STATE_PRESSED.
+    """
+    # Class-level constants for our states
+    STATE_UP = 1
+    STATE_PRESSED = 2
+    
+    def __init__(self, get_touch_function):
+        """
+        Initializes the button's internal state.
+        
+        get_touch_function: A function (like alvik.get_touch_up) that
+                            will be called to get the hardware state.
+        """
+        # Save the function that was passed in, so we can call it later
+        self.get_hardware_state = get_touch_function
+        
+        # Initialize the internal state
+        self.current_state = self.STATE_UP
+
+    def get_touch(self):
+        """
+        Checks the button state. This MUST be called in every loop.
+        
+        It updates the internal state machine and returns True ONLY 
+        on the "rising edge" — the single moment the button was 
+        first pressed.
+        """
+        return_value = False
+        
+        # Call the hardware function we saved during __init__
+        is_pressed = self.get_hardware_state()
+
+        # --- This is the State Machine logic ---
+        
+        # Check if the current state is UP
+        if self.current_state == self.STATE_UP:
+            if is_pressed:
+                # This is the "rising edge"!
+                return_value = True
+                # Transition to the PRESSED state
+                self.current_state = self.STATE_PRESSED
+        
+        # Check if the current state is PRESSED
+        elif self.current_state == self.STATE_PRESSED:
+            if not is_pressed:
+                # The button was released.
+                # Transition back to the UP state.
+                self.current_state = self.STATE_UP
+                
+        # Return True only if this was the frame it was pressed
+        return return_value
 
 class oLED:
     def __init__(self, i2cDriver = None):
@@ -328,17 +389,17 @@ class SuperBot:
         print(message)
         self.update_display(message)
         if self.info_logging_enabled:
-            self._append_to_file('/logs/messages.log', message)
+            self._append_to_file('/workspace/logs/messages.log', message)
 
     def log_error(self, message: str):
         full_msg = f"ERROR: {message}"
         print(full_msg)
         self.update_display(full_msg)
-        self._append_to_file('/logs/errors.log', full_msg)
+        self._append_to_file('/workspace/logs/errors.log', full_msg)
 
     def _ensure_log_directory(self):
         try:
-            os.mkdir('/logs')
+            os.mkdir('/workspace/logs')
         except OSError:
             pass
 
@@ -346,8 +407,8 @@ class SuperBot:
         MAX_SIZE = 20 * 1024 
         def rotate_file(filename):
             try:
-                log_path = f'/logs/{filename}'
-                bak_path = f'/logs/{filename.replace(".log", ".bak")}'
+                log_path = f'/workspace/logs/{filename}'
+                bak_path = f'/workspace/logs/{filename.replace(".log", ".bak")}'
                 try:
                     stat = os.stat(log_path)
                     size = stat[6]
