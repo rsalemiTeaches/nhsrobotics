@@ -1,5 +1,5 @@
 # Project 18: Capstone Step 1 - The Blind Approach
-# Version: V01 (Refactored to use SuperBot)
+# Version: V03 (Added blinking LEDs in WAITING state)
 #
 # OBJECTIVE:
 # 1. State Machine: WAITING -> PREPARE -> SCAN -> STEP -> SCAN... -> BLIND -> SUCCESS.
@@ -8,6 +8,8 @@
 # 4. Latency Fix: Camera is only queried when robot is stopped.
 #
 # REFACTOR NOTE: Now uses nhs_robotics.SuperBot for hardware management.
+# V02 UPDATE: Replaces native alvik.move() with SuperBot.drive_distance() for precision.
+# V03 UPDATE: Added blinking LED logic to STATE_WAITING.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
@@ -16,7 +18,8 @@ import sys
 
 # --- CONSTANTS ---
 TARGET_DIST_CM = 5.0     # Goal: Stop 5cm away from the tag/box
-SPEED_APPROACH = 20
+SPEED_APPROACH = 20      # Speed for the approach steps
+SLOW_APPROACH = 5
 
 # --- STATES ---
 STATE_WAITING = 0
@@ -34,192 +37,209 @@ alvik = ArduinoAlvik()
 alvik.begin()
 
 print("Suiting up SuperBot...")
-bot = SuperBot(alvik)
-bot.enable_info_logging() # Optional: Log steps to file
-bot.log_info("SuperBot Ready")
+sb = SuperBot(alvik) # Renamed to 'sb' per user request
+sb.enable_info_logging() # Optional: Log steps to file
 
-# --- HELPER FUNCTIONS ---
-
-def set_fork_position(angle):
-    # Access raw robot via bot.bot
-    pos = bot.bot.get_servo_positions()
-    bot.bot.set_servo_positions(angle, pos[1])
-    time.sleep(0.5)
-
-# --- STATE VARIABLES ---
+# --- VARIABLES ---
 current_state = STATE_WAITING
 previous_state = -1
 
-estimated_dist = 100.0   # Where we think we are
-step_size_cm = 0.0       # How far to move in the current step
+distance_to_drive = 0    # How far to move in the current step
+estimated_dist = 0       # Internal map of where the tag *should* be
+last_known_dist = 0      # The last reliable reading from the camera
 
-blink_timer = 0
-blink_on = False
+# Blink Helpers
+last_blink_time = 0
+blink_state = False
 
 # --- MAIN LOOP ---
 try:
-    bot.log_info("--- CAPSTONE SUPERBOT START ---")
-    
     while True:
-        # --- GLOBAL CANCEL CHECK ---
-        # Access raw robot inputs via bot.bot
-        if bot.bot.get_touch_cancel():
-            if current_state != STATE_WAITING:
-                bot.log_info(">>> CANCEL DETECTED: Resetting")
-                bot.bot.brake()
-                bot.bot.left_led.set_color(1, 0, 0)
-                bot.bot.right_led.set_color(1, 0, 0)
-                bot.update_display("Canceled", "Resetting...")
-                time.sleep(1.0)
-                
-                current_state = STATE_WAITING
-                previous_state = -1
-                set_fork_position(0)
-            
-        # --- STATE MACHINE ---
-        
         # 1. STATE_WAITING
         if current_state == STATE_WAITING:
             if previous_state != STATE_WAITING:
-                bot.log_info("State: WAITING")
-                bot.update_display("Waiting", "Press Center")
-                bot.bot.set_wheels_speed(0, 0)
-                set_fork_position(0)
-                blink_timer = time.ticks_ms()
-                previous_state = STATE_WAITING
-
-            if time.ticks_diff(time.ticks_ms(), blink_timer) >= 500:
-                blink_on = not blink_on
-                if blink_on:
-                    bot.bot.left_led.set_color(0, 0, 1)
-                    bot.bot.right_led.set_color(0, 0, 1)
-                else:
-                    bot.bot.left_led.set_color(0, 0, 0)
-                    bot.bot.right_led.set_color(0, 0, 0)
-                blink_timer = time.ticks_ms()
+                sb.log_info("State: WAITING")
+                sb.update_display("Blind Approach", "Press Center")
+                # Initialize blink
+                blink_state = True
+                sb.bot.left_led.set_color(0, 0, 1) # Blue
+                sb.bot.right_led.set_color(0, 0, 1)
+                last_blink_time = time.ticks_ms()
             
-            if bot.bot.get_touch_center():
+            # Blink Logic (Non-blocking)
+            if time.ticks_diff(time.ticks_ms(), last_blink_time) > 500: # 500ms toggle
+                last_blink_time = time.ticks_ms()
+                blink_state = not blink_state
+                if blink_state:
+                    sb.bot.left_led.set_color(0, 0, 1) # Blue
+                    sb.bot.right_led.set_color(0, 0, 1)
+                else:
+                    sb.bot.left_led.set_color(0, 0, 0) # Off
+                    sb.bot.right_led.set_color(0, 0, 0)
+
+            # Use SuperBot's wrapped controller if available, or direct check
+            if sb.bot.get_touch_center(): # Simple touch check
+                 # Debounce
+                while sb.bot.get_touch_center():
+                    time.sleep(0.05)
                 current_state = STATE_PREPARE
             
-            time.sleep(0.05)
+            previous_state = STATE_WAITING
+            time.sleep(0.05) # Reduced sleep to make blink responsive
 
         # 2. STATE_PREPARE
         elif current_state == STATE_PREPARE:
-            bot.log_info("State: PREPARE")
-            bot.update_display("Preparing", "Fork Down")
-            bot.bot.left_led.set_color(1, 1, 0)
-            bot.bot.right_led.set_color(1, 1, 0)
+            sb.log_info("State: PREPARE")
+            sb.bot.left_led.set_color(1, 1, 0) # Yellow
+            sb.bot.right_led.set_color(1, 1, 0)
             
-            set_fork_position(180) 
+            # Reset trackers
+            estimated_dist = 999 
+            last_known_dist = 0
+            
             current_state = STATE_SCAN
             previous_state = STATE_PREPARE
 
-        # 3. STATE_SCAN (The "Scan" Phase)
+        # 3. STATE_SCAN
         elif current_state == STATE_SCAN:
-            bot.log_info("State: SCAN")
-            bot.update_display("Scanning...", "")
-            bot.bot.set_wheels_speed(0, 0)
-            time.sleep(0.5) # Let robot settle before reading
+            if previous_state != STATE_SCAN:
+                sb.log_info("State: SCANNING")
+                sb.update_display("Scanning...", "Looking for Tag")
+                # Stop briefly to ensure clean camera reading
+                time.sleep(0.5)
+
+            # Get Camera Reading
+            cam_dist = sb.get_camera_distance()
             
-            # Use SuperBot's camera wrapper
-            dist = bot.get_camera_distance()
-            
-            if dist is not None:
-                bot.log_info(f"Tag Seen: {dist:.1f} cm")
-                estimated_dist = dist # Update our truth
+            if cam_dist:
+                sb.log_info(f"Tag Found: {cam_dist:.1f}cm")
                 
-                # Logic: Drive half the distance
-                step_size_cm = estimated_dist / 2.0
+                # Update our internal map
+                estimated_dist = cam_dist
+                last_known_dist = cam_dist
                 
-                # Check: If step takes us closer than target (overshoot) or very close
-                remaining_after_step = estimated_dist - step_size_cm
+                # Logic: Are we close enough to finish?
+                if estimated_dist <= (TARGET_DIST_CM + 2.0):
+                    # We are basically there (within 2cm tolerance)
+                    current_state = STATE_SUCCESS
+                else:
+                    # We are far away. Drive 50% of the remaining gap.
+                    gap = estimated_dist - TARGET_DIST_CM
+                    distance_to_drive = gap * 0.5
+                    
+                    # Minimum step size check (don't move if < 1cm)
+                    if distance_to_drive < 1.0:
+                        distance_to_drive = gap # Just finish it
+                        
+                    current_state = STATE_DRIVE_STEP
+
+            else:
+                # Tag NOT seen
+                sb.log_info("Tag Lost / Not Found")
                 
-                if remaining_after_step <= TARGET_DIST_CM:
-                    # The step is practically the final drive
-                    bot.log_info("Close enough -> Final Drive")
+                if last_known_dist > 0:
+                    # We saw it recently, assume we got too close and it dropped below view
+                    # Go to Blind Phase to finish the job based on memory
+                    sb.log_info("Switching to BLIND")
                     current_state = STATE_BLIND_CALC
                 else:
-                    bot.log_info(f"Step: {step_size_cm:.1f} cm")
-                    current_state = STATE_DRIVE_STEP
-            else:
-                bot.log_info("Tag Lost -> Blind Calculation")
-                current_state = STATE_BLIND_CALC
-                
+                    # We never saw it. Just wait.
+                    sb.update_display("No Tag Seen", "Adjust & Retry")
+                    time.sleep(1)
+                    # Stay in SCAN
+            
             previous_state = STATE_SCAN
 
-        # 4. STATE_DRIVE_STEP (The "Step" Phase)
+        # 4. STATE_DRIVE_STEP
         elif current_state == STATE_DRIVE_STEP:
-            bot.update_display("Stepping", f"{step_size_cm:.1f} cm")
-            # Using raw move for now (non-blocking)
-            bot.bot.move(step_size_cm, blocking=False)
+            sb.log_info(f"Step: {distance_to_drive:.1f}cm")
             
-            # Update our estimate IMMEDIATELY
-            estimated_dist -= step_size_cm
+            # V02 UPDATE: Use drive_distance instead of move()
+            # Non-blocking so we can manage state in the next loop
+            sb.drive_distance(distance_to_drive, speed_cm_s=SPEED_APPROACH, blocking=False)
+            
+            # Update internal estimation (we are moving closer)
+            estimated_dist -= distance_to_drive
             
             current_state = STATE_WAIT_STEP
             previous_state = STATE_DRIVE_STEP
 
         # 5. STATE_WAIT_STEP
         elif current_state == STATE_WAIT_STEP:
-            # Wait for the partial move to finish
-            if bot.bot.is_target_reached():
-                current_state = STATE_SCAN # Go back and verify
+            # Wait for the motor move to finish
+            if sb.move_complete():
+                # Move done. Go back to Scan to verify position.
+                current_state = STATE_SCAN
             
             previous_state = STATE_WAIT_STEP
-            time.sleep(0.1)
+            time.sleep(0.01)
 
         # 6. STATE_BLIND_CALC
         elif current_state == STATE_BLIND_CALC:
-            bot.log_info("State: BLIND CALC")
+            sb.log_info("State: BLIND CALC")
+            
+            # We are here because we lost the tag but know where it WAS.
+            # estimated_dist holds our theoretical distance to the object.
             
             final_push = estimated_dist - TARGET_DIST_CM
             
             if final_push > 0:
-                bot.log_info(f"Final Push: {final_push:.1f} cm")
-                bot.update_display("Final Push", f"{final_push:.1f} cm")
-                bot.bot.move(final_push, blocking=False)
+                sb.log_info(f"Blind Push: {final_push:.1f}cm")
+                sb.update_display("Final Push", f"{final_push:.1f} cm")
+                
+                # V02 UPDATE: Use drive_distance
+                sb.drive_distance(final_push, speed_cm_s=SLOW_APPROACH, blocking=False)
                 current_state = STATE_BLIND_EXECUTE
             else:
-                bot.log_info("Already at Target")
+                sb.log_info("Already at Target")
                 current_state = STATE_SUCCESS
             
             previous_state = STATE_BLIND_CALC
 
         # 7. STATE_BLIND_EXECUTE
         elif current_state == STATE_BLIND_EXECUTE:
-            if bot.bot.is_target_reached():
+            # Wait for final blind move to finish
+            if sb.move_complete():
                 current_state = STATE_SUCCESS
+            
             previous_state = STATE_BLIND_EXECUTE
-            time.sleep(0.1)
+            time.sleep(0.01)
 
         # 8. STATE_SUCCESS
         elif current_state == STATE_SUCCESS:
             if previous_state != STATE_SUCCESS:
-                bot.log_info("State: SUCCESS")
-                bot.update_display("Target Reached", "Done")
-                bot.bot.brake()
-                bot.bot.left_led.set_color(0, 1, 0)
-                bot.bot.right_led.set_color(0, 1, 0)
+                sb.log_info("State: SUCCESS")
+                sb.update_display("Target Reached", "Done")
+                sb.bot.brake()
+                sb.bot.left_led.set_color(0, 1, 0)
+                sb.bot.right_led.set_color(0, 1, 0)
                 time.sleep(5)
+                
+                # Reset
+                sb.bot.left_led.set_color(0, 0, 0)
+                sb.bot.right_led.set_color(0, 0, 0)
                 current_state = STATE_WAITING
             
             time.sleep(0.1)
 
+except KeyboardInterrupt:
+    sb.bot.stop() # Explicit stop on exit
+    print("\nProgram Terminated")
+
 except Exception as e:
     # Use SuperBot error logging
     try:
-        bot.log_error(f"CRASH: {e}")
+        sb.log_error(f"CRASH: {e}")
     except:
         print(f"CRITICAL: {e}")
         
     for _ in range(5):
-        bot.bot.left_led.set_color(1,0,0)
+        sb.bot.left_led.set_color(1,0,0)
+        sb.bot.right_led.set_color(1,0,0)
         time.sleep(0.2)
-        bot.bot.left_led.set_color(0,0,0)
+        sb.bot.left_led.set_color(0,0,0)
+        sb.bot.right_led.set_color(0,0,0)
         time.sleep(0.2)
+    sb.bot.stop()
 
-finally:
-    print("Program End.")
-    bot.bot.stop()
-    bot.bot.left_led.set_color(0,0,0)
-    bot.bot.right_led.set_color(0,0,0)
+# Developed with the assistance of Google Gemini
