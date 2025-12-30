@@ -1,11 +1,11 @@
 # capstone.py
-# Version: V05
+# Version: V06
 # Purpose: Flat State Machine implementation (No Classes).
 #          Combines alignment (Phase 1) and Zeno's approach (Phase 2).
 # Updates:
-#   - Removed redundant update_display() calls.
-#   - Relies on log_info() for user feedback during operation.
-#   - Only uses update_display() for the start menu instructions.
+#   - Fixed "Overshoot" bug: last_known_dist is now updated in STATE_APPROACH_MOVE.
+#     This ensures that if the tag is lost, we calculate the blind push
+#     from the *current* position, not the previous sighting.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot, Button
@@ -35,7 +35,7 @@ alvik.begin()
 sb = SuperBot(alvik)
 sb.enable_info_logging()
 
-sb.log_info("Initializing Capstone V05...")
+sb.log_info("Initializing Capstone V06...")
 
 # Input Buttons
 btn_start = Button(sb.bot.get_touch_center)
@@ -168,6 +168,12 @@ try:
                 speed_cm_s=APPROACH_SPEED, 
                 blocking=True
             )
+            
+            # CRITICAL FIX: Update last_known_dist by subtracting what we just drove.
+            # If we see the tag next time, this gets overwritten by the camera (Ground Truth).
+            # If we DON'T see the tag, this value is used for the Blind approach (Dead Reckoning).
+            last_known_dist -= dist_to_drive
+            
             # Loop back to check
             current_state = STATE_APPROACH_CHECK
 
@@ -176,6 +182,7 @@ try:
         # Behavior: If tag lost near end, trust last math and finish
         # ------------------------------------------------------------------
         elif current_state == STATE_APPROACH_BLIND:
+            # We calculate distance based on the updated last_known_dist
             final_push = last_known_dist - PICKUP_TARGET_DIST
             
             if final_push > 0:
