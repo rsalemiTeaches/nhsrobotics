@@ -1,10 +1,12 @@
 # test_drive.py
-# Version: V01
+# Version: V02
 # Purpose: Validates the drive_distance() and move_complete() methods in SuperBot (nhs_robotics V18)
+# Updates: Added multiple speed tests.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
 import time
+import sys
 
 # --- SETUP ---
 print("Initializing Robot...")
@@ -24,24 +26,26 @@ def countdown(seconds, message):
 
 # --- TESTS ---
 
-def test_1_blocking_precision():
+def test_1_variable_speed_precision():
     """
-    Test 1: Drive forward 30cm, wait, drive back 30cm.
-    User should verify the robot returns to the exact starting line.
+    Test 1: Drive forward FAST, drive back SLOW.
+    Verifies encoder targeting works regardless of momentum/speed.
     """
     DIST = 30
+    FAST_SPEED = 35
+    SLOW_SPEED = 10
     
-    countdown(3, "Test 1: Precision")
+    countdown(3, "Test 1: Speeds")
     
-    # Forward
-    bot.log_info(f"Forward {DIST}cm")
-    bot.drive_distance(DIST, speed_cm_s=25, blocking=True)
+    # Forward Fast
+    bot.log_info(f"Fwd {DIST}cm @ {FAST_SPEED}")
+    bot.drive_distance(DIST, speed_cm_s=FAST_SPEED, blocking=True)
     
-    time.sleep(0.5)
+    time.sleep(1)
     
-    # Backward
-    bot.log_info(f"Reverse {DIST}cm")
-    bot.drive_distance(-DIST, speed_cm_s=25, blocking=True)
+    # Backward Slow
+    bot.log_info(f"Rev {DIST}cm @ {SLOW_SPEED}")
+    bot.drive_distance(-DIST, speed_cm_s=SLOW_SPEED, blocking=True)
     
     bot.log_info("Test 1 Complete")
     time.sleep(2)
@@ -52,13 +56,14 @@ def test_2_non_blocking_multitask():
     Proves the code does not hang the processor.
     """
     DIST = 30
+    SPEED = 15
     
     countdown(3, "Test 2: Multitask")
     
     bot.log_info("Driving Async...")
     
     # Start moving (blocking=False)
-    bot.drive_distance(DIST, speed_cm_s=15, blocking=False)
+    bot.drive_distance(DIST, speed_cm_s=SPEED, blocking=False)
     
     # Do other things while moving
     toggle = False
@@ -102,10 +107,10 @@ def test_3_safety_timeout():
 # --- MAIN EXECUTION ---
 
 try:
-    bot.update_display("Test Suite", "Place on Floor")
+    bot.update_display("Test Suite V02", "Place on Floor")
     time.sleep(2)
     
-    test_1_blocking_precision()
+    test_1_variable_speed_precision()
     test_2_non_blocking_multitask()
     test_3_safety_timeout()
     
