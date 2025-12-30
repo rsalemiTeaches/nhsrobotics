@@ -32,8 +32,8 @@ def test_1_variable_speed_precision():
     Verifies encoder targeting works regardless of momentum/speed.
     """
     DIST = 30
-    FAST_SPEED = 35
-    SLOW_SPEED = 10
+    FAST_SPEED = 60
+    SLOW_SPEED = 5
     
     countdown(3, "Test 1: Speeds")
     
