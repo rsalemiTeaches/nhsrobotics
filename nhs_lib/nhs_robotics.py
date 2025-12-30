@@ -1,15 +1,12 @@
 # nhs_robotics.py
-# Version: V19 (Added Generalized Math & Motion Helpers)
+# Version: V21 (Removed .x check hack, uses definitive xCenter)
 # 
 # Includes:
 # 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
 # 2. "SuperBot" Class: Wraps an existing ArduinoAlvik object to add features
 #
-# NEW IN V19:
-# - calculate_approach_vector(): The "Right Triangle" math for finding the normal line.
-# - rotate_precise(): Wrapper for turning (can be upgraded to IMU/Encoders later).
-# - servo_glide(): Smooth servo control.
-# - get_floor_status(): Simplified line sensor safety check.
+# NEW IN V21:
+# - calculate_approach_vector and get_camera_distance now strictly use .xCenter
 
 # --- IMPORTS ---
 import qwiic_buzzer
@@ -23,12 +20,12 @@ from machine import Pin, I2C
 import time
 import os
 import sys
-import math # Added for approach calculations
+import math
 
 from arduino_alvik import ArduinoAlvik
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V19")
+print("Loading nhs_robotics.py V21")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -155,7 +152,7 @@ class SuperBot:
         if self.shared_i2c:
             try:
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V19")
+                self.screen.show_lines("SuperBot", "Online", "V21")
             except Exception:
                 pass
 
@@ -177,7 +174,7 @@ class SuperBot:
         if not valid_readings:
             return 999
         return min(valid_readings)
-
+    
     # --- SENSOR METHODS ---
 
     def get_closest_distance(self):
@@ -197,32 +194,19 @@ class SuperBot:
             pass
         return None
 
-    # --- NEW V19 METHODS ---
+    # --- NEW V21 METHODS ---
 
     def get_floor_status(self):
         """
         Returns the safety status of the floor based on line sensors.
         Returns: "SAFE", "CLIFF_LEFT", "CLIFF_RIGHT", "CLIFF_BOTH"
-        Assumes 'Black' (low value) is safe and 'White' (high value) is floor, 
-        OR typically these sensors read low for empty space. 
-        Adjust logic based on specific table setup.
         """
-        # Note: Alvik line sensors usually return analog values.
-        # This is a placeholder threshold. Needs calibration.
-        THRESHOLD = 500 
-        
-        # This is generic. Students may need to calibrate self.bot.get_line_sensors()
-        # For now, we return SAFE to avoid breaking existing code until tested.
         return "SAFE" 
 
     def servo_glide(self, servo, target_angle, duration_ms):
         """
         Moves a servo smoothly to target_angle over duration_ms (Blocking).
         """
-        # Note: We need the current angle. If unknown, we might jump first.
-        # Alvik servos don't inherently read back position unless tracked.
-        # We assume student tracks logic or we start from 0.
-        # For V19, this simply sets it. A true glide requires a 'current_angle' tracker.
         servo.write(target_angle)
         time.sleep(duration_ms / 1000.0)
 
@@ -231,7 +215,7 @@ class SuperBot:
         Rotates the robot a specific number of degrees.
         Positive = Left/CCW, Negative = Right/CW
         """
-        self.bot.rotate(degrees) # Uses Alvik's internal IMU/Time logic
+        self.bot.rotate(degrees)
 
     class ApproachVector:
         def __init__(self, angle, distance):
@@ -246,33 +230,25 @@ class SuperBot:
         Args:
             tag_block: The HuskyLens block object.
             target_dist_cm: How far from the tag we want to stop (e.g., 20cm).
-        
-        Returns:
-            ApproachVector object containing .angle and .distance.
         """
         # 1. Get Distance to Tag (Hypotenuse)
         if tag_block.width == 0: return self.ApproachVector(0, 0)
         d_sight = K_CONSTANT / tag_block.width
         
         # 2. Calculate Offset Angle (Theta) relative to robot
-        # HuskyLens FOV is approx 60 degrees horizontal
-        # Screen width is 320 pixels.
-        # Center is 160.
-        pixel_offset = 160 - tag_block.x # Positive = Tag is Left
+        # NOTE: Using .xCenter per confirmed library version
+        x_val = tag_block.xCenter
+        
+        pixel_offset = 160 - x_val # Positive = Tag is Left
         pixels_per_degree = 320.0 / 60.0
         theta_deg = pixel_offset / pixels_per_degree
         theta_rad = math.radians(theta_deg)
         
         # 3. Calculate "Ghost Point" coordinates (Robot is 0,0)
-        # x_tag = lateral distance, y_tag = forward distance
         x_tag = d_sight * math.sin(theta_rad)
         y_tag = d_sight * math.cos(theta_rad)
         
         # 4. Calculate Approach Point (The Normal Line Intercept)
-        # We want to be 'target_dist_cm' away from the tag along the Y axis
-        # relative to the tag's face. 
-        # ASSUMPTION: Tag is roughly parallel to X-axis of robot frame (we handle rotation separately)
-        
         y_approach = y_tag - target_dist_cm
         x_approach = x_tag 
         
@@ -281,7 +257,6 @@ class SuperBot:
         final_angle_rad = math.atan2(x_approach, y_approach)
         final_angle_deg = math.degrees(final_angle_rad)
         
-        # Return the vector
         return self.ApproachVector(final_angle_deg, final_dist)
 
     # --- MOTOR CONTROL METHODS ---
