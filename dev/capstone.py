@@ -1,11 +1,9 @@
 # capstone.py
-# Version: V10
-# Purpose: Flat State Machine implementation using ForkLiftBot.
+# Version: V15
+# Purpose: Continuous Rolling Tracking (Visual Servoing).
 # Updates:
-#   - Removed STATE_PICKUP_ENGAGE.
-#   - Logic assumes that reaching PICKUP_TARGET_DIST (5cm) puts the forks
-#     under the box automatically because the forks are in front of the robot.
-#   - Transitions: Approach (Visual or Blind) -> Lift -> Success.
+#   - Fixed Scope Bug: Removed local K_CONSTANT.
+#   - Now uses robot.K_CONSTANT defined in SuperBot.__init__.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import Button
@@ -15,20 +13,19 @@ import sys
 
 # --- CONFIGURATION ---
 ALIGN_TARGET_DIST = 25.0    # Stop 25cm away after alignment
-PICKUP_TARGET_DIST = 5.0    # Final goal distance (Forks should be under box here)
-APPROACH_SPEED = 20         # Speed for approach steps
+PICKUP_TARGET_DIST = 8.0    # Final goal distance
+ROLLING_SPEED = 15          # cm/s
+STEERING_GAIN = 0.15        # Proportional gain
 
 # --- STATE CONSTANTS ---
-STATE_IDLE           = 0    # Waiting for start
-STATE_ALIGN_SCAN     = 1    # Looking for the tag
-STATE_ALIGN_MANEUVER = 2    # Turning and driving to center
-STATE_APPROACH_CHECK = 3    # Measuring distance
-STATE_APPROACH_MOVE  = 4    # Driving the calculated step
-STATE_APPROACH_BLIND = 5    # Final push if tag is lost close to target
-STATE_PICKUP_LIFT    = 9    # Lift the box
-STATE_MISSION_SUCCESS= 6    # Green lights
-STATE_MISSION_FAIL   = 7    # Red lights
-STATE_EXIT           = 99   # End program
+STATE_IDLE              = 0
+STATE_ALIGN_SCAN        = 1
+STATE_ALIGN_MANEUVER    = 2
+STATE_APPROACH_ROLLING  = 3
+STATE_PICKUP_LIFT       = 9
+STATE_MISSION_SUCCESS   = 6
+STATE_MISSION_FAIL      = 7
+STATE_EXIT              = 99
 
 # --- HARDWARE SETUP ---
 alvik = ArduinoAlvik()
@@ -38,7 +35,7 @@ alvik.begin()
 robot = ForkLiftBot(alvik)
 robot.enable_info_logging()
 
-robot.log_info("Initializing Capstone V10...")
+robot.log_info("Initializing Capstone V15...")
 
 # Input Buttons
 btn_start = Button(robot.bot.get_touch_center)
@@ -47,8 +44,7 @@ btn_cancel = Button(robot.bot.get_touch_cancel)
 # --- GLOBAL VARIABLES ---
 current_state = STATE_IDLE
 found_tag = None
-last_known_dist = 0.0
-dist_to_drive = 0.0
+start_heading = 0.0
 
 # --- MAIN LOOP ---
 try:
@@ -58,31 +54,26 @@ try:
         # STATE: IDLE
         # ------------------------------------------------------------------
         if current_state == STATE_IDLE:
-            robot.update_display("Capstone", "Center: GO", "Cancel: EXIT")
+            robot.update_display("Capstone V15", "Center: GO", "Cancel: EXIT")
             
             # Blink Blue
             if (time.ticks_ms() // 500) % 2 == 0:
-                robot.bot.left_led.set_color(0, 0, 1) # Blue
+                robot.bot.left_led.set_color(0, 0, 1) 
                 robot.bot.right_led.set_color(0, 0, 1)
             else:
-                robot.bot.left_led.set_color(0, 0, 0) # Off
+                robot.bot.left_led.set_color(0, 0, 0) 
                 robot.bot.right_led.set_color(0, 0, 0)
             
-            # Check Inputs
             if btn_cancel.get_touch():
                 robot.log_info("Exit requested.")
                 current_state = STATE_EXIT
                 
             if btn_start.get_touch():
-                robot.log_info("Mission Start: Scanning...")
+                robot.log_info("Mission Start...")
                 robot.bot.left_led.set_color(0, 0, 0)
                 robot.bot.right_led.set_color(0, 0, 0)
-                last_known_dist = 0.0
                 found_tag = None
-                
-                # Ensure fork is down before starting
                 robot.lower_fork()
-                
                 current_state = STATE_ALIGN_SCAN
 
         # ------------------------------------------------------------------
@@ -91,15 +82,19 @@ try:
         elif current_state == STATE_ALIGN_SCAN:
             found = False
             for _ in range(20):
-                robot.husky.request()
-                if len(robot.husky.blocks) > 0:
-                    found_tag = robot.husky.blocks[0]
-                    found = True
-                    break
+                try:
+                    robot.husky.request()
+                    if len(robot.husky.blocks) > 0:
+                        found_tag = robot.husky.blocks[0]
+                        found = True
+                        break
+                except OSError:
+                    pass # Ignore I2C glitches during scan
                 time.sleep(0.1)
                 
             if found:
                 robot.log_info(f"Tag ID {found_tag.id} found.")
+                start_heading = robot.get_yaw()
                 current_state = STATE_ALIGN_MANEUVER
             else:
                 robot.log_error("Scan failed: No tag.")
@@ -114,79 +109,81 @@ try:
                 target_dist_cm=ALIGN_TARGET_DIST
             )
             
-            robot.log_info(f"Aligning: Turn {vector.angle:.1f}, Drive {vector.distance:.1f}")
-            
+            robot.log_info(f"Coarse Align: Turn {vector.angle:.1f}")
             robot.bot.rotate(vector.angle)
             robot.drive_distance(vector.distance)
             robot.bot.rotate(-vector.angle)
             
+            robot.log_info("Heading Snap...")
+            robot.turn_to_heading(start_heading)
+            
+            robot.center_on_tag(tolerance=3)
+            
             time.sleep(0.5)
-            current_state = STATE_APPROACH_CHECK
+            current_state = STATE_APPROACH_ROLLING
 
         # ------------------------------------------------------------------
-        # STATE: APPROACH CHECK
+        # STATE: APPROACH ROLLING (Continuous Visual Servoing)
         # ------------------------------------------------------------------
-        elif current_state == STATE_APPROACH_CHECK:
-            time.sleep(0.2)
-            cam_dist = robot.get_camera_distance()
+        elif current_state == STATE_APPROACH_ROLLING:
+            robot.log_info("Rolling Approach...")
             
-            if cam_dist:
-                last_known_dist = cam_dist
+            lost_tag_count = 0
+            
+            while True:
+                # 1. Get Visual Data (Protected)
+                try:
+                    robot.husky.request()
+                except OSError as e:
+                    # If I2C times out, just skip this frame and try again
+                    # Do NOT stop the robot; momentum handles small gaps
+                    continue 
+
+                blocks = [b for b in robot.husky.blocks if b.id == found_tag.id]
                 
-                if cam_dist <= (PICKUP_TARGET_DIST + 1.0):
-                    robot.log_info(f"Target Reached ({cam_dist:.1f}cm)")
-                    # Forks should be under the box now
+                if not blocks:
+                    lost_tag_count += 1
+                    if lost_tag_count > 10: # Increased tolerance for glitches (approx 1 sec)
+                        robot.bot.brake()
+                        robot.log_error("Lost Tag Moving.")
+                        current_state = STATE_MISSION_FAIL
+                        break
+                    time.sleep(0.05)
+                    continue
+                else:
+                    lost_tag_count = 0
+                    target = blocks[0]
+
+                # 2. Check Distance
+                if target.width == 0: continue
+                # Correctly using the instance variable from SuperBot
+                current_dist = robot.K_CONSTANT / target.width
+                
+                if current_dist <= PICKUP_TARGET_DIST:
+                    robot.bot.brake()
+                    robot.log_info(f"Arrived: {current_dist:.1f}cm")
                     current_state = STATE_PICKUP_LIFT
-                else:
-                    gap = cam_dist - PICKUP_TARGET_DIST
-                    dist_to_drive = gap * 0.5
-                    
-                    if dist_to_drive < 1.0: 
-                        dist_to_drive = gap 
-                    
-                    robot.log_info(f"Gap: {gap:.1f}cm -> Drive {dist_to_drive:.1f}cm")
-                    current_state = STATE_APPROACH_MOVE
-            else:
-                robot.log_info("Tag Lost during approach.")
-                if last_known_dist > 0:
-                    current_state = STATE_APPROACH_BLIND
-                else:
-                    current_state = STATE_MISSION_FAIL
-
-        # ------------------------------------------------------------------
-        # STATE: APPROACH MOVE
-        # ------------------------------------------------------------------
-        elif current_state == STATE_APPROACH_MOVE:
-            robot.drive_distance(
-                dist_to_drive, 
-                speed_cm_s=APPROACH_SPEED, 
-                blocking=True
-            )
-            last_known_dist -= dist_to_drive
-            current_state = STATE_APPROACH_CHECK
-
-        # ------------------------------------------------------------------
-        # STATE: APPROACH BLIND
-        # ------------------------------------------------------------------
-        elif current_state == STATE_APPROACH_BLIND:
-            final_push = last_known_dist - PICKUP_TARGET_DIST
-            if final_push > 0:
-                robot.log_info(f"Blind Drive: {final_push:.1f}cm")
-                robot.drive_distance(final_push, speed_cm_s=10, blocking=True)
-            
-            # After blind approach, we are at the target
-            current_state = STATE_PICKUP_LIFT
+                    break
+                
+                # 3. Calculate Steering
+                error_pixels = 160 - target.xCenter
+                turn_rate = error_pixels * STEERING_GAIN
+                
+                # Limit turn rate
+                if turn_rate > 30: turn_rate = 30
+                if turn_rate < -30: turn_rate = -30
+                
+                # 4. Update Motors
+                robot.bot.drive(ROLLING_SPEED, turn_rate)
+                
+                time.sleep(0.05)
 
         # ------------------------------------------------------------------
         # STATE: PICKUP LIFT
-        # Behavior: Raise the fork
         # ------------------------------------------------------------------
         elif current_state == STATE_PICKUP_LIFT:
             robot.log_info("Lifting Box...")
-            
-            # Raise fork to max level (10)
             robot.raise_fork(10)
-            
             time.sleep(0.5)
             current_state = STATE_MISSION_SUCCESS
 
@@ -197,7 +194,6 @@ try:
             robot.log_info("MISSION COMPLETE")
             robot.bot.left_led.set_color(0, 1, 0)
             robot.bot.right_led.set_color(0, 1, 0)
-            
             time.sleep(3)
             current_state = STATE_IDLE
 
@@ -208,7 +204,6 @@ try:
             robot.log_error("MISSION FAILED")
             robot.bot.left_led.set_color(1, 0, 0)
             robot.bot.right_led.set_color(1, 0, 0)
-            
             time.sleep(3)
             current_state = STATE_IDLE
         
@@ -223,3 +218,5 @@ finally:
     robot.bot.left_led.set_color(0, 0, 0)
     robot.bot.right_led.set_color(0, 0, 0)
     robot.log_info("Program terminated.")
+
+# Developed with the assistance of Google Gemini

@@ -1,13 +1,12 @@
 # nhs_robotics.py
-# Version: V22 (Added Closed-Loop Drive Straight)
+# Version: V26 (Added Log Header Separator)
 # 
 # Includes:
 # 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
 # 2. "SuperBot" Class: Wraps an existing ArduinoAlvik object to add features
 #
-# NEW IN V22:
-# - drive_distance now uses the IMU to maintain a straight heading (Drive Straight).
-# - move_complete implements a P-Controller to correct heading errors during motion.
+# NEW IN V26:
+# - Added a log file separator ("#" * 30) in SuperBot.__init__ to mark new runs.
 
 # --- IMPORTS ---
 import qwiic_buzzer
@@ -22,7 +21,7 @@ from nanolib import NanoLED
 
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V22")
+print("Loading nhs_robotics.py V26")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -181,16 +180,22 @@ class Buzzer:
 
 # --- "SuperBot" Class ---
 
-K_CONSTANT = 1624.0
-DEGREES_PER_CM = 33.88
-
 class SuperBot:
     def __init__(self, robot):
         self.bot = robot
         
+        # --- CONSTANTS ---
+        # Moved to __init__ for proper object scope
+        self.K_CONSTANT = 1624.0
+        self.DEGREES_PER_CM = 33.88
+        
         self.info_logging_enabled = False
         self._ensure_log_directory()
         self._rotate_logs()
+        
+        # Write Log Header Separator
+        # This will separate runs in the log file with a line of #
+        self._append_to_file('/workspace/logs/messages.log', '#' * 30)
         
         self.shared_i2c = None
         self.screen = None
@@ -220,7 +225,7 @@ class SuperBot:
         if self.shared_i2c:
             try:
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V22")
+                self.screen.show_lines("SuperBot", "Online", "V26")
             except Exception:
                 pass
 
@@ -257,12 +262,12 @@ class SuperBot:
             if len(self.husky.blocks) > 0:
                 width = self.husky.blocks[0].width
                 if width > 0:
-                    return K_CONSTANT / width
+                    return self.K_CONSTANT / width
         except Exception:
             pass
         return None
 
-    # --- NEW V21/V22 METHODS ---
+    # --- NEW V21-V26 METHODS ---
 
     def get_floor_status(self):
         """
@@ -284,6 +289,141 @@ class SuperBot:
         Positive = Left/CCW, Negative = Right/CW
         """
         self.bot.rotate(degrees)
+        
+    def get_yaw(self):
+        """
+        Safely reads the Yaw (heading) from the IMU.
+        Returns 0.0 if IMU is unavailable.
+        """
+        try:
+            # Assumes get_orientation() returns [roll, pitch, yaw]
+            return self.bot.get_orientation()[2]
+        except:
+            return 0.0
+
+    def turn_to_heading(self, target_angle, tolerance=2.0, timeout=5):
+        """
+        Rotates the robot in place until it faces the specific compass heading.
+        Uses a P-Controller to slow down as it gets closer.
+        """
+        self.log_info(f"Turn to {target_angle:.1f}")
+        start_time = time.ticks_ms()
+        
+        while True:
+            # 1. Timeout Guard
+            if time.ticks_diff(time.ticks_ms(), start_time) > timeout * 1000:
+                self.bot.brake()
+                self.log_info("Turn Timeout")
+                break
+
+            # 2. Calculate Error
+            current_yaw = self.get_yaw()
+            error = target_angle - current_yaw
+            
+            # 3. Normalize Error (-180 to 180)
+            if error > 180: error -= 360
+            if error < -180: error += 360
+            
+            # 4. Success Check
+            if abs(error) <= tolerance:
+                self.bot.brake()
+                break
+            
+            # 5. P-Controller Calculation
+            # Kp = 2.0 found experimentally to be decent for Alvik
+            rotation_speed = error * 2.0
+            
+            # Clamp speeds
+            MAX_SPEED = 50
+            MIN_SPEED = 15
+            
+            if rotation_speed > MAX_SPEED: rotation_speed = MAX_SPEED
+            if rotation_speed < -MAX_SPEED: rotation_speed = -MAX_SPEED
+            
+            if rotation_speed > 0 and rotation_speed < MIN_SPEED: rotation_speed = MIN_SPEED
+            if rotation_speed < 0 and rotation_speed > -MIN_SPEED: rotation_speed = -MIN_SPEED
+            
+            # 6. Actuate
+            self.bot.drive(0, rotation_speed)
+            time.sleep(0.01)
+
+    def center_on_tag(self, target_id=1, tolerance=5):
+        """
+        Blocking. Scans for tag, calculates angle offset, rotates to center.
+        Returns: True if tag found and centered (or already centered), 
+                 False if tag not found.
+        """
+        # 1. Look for tag
+        self.husky.request()
+        blocks = [b for b in self.husky.blocks if b.id == target_id]
+        
+        if not blocks:
+            return False
+            
+        target = blocks[0]
+        
+        # 2. Calculate Error
+        # xCenter range is 0-320. Center is 160.
+        # Positive Error means tag is to the LEFT (x < 160).
+        # We need POSITIVE rotation (Left) to center it.
+        error_pixels = 160 - target.xCenter
+        
+        if abs(error_pixels) <= tolerance:
+            return True
+            
+        # 3. Convert to Degrees
+        # FOV is 60 degrees over 320 pixels
+        pixels_per_degree = 320.0 / 60.0
+        angle_to_turn = error_pixels / pixels_per_degree
+        
+        self.log_info(f"Center: {error_pixels}px -> {angle_to_turn:.1f}deg")
+        
+        # 4. Rotate (Relative)
+        # Using rotate_precise (wrapper for bot.rotate) which is open loop but 
+        # fine for small relative adjustments.
+        self.rotate_precise(angle_to_turn)
+        
+        return True
+
+    def adjust_distance_to_tag(self, target_id=1, target_dist_cm=10, step_ratio=1.0):
+        """
+        Blocking. Scans for tag, measures distance.
+        Drives 'step_ratio' (0.0 - 1.0) of the error towards target_dist_cm.
+        Returns: The measured distance (float) or None if tag not found.
+        """
+        # 1. Look for tag
+        self.husky.request()
+        blocks = [b for b in self.husky.blocks if b.id == target_id]
+        
+        if not blocks:
+            return None
+            
+        target = blocks[0]
+        
+        # 2. Calculate Distance
+        if target.width == 0: return None
+        current_dist = self.K_CONSTANT / target.width
+        
+        # 3. Calculate Gap
+        gap = current_dist - target_dist_cm
+        
+        # 4. Determine Step Size
+        drive_amt = gap * step_ratio
+        
+        # If the drive amount is tiny but gap is still there, finish it 
+        # (unless gap is already negligible)
+        if abs(gap) > 0.5:
+             if abs(drive_amt) < 2.0:
+                 drive_amt = gap # Finish it if close
+        else:
+             drive_amt = 0 # Already there
+        
+        # 5. Drive
+        if abs(drive_amt) > 0.1:
+            self.log_info(f"Dist: {current_dist:.1f} Gap: {gap:.1f} -> Drive {drive_amt:.1f}")
+            self.drive_distance(drive_amt, blocking=True)
+            
+        return current_dist
 
     class ApproachVector:
         def __init__(self, angle, distance):
@@ -297,7 +437,7 @@ class SuperBot:
         """
         # 1. Get Distance to Tag (Hypotenuse)
         if tag_block.width == 0: return self.ApproachVector(0, 0)
-        d_sight = K_CONSTANT / tag_block.width
+        d_sight = self.K_CONSTANT / tag_block.width
         
         # 2. Calculate Offset Angle (Theta) relative to robot
         x_val = tag_block.xCenter
@@ -331,7 +471,7 @@ class SuperBot:
         enc_values = self.bot.get_wheels_position()
         start_avg = (enc_values[0] + enc_values[1]) / 2.0
         
-        delta_deg = distance_cm * DEGREES_PER_CM
+        delta_deg = distance_cm * self.DEGREES_PER_CM
         
         self._target_encoder_value = start_avg + delta_deg
         self._drive_direction = 1 if distance_cm > 0 else -1
@@ -344,11 +484,7 @@ class SuperBot:
         self._current_speed_cm_s = speed_cm_s * self._drive_direction
         
         # Capture Initial Yaw for Drive Straight Logic
-        try:
-            # Assumes get_orientation() returns [roll, pitch, yaw]
-            self._target_yaw = self.bot.get_orientation()[2]
-        except:
-            self._target_yaw = 0.0 # Fallback if IMU fails/missing
+        self._target_yaw = self.get_yaw()
         
         # Start moving (Open loop start)
         self.bot.drive(self._current_speed_cm_s, 0)
@@ -387,7 +523,7 @@ class SuperBot:
 
         # 3. Apply Heading Correction (Drive Straight)
         try:
-            current_yaw = self.bot.get_orientation()[2]
+            current_yaw = self.get_yaw()
             error = current_yaw - self._target_yaw
             
             # Normalize error to -180 to +180
