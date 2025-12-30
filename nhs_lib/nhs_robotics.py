@@ -1,12 +1,13 @@
 # nhs_robotics.py
-# Version: V26 (Added Log Header Separator)
+# Version: V28 (Added Robust HuskyLens Initialization)
 # 
 # Includes:
 # 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
 # 2. "SuperBot" Class: Wraps an existing ArduinoAlvik object to add features
 #
-# NEW IN V26:
-# - Added a log file separator ("#" * 30) in SuperBot.__init__ to mark new runs.
+# NEW IN V28:
+# - Added retry loop (10 attempts) for HuskyLens initialization in _init_peripherals.
+# - Logs specific initialization status to screen/console.
 
 # --- IMPORTS ---
 import qwiic_buzzer
@@ -21,7 +22,7 @@ from nanolib import NanoLED
 
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V26")
+print("Loading nhs_robotics.py V28")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -196,6 +197,7 @@ class SuperBot:
         # Write Log Header Separator
         # This will separate runs in the log file with a line of #
         self._append_to_file('/workspace/logs/messages.log', '#' * 30)
+        self._append_to_file('/workspace/logs/errors.log', '#' * 30)
         
         self.shared_i2c = None
         self.screen = None
@@ -217,28 +219,57 @@ class SuperBot:
         self._kp_heading = 4.0 # Proportional gain for heading correction
 
     def _init_peripherals(self):
+        # 1. Init I2C Bus
         try:
             self.shared_i2c = I2C(1, scl=Pin(12), sda=Pin(11), freq=400000)
-        except Exception:
+        except Exception as e:
             self.shared_i2c = None
+            print(f"I2C Init Error: {e}")
 
+        # 2. Init OLED (If I2C is valid)
         if self.shared_i2c:
             try:
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V26")
+                self.screen.show_lines("SuperBot", "Online", "V28")
             except Exception:
                 pass
 
+        # 3. Init HuskyLens with RETRIES
         if self.shared_i2c:
             try:
                 self.qwiic_driver = MicroPythonI2C(esp32_i2c=self.shared_i2c)
-                self.husky = QwiicHuskylens(i2c_driver=self.qwiic_driver)
-                if self.husky.begin():
-                    pass
-                else:
+                
+                print("Init HuskyLens...")
+                self.update_display("Init HuskyLens...", "Please Wait")
+                
+                # Retry loop for HuskyLens
+                attempts = 0
+                success = False
+                # Try 10 times with 0.5 sec delay
+                while attempts < 10 and not success:
+                    try:
+                        self.husky = QwiicHuskylens(i2c_driver=self.qwiic_driver)
+                        if self.husky.begin():
+                            success = True
+                            print("HuskyLens OK")
+                            self.update_display("HuskyLens OK")
+                        else:
+                            print(f"Husky Attempt {attempts+1} Failed (begin=False)")
+                    except Exception as e:
+                        print(f"Husky Attempt {attempts+1} Error: {e}")
+                        
+                    if not success:
+                        attempts += 1
+                        time.sleep(0.5) # Wait 0.5 sec before retry
+                
+                if not success:
                     self.husky = None
-            except Exception:
+                    self.log_error("HuskyLens Init FAILED")
+                    self.update_display("Error:", "HuskyLens Fail")
+                    
+            except Exception as e:
                 self.husky = None
+                self.log_error(f"Husky Setup Error: {e}")
     
     @staticmethod
     def _get_closest_distance(d1, d2, d3, d4, d5):
@@ -353,6 +384,8 @@ class SuperBot:
         Returns: True if tag found and centered (or already centered), 
                  False if tag not found.
         """
+        if not self.husky: return False
+        
         # 1. Look for tag
         self.husky.request()
         blocks = [b for b in self.husky.blocks if b.id == target_id]
@@ -391,6 +424,8 @@ class SuperBot:
         Drives 'step_ratio' (0.0 - 1.0) of the error towards target_dist_cm.
         Returns: The measured distance (float) or None if tag not found.
         """
+        if not self.husky: return None
+
         # 1. Look for tag
         self.husky.request()
         blocks = [b for b in self.husky.blocks if b.id == target_id]

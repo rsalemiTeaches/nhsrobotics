@@ -1,9 +1,9 @@
 # capstone.py
-# Version: V15
+# Version: V16
 # Purpose: Continuous Rolling Tracking (Visual Servoing).
 # Updates:
-#   - Fixed Scope Bug: Removed local K_CONSTANT.
-#   - Now uses robot.K_CONSTANT defined in SuperBot.__init__.
+#   - Lowered ROLLING_SPEED to 10 cm/s.
+#   - Added "Blind Finish" logic: If tag is lost < 15cm, dead reckon the rest.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import Button
@@ -14,18 +14,19 @@ import sys
 # --- CONFIGURATION ---
 ALIGN_TARGET_DIST = 25.0    # Stop 25cm away after alignment
 PICKUP_TARGET_DIST = 8.0    # Final goal distance
-ROLLING_SPEED = 15          # cm/s
+ROLLING_SPEED = 5           # cm/s (Lowered for stability)
 STEERING_GAIN = 0.15        # Proportional gain
 
 # --- STATE CONSTANTS ---
-STATE_IDLE              = 0
-STATE_ALIGN_SCAN        = 1
-STATE_ALIGN_MANEUVER    = 2
-STATE_APPROACH_ROLLING  = 3
-STATE_PICKUP_LIFT       = 9
-STATE_MISSION_SUCCESS   = 6
-STATE_MISSION_FAIL      = 7
-STATE_EXIT              = 99
+STATE_IDLE                  = 0
+STATE_ALIGN_SCAN            = 1
+STATE_ALIGN_MANEUVER        = 2
+STATE_APPROACH_ROLLING      = 3
+STATE_APPROACH_BLIND_FINISH = 4 # New state for final blind push
+STATE_PICKUP_LIFT           = 9
+STATE_MISSION_SUCCESS       = 6
+STATE_MISSION_FAIL          = 7
+STATE_EXIT                  = 99
 
 # --- HARDWARE SETUP ---
 alvik = ArduinoAlvik()
@@ -35,7 +36,7 @@ alvik.begin()
 robot = ForkLiftBot(alvik)
 robot.enable_info_logging()
 
-robot.log_info("Initializing Capstone V15...")
+robot.log_info("Initializing Capstone V16...")
 
 # Input Buttons
 btn_start = Button(robot.bot.get_touch_center)
@@ -45,6 +46,7 @@ btn_cancel = Button(robot.bot.get_touch_cancel)
 current_state = STATE_IDLE
 found_tag = None
 start_heading = 0.0
+final_blind_dist = 0.0
 
 # --- MAIN LOOP ---
 try:
@@ -54,7 +56,7 @@ try:
         # STATE: IDLE
         # ------------------------------------------------------------------
         if current_state == STATE_IDLE:
-            robot.update_display("Capstone V15", "Center: GO", "Cancel: EXIT")
+            robot.update_display("Capstone V16", "Center: GO", "Cancel: EXIT")
             
             # Blink Blue
             if (time.ticks_ms() // 500) % 2 == 0:
@@ -89,7 +91,7 @@ try:
                         found = True
                         break
                 except OSError:
-                    pass # Ignore I2C glitches during scan
+                    pass 
                 time.sleep(0.1)
                 
             if found:
@@ -123,31 +125,43 @@ try:
             current_state = STATE_APPROACH_ROLLING
 
         # ------------------------------------------------------------------
-        # STATE: APPROACH ROLLING (Continuous Visual Servoing)
+        # STATE: APPROACH ROLLING
         # ------------------------------------------------------------------
         elif current_state == STATE_APPROACH_ROLLING:
             robot.log_info("Rolling Approach...")
             
             lost_tag_count = 0
+            last_valid_dist = 999.0
             
             while True:
                 # 1. Get Visual Data (Protected)
                 try:
                     robot.husky.request()
-                except OSError as e:
-                    # If I2C times out, just skip this frame and try again
-                    # Do NOT stop the robot; momentum handles small gaps
+                except OSError:
                     continue 
 
                 blocks = [b for b in robot.husky.blocks if b.id == found_tag.id]
                 
                 if not blocks:
                     lost_tag_count += 1
-                    if lost_tag_count > 10: # Increased tolerance for glitches (approx 1 sec)
+                    # If lost for > 10 frames (~0.5s)
+                    if lost_tag_count > 10: 
                         robot.bot.brake()
-                        robot.log_error("Lost Tag Moving.")
-                        current_state = STATE_MISSION_FAIL
-                        break
+                        
+                        # BLIND FINISH LOGIC
+                        if last_valid_dist < 15.0:
+                            robot.log_info("Tag lost (Close). Blind finish.")
+                            # Calculate how much left to drive
+                            final_blind_dist = last_valid_dist - PICKUP_TARGET_DIST
+                            if final_blind_dist < 0: final_blind_dist = 0
+                            
+                            current_state = STATE_APPROACH_BLIND_FINISH
+                            break
+                        else:
+                            robot.log_error("Lost Tag (Far). Abort.")
+                            current_state = STATE_MISSION_FAIL
+                            break
+                    
                     time.sleep(0.05)
                     continue
                 else:
@@ -156,8 +170,8 @@ try:
 
                 # 2. Check Distance
                 if target.width == 0: continue
-                # Correctly using the instance variable from SuperBot
                 current_dist = robot.K_CONSTANT / target.width
+                last_valid_dist = current_dist
                 
                 if current_dist <= PICKUP_TARGET_DIST:
                     robot.bot.brake()
@@ -177,6 +191,17 @@ try:
                 robot.bot.drive(ROLLING_SPEED, turn_rate)
                 
                 time.sleep(0.05)
+
+        # ------------------------------------------------------------------
+        # STATE: APPROACH BLIND FINISH
+        # ------------------------------------------------------------------
+        elif current_state == STATE_APPROACH_BLIND_FINISH:
+            if final_blind_dist > 0.5:
+                robot.log_info(f"Blind Drive: {final_blind_dist:.1f}cm")
+                # Drive purely by encoders/IMU for the final bit
+                robot.drive_distance(final_blind_dist, speed_cm_s=ROLLING_SPEED, blocking=True)
+            
+            current_state = STATE_PICKUP_LIFT
 
         # ------------------------------------------------------------------
         # STATE: PICKUP LIFT
