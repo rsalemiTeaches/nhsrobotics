@@ -1,12 +1,13 @@
 # nhs_robotics.py
-# Version: V21 (Removed .x check hack, uses definitive xCenter)
+# Version: V22 (Added Closed-Loop Drive Straight)
 # 
 # Includes:
 # 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
 # 2. "SuperBot" Class: Wraps an existing ArduinoAlvik object to add features
 #
-# NEW IN V21:
-# - calculate_approach_vector and get_camera_distance now strictly use .xCenter
+# NEW IN V22:
+# - drive_distance now uses the IMU to maintain a straight heading (Drive Straight).
+# - move_complete implements a P-Controller to correct heading errors during motion.
 
 # --- IMPORTS ---
 import qwiic_buzzer
@@ -21,7 +22,7 @@ from nanolib import NanoLED
 
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V21")
+print("Loading nhs_robotics.py V22")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -198,11 +199,17 @@ class SuperBot:
         
         self._init_peripherals()
 
+        # Drive state variables
         self._is_moving_distance = False
         self._target_encoder_value = 0
         self._drive_direction = 0
         self._drive_start_time = 0
         self._drive_timeout_ms = 0
+        
+        # Drive Straight (IMU) variables
+        self._target_yaw = 0.0
+        self._current_speed_cm_s = 0.0
+        self._kp_heading = 4.0 # Proportional gain for heading correction
 
     def _init_peripherals(self):
         try:
@@ -213,7 +220,7 @@ class SuperBot:
         if self.shared_i2c:
             try:
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V21")
+                self.screen.show_lines("SuperBot", "Online", "V22")
             except Exception:
                 pass
 
@@ -255,7 +262,7 @@ class SuperBot:
             pass
         return None
 
-    # --- NEW V21 METHODS ---
+    # --- NEW V21/V22 METHODS ---
 
     def get_floor_status(self):
         """
@@ -287,17 +294,12 @@ class SuperBot:
         """
         Calculates the (angle, distance) needed to drive to a point 
         directly in front of the tag (the 'Normal Line Intercept').
-        
-        Args:
-            tag_block: The HuskyLens block object.
-            target_dist_cm: How far from the tag we want to stop (e.g., 20cm).
         """
         # 1. Get Distance to Tag (Hypotenuse)
         if tag_block.width == 0: return self.ApproachVector(0, 0)
         d_sight = K_CONSTANT / tag_block.width
         
         # 2. Calculate Offset Angle (Theta) relative to robot
-        # NOTE: Using .xCenter per confirmed library version
         x_val = tag_block.xCenter
         
         pixel_offset = 160 - x_val # Positive = Tag is Left
@@ -338,8 +340,18 @@ class SuperBot:
         self._drive_start_time = time.ticks_ms()
         self._drive_timeout_ms = timeout * 1000
         
-        velocity_signed = speed_cm_s * self._drive_direction
-        self.bot.drive(velocity_signed, 0)
+        # Save linear speed for the correction loop
+        self._current_speed_cm_s = speed_cm_s * self._drive_direction
+        
+        # Capture Initial Yaw for Drive Straight Logic
+        try:
+            # Assumes get_orientation() returns [roll, pitch, yaw]
+            self._target_yaw = self.bot.get_orientation()[2]
+        except:
+            self._target_yaw = 0.0 # Fallback if IMU fails/missing
+        
+        # Start moving (Open loop start)
+        self.bot.drive(self._current_speed_cm_s, 0)
         
         if blocking:
             while not self.move_complete():
@@ -349,12 +361,14 @@ class SuperBot:
         if not self._is_moving_distance:
             return True
             
+        # 1. Check Timeout
         if time.ticks_diff(time.ticks_ms(), self._drive_start_time) > self._drive_timeout_ms:
             self.bot.brake()
             self._is_moving_distance = False
             self.log_info("Warn: Drive Timeout")
             return True
 
+        # 2. Check Distance Completion
         enc_values = self.bot.get_wheels_position()
         current_avg = (enc_values[0] + enc_values[1]) / 2.0
         finished = False
@@ -370,7 +384,26 @@ class SuperBot:
             self.bot.brake()
             self._is_moving_distance = False
             return True
+
+        # 3. Apply Heading Correction (Drive Straight)
+        try:
+            current_yaw = self.bot.get_orientation()[2]
+            error = current_yaw - self._target_yaw
             
+            # Normalize error to -180 to +180
+            if error > 180: error -= 360
+            if error < -180: error += 360
+            
+            # P-Controller: If we drifted Right (error < 0), we need to turn Left (Positive rot)
+            # Correction formula: rot = -error * Kp
+            correction_rot = -error * self._kp_heading
+            
+            # Apply adjusted drive command
+            self.bot.drive(self._current_speed_cm_s, correction_rot)
+            
+        except Exception:
+            pass # Fail silently if IMU error, continue open loop
+
         return False
 
     # --- LOGGING & IO METHODS ---
