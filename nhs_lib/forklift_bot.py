@@ -1,8 +1,12 @@
-# forklift_robot.py
+# forklift_bot.py
+# Version: V04
 # Purpose: Extends SuperBot to add specific Forklift control.
 #          Logic: Servo 180 = Ground (Down), Servo 0 = Raised (Up).
 #          Mapping: Level 0 (Down) -> 10 (Up).
-#          Movement must be slow and smooth.
+# Updates:
+#   - FIXED: Uses 'set_servo_positions(pos_A, pos_B)' from ArduinoAlvik class.
+#   - Assumes Forklift is on Servo A.
+#   - Keeps Servo B static at 0.
 
 from nhs_robotics import SuperBot
 import time
@@ -12,41 +16,37 @@ class ForkLiftBot(SuperBot):
         # Initialize the parent SuperBot class
         super().__init__(alvik_inst)
         
-        self.log_info("ForkLiftBot Initialized.")
+        self.log_info("ForkLiftBot V04 Initialized.")
         
-        # Define which servo controls the lift
-        # Check your hardware: usually left_servo or right_servo
-        # We assume left_servo for this example.
-        if hasattr(self.bot, 'left_servo'):
-            self.lift_servo = self.bot.left_servo
-        else:
-            # Fallback if specific attribute not found
-            self.log_error("Servo setup failed: Check hardware mapping.")
-            self.lift_servo = None
-            
-        # Track the current angle so we know where to start moving from
-        self.current_angle = 180 
+        # Configuration: Which slot is the forklift?
+        # True = Servo A, False = Servo B
+        self.USE_SERVO_A = True 
+        
+        # Track current angles
+        self.angle_A = 180
+        self.angle_B = 0 
         
         # Ensure fork starts on the ground
         self.set_fork_angle(180)
 
     def set_fork_angle(self, angle):
         """
-        Safely sets the servo angle and updates internal state.
+        Sets the servo angle using the main alvik method:
+        set_servo_positions(angle_A, angle_B)
         """
-        # Update internal tracking
-        self.current_angle = angle
-        
-        if self.lift_servo:
-            try:
-                # Try setting angle directly (common in MP libraries)
-                self.lift_servo.angle = angle
-            except:
-                try:
-                    # Fallback method
-                    self.lift_servo.set_angle(angle)
-                except Exception as e:
-                    self.log_error(f"Servo Error: {e}")
+        # Update internal tracking for the active servo
+        if self.USE_SERVO_A:
+            self.angle_A = angle
+        else:
+            self.angle_B = angle
+            
+        try:
+            # Call the method on the ALVIK instance (self.bot), not a servo object.
+            # We must pass values for BOTH servos.
+            self.bot.set_servo_positions(self.angle_A, self.angle_B)
+            
+        except Exception as e:
+            self.log_error(f"Servo Error: {e}")
 
     def raise_fork(self, level=10):
         """
@@ -58,14 +58,10 @@ class ForkLiftBot(SuperBot):
         if level < 0: level = 0
         if level > 10: level = 10
         
-        self.log_info(f"Moving Fork to Level {level}...")
-        
         # Map Level (0-10) to Angle (180-0)
-        # Level 0 -> 180
-        # Level 10 -> 0
         target_angle = int(180 - (level * 18))
         
-        start_angle = self.current_angle
+        start_angle = self.angle_A if self.USE_SERVO_A else self.angle_B
         
         # Determine step direction: +2 or -2
         if target_angle < start_angle:
@@ -78,7 +74,6 @@ class ForkLiftBot(SuperBot):
             return
 
         # Smooth loop
-        # We adjust the range 'stop' parameter to ensure we reach the target
         stop_val = target_angle + (-1 if step < 0 else 1)
         
         for angle in range(start_angle, stop_val, step):
@@ -87,11 +82,9 @@ class ForkLiftBot(SuperBot):
             
         # Ensure we hit exactly the target at the end
         self.set_fork_angle(target_angle)
-        self.log_info(f"Fork at Level {level} ({target_angle}deg).")
 
     def lower_fork(self):
         """
         Convenience function to fully lower the fork.
         """
         self.raise_fork(0)
-        
