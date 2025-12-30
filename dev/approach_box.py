@@ -1,9 +1,10 @@
 # goto_box.py
-# Version: V05
+# Version: V06
 # Purpose: Combines alignment geometry and incremental approach to position robot for pickup.
 # Updates: 
 #   - V04: Replaced standard print() with sb.log_info() and sb.log_error().
 #   - V05: Updated imports. Button class is now imported from nhs_robotics.
+#   - V06: Moved cleanup code to a 'finally' block to guarantee execution.
 # Developed with the assistance of Google Gemini.
 
 from arduino_alvik import ArduinoAlvik
@@ -23,7 +24,7 @@ alvik.begin()
 sb = SuperBot(alvik)
 sb.enable_info_logging()
 
-sb.log_info("Loading goto_box.py V05")
+sb.log_info("Loading goto_box.py V06")
 
 # Initialize Buttons
 btn_start = Button(sb.bot.get_touch_center)
@@ -232,14 +233,15 @@ try:
         
         # Loop restarts -> goes back to waiting
 
-    # Cleanup on Exit
+except KeyboardInterrupt:
+    sb.log_info("Aborted via KeyboardInterrupt.")
+
+except Exception as e:
+    sb.log_error(str(e))
+
+finally:
+    # Cleanup on Exit (Guaranteed to run)
+    sb.bot.stop()
     sb.update_display("Program", "Ended")
     sb.bot.left_led.set_color(0, 0, 0)
     sb.bot.right_led.set_color(0, 0, 0)
-
-except KeyboardInterrupt:
-    sb.log_info("Aborted via KeyboardInterrupt.")
-    sb.bot.stop()
-except Exception as e:
-    sb.log_error(str(e))
-    sb.bot.stop()
