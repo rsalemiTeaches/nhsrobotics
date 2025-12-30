@@ -1,5 +1,5 @@
 # nhs_robotics.py
-# Version: V16 (Rotation Policy applied to Errors + Messages)
+# Version: V18 (Added drive_distance with encoder averaging and timeout safety)
 # 
 # Includes:
 # 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
@@ -24,7 +24,7 @@ import sys
 from arduino_alvik import ArduinoAlvik
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V16")
+print("Loading nhs_robotics.py V18")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -173,6 +173,7 @@ class Buzzer:
 
 # Constants for SuperBot
 K_CONSTANT = 1624.0 # For distance calculation (Width * Distance)
+DEGREES_PER_CM = 33.88 # Calibration for drive_distance
 
 class SuperBot:
     """
@@ -191,19 +192,24 @@ class SuperBot:
         self.bot = robot # Use 'bot' as the attribute name per user request
         
         # 1. Setup Logging System
-        self.info_logging_enabled = False # Renamed per V15
+        self.info_logging_enabled = False
         self._ensure_log_directory()
         self._rotate_logs() # Clean up old logs on boot
         
         # 2. Initialize Shared I2C Bus & Sensors
-        # Since robot.begin() should already be called before creating SuperBot,
-        # we can safely initialize sensors now.
         self.shared_i2c = None
         self.screen = None
         self.husky = None
         self.qwiic_driver = None
         
         self._init_peripherals()
+
+        # 3. Motion State (Added V18)
+        self._is_moving_distance = False
+        self._target_encoder_value = 0
+        self._drive_direction = 0 # 1 for forward, -1 for back
+        self._drive_start_time = 0
+        self._drive_timeout_ms = 0
 
     def _init_peripherals(self):
         """Internal method to setup I2C, OLED, and HuskyLens."""
@@ -217,7 +223,7 @@ class SuperBot:
         if self.shared_i2c:
             try:
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V16")
+                self.screen.show_lines("SuperBot", "Online", "V18")
             except Exception:
                 pass
 
@@ -275,21 +281,97 @@ class SuperBot:
             
         return None
 
+    # --- MOTOR CONTROL METHODS (V18) ---
+
+    def drive_distance(self, distance_cm, speed_cm_s=20, blocking=True, timeout=10):
+        """
+        Drives the robot a specific distance using encoder averaging and safety timeouts.
+        
+        Args:
+            distance_cm (float): Distance to move (Positive=Forward, Negative=Backward).
+            speed_cm_s (float): Speed in cm/s.
+            blocking (bool): If True, waits for completion.
+            timeout (float): Max time in seconds to wait before aborting (prevents hanging).
+        """
+        if distance_cm == 0:
+            return
+
+        # 1. Calculate Target based on AVERAGE of both encoders
+        # Note: get_wheels_position returns a tuple (l, r) or (l, r, ...)
+        enc_values = self.bot.get_wheels_position()
+        start_avg = (enc_values[0] + enc_values[1]) / 2.0
+        
+        delta_deg = distance_cm * DEGREES_PER_CM
+        
+        self._target_encoder_value = start_avg + delta_deg
+        self._drive_direction = 1 if distance_cm > 0 else -1
+        self._is_moving_distance = True
+        
+        # Setup Safety Timeout
+        self._drive_start_time = time.ticks_ms()
+        self._drive_timeout_ms = timeout * 1000
+        
+        # 2. Start Motors
+        velocity_signed = speed_cm_s * self._drive_direction
+        self.bot.drive(velocity_signed, 0) # speed, rotation_speed
+        
+        # 3. Wait for completion if blocking
+        if blocking:
+            while not self.move_complete():
+                time.sleep(0.01)
+
+    def move_complete(self):
+        """
+        Checks if the non-blocking drive_distance command has finished.
+        Handles checking encoders and timeouts.
+        Returns: True if finished (or timed out), False if still driving.
+        """
+        if not self._is_moving_distance:
+            return True
+            
+        # Check Timeout first (Safety)
+        if time.ticks_diff(time.ticks_ms(), self._drive_start_time) > self._drive_timeout_ms:
+            self.bot.brake()
+            self._is_moving_distance = False
+            self.log_info("Warn: Drive Timeout")
+            return True
+
+        # Check Encoders (Average)
+        enc_values = self.bot.get_wheels_position()
+        current_avg = (enc_values[0] + enc_values[1]) / 2.0
+        finished = False
+        
+        if self._drive_direction > 0:
+            # Moving forward, look for value >= target
+            if current_avg >= self._target_encoder_value:
+                finished = True
+        else:
+            # Moving backward, look for value <= target
+            if current_avg <= self._target_encoder_value:
+                finished = True
+                
+        if finished:
+            self.bot.brake()
+            self._is_moving_distance = False
+            return True
+            
+        return False
+
     # --- LOGGING & IO METHODS ---
 
-    def enable_info_logging(self): # Renamed V15
+    def enable_info_logging(self):
         """Enable logging non-critical messages to file."""
         self.info_logging_enabled = True
         print("Logging set to ON")
         self.update_display("Log: ON")
 
-    def disable_info_logging(self): # Renamed V15
+    def disable_info_logging(self):
         """Disable logging non-critical messages to file."""
         self.info_logging_enabled = False
         print("Logging set to OFF")
         self.update_display("Log: OFF")
 
-    def log_info(self, message: str): # Renamed V15
+    def log_info(self, message: str):
         """
         Standard log:
         - Always prints to console.
@@ -390,3 +472,5 @@ class SuperBot:
                 self.screen.show_lines(l1, l2, l3)
             except Exception:
                 pass # Screen might have disconnected
+
+# Developed with the assistance of Google Gemini
