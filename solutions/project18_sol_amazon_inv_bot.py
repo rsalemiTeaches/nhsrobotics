@@ -1,12 +1,12 @@
 # capstone.py
 # Version: V27
-# Purpose: Capstone solution consistent with nhs_robotics.py V35.
+# Purpose: Capstone solution consistent with nhs_roalvikics.py V35.
 # Logic: Find Tag -> Align -> Approach -> Lift -> Spin -> Return -> Drop.
-# Notes: Renamed robot -> forklift per instructions.
+# Notes: Renamed roalvik -> forklift per instructions.
 
 from arduino_alvik import ArduinoAlvik
-from nhs_robotics import Button
-from forklift_bot import ForkLiftBot
+from nhs_roalvikics import Button
+from forklift_alvik import ForkLiftalvik
 import time
 import sys
 
@@ -33,8 +33,8 @@ STATE_EXIT              = 99
 alvik = ArduinoAlvik()
 alvik.begin()
 
-# Instantiate ForkLiftBot
-forklift = ForkLiftBot(alvik)
+# Instantiate ForkLiftalvik
+forklift = ForkLiftalvik(alvik)
 forklift.enable_info_logging()
 
 forklift.log_info("Initializing Capstone V27...")
@@ -43,14 +43,14 @@ forklift.log_info("Initializing Capstone V27...")
 if forklift.husky is None:
     forklift.log_error("CRITICAL: HuskyLens not found.")
     while True:
-        forklift.bot.left_led.set_color(1, 0, 0)
+        forklift.alvik.left_led.set_color(1, 0, 0)
         time.sleep(0.5)
-        forklift.bot.left_led.set_color(0, 0, 0)
+        forklift.alvik.left_led.set_color(0, 0, 0)
         time.sleep(0.5)
 
 # Input Buttons
-btn_start = Button(forklift.bot.get_touch_center)
-btn_cancel = Button(forklift.bot.get_touch_cancel)
+btn_start = Button(forklift.alvik.get_touch_center)
+btn_cancel = Button(forklift.alvik.get_touch_cancel)
 
 # Global Variables
 current_state = STATE_IDLE
@@ -67,11 +67,11 @@ try:
             
             # Blink Blue
             if (time.ticks_ms() // 500) % 2 == 0:
-                forklift.bot.left_led.set_color(0, 0, 1) 
-                forklift.bot.right_led.set_color(0, 0, 1)
+                forklift.alvik.left_led.set_color(0, 0, 1) 
+                forklift.alvik.right_led.set_color(0, 0, 1)
             else:
-                forklift.bot.left_led.set_color(0, 0, 0) 
-                forklift.bot.right_led.set_color(0, 0, 0)
+                forklift.alvik.left_led.set_color(0, 0, 0) 
+                forklift.alvik.right_led.set_color(0, 0, 0)
             
             if btn_cancel.get_touch():
                 forklift.log_info("Exit requested.")
@@ -79,8 +79,8 @@ try:
                 
             if btn_start.get_touch():
                 forklift.log_info("Mission Start...")
-                forklift.bot.left_led.set_color(0, 0, 0)
-                forklift.bot.right_led.set_color(0, 0, 0)
+                forklift.alvik.left_led.set_color(0, 0, 0)
+                forklift.alvik.right_led.set_color(0, 0, 0)
                 forklift.lower_fork()
                 current_state = STATE_ALIGN
 
@@ -132,7 +132,7 @@ try:
         # ------------------------------------------------------------------
         elif current_state == STATE_RETURN_SPIN:
             forklift.log_info("Spinning 180...")
-            forklift.bot.rotate(180)
+            forklift.alvik.rotate(180)
             current_state = STATE_RETURN_DRIVE
 
         # ------------------------------------------------------------------
@@ -159,8 +159,8 @@ try:
         # ------------------------------------------------------------------
         elif current_state == STATE_SUCCESS:
             forklift.log_info("MISSION COMPLETE")
-            forklift.bot.left_led.set_color(0, 1, 0)
-            forklift.bot.right_led.set_color(0, 1, 0)
+            forklift.alvik.left_led.set_color(0, 1, 0)
+            forklift.alvik.right_led.set_color(0, 1, 0)
             time.sleep(3)
             current_state = STATE_IDLE
 
@@ -169,8 +169,8 @@ try:
         # ------------------------------------------------------------------
         elif current_state == STATE_FAIL:
             forklift.log_error("MISSION FAILED")
-            forklift.bot.left_led.set_color(1, 0, 0)
-            forklift.bot.right_led.set_color(1, 0, 0)
+            forklift.alvik.left_led.set_color(1, 0, 0)
+            forklift.alvik.right_led.set_color(1, 0, 0)
             time.sleep(3)
             current_state = STATE_IDLE
         
@@ -181,9 +181,9 @@ except KeyboardInterrupt:
 except Exception as e:
     forklift.log_error(f"Critical Error: {e}")
 finally:
-    forklift.bot.stop()
-    forklift.bot.left_led.set_color(0, 0, 0)
-    forklift.bot.right_led.set_color(0, 0, 0)
+    forklift.alvik.stop()
+    forklift.alvik.left_led.set_color(0, 0, 0)
+    forklift.alvik.right_led.set_color(0, 0, 0)
     forklift.log_info("Program terminated.")
 
 # Developed with the assistance of Google Gemini

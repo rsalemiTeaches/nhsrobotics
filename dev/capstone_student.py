@@ -56,14 +56,14 @@ if forklift.husky is None:
     forklift.log_error("Camera Error!")
     while True:
         # Flash Red light forever
-        forklift.bot.left_led.set_color(1, 0, 0)
+        forklift.alvik.left_led.set_color(1, 0, 0)
         time.sleep(0.5)
-        forklift.bot.left_led.set_color(0, 0, 0)
+        forklift.alvik.left_led.set_color(0, 0, 0)
         time.sleep(0.5)
 
 # Buttons
-start_button = Button(forklift.bot.get_touch_center)
-cancel_button = Button(forklift.bot.get_touch_cancel)
+start_button = Button(forklift.alvik.get_touch_center)
+cancel_button = Button(forklift.alvik.get_touch_cancel)
 
 # Start in IDLE state
 current_state = STATE_IDLE
@@ -84,11 +84,11 @@ try:
             forklift.update_display("Ready...", "Press Center")
             
             # Blink Blue lights like in previous projects
-            forklift.bot.left_led.set_color(0, 0, 1)
-            forklift.bot.right_led.set_color(0, 0, 1)
+            forklift.alvik.left_led.set_color(0, 0, 1)
+            forklift.alvik.right_led.set_color(0, 0, 1)
             time.sleep(0.2)
-            forklift.bot.left_led.set_color(0, 0, 0)
-            forklift.bot.right_led.set_color(0, 0, 0)
+            forklift.alvik.left_led.set_color(0, 0, 0)
+            forklift.alvik.right_led.set_color(0, 0, 0)
             time.sleep(0.2)
             
             if start_button.get_touch():
@@ -149,7 +149,7 @@ try:
         # ----------------------------------------------------------------
         elif current_state == STATE_RETURN_SPIN:
             forklift.log_info("Turning around...")
-            forklift.bot.rotate(180) # Simple 180 turn
+            forklift.alvik.rotate(180) # Simple 180 turn
             time.sleep(0.5)
             current_state = STATE_RETURN_DRIVE
 
@@ -160,16 +160,16 @@ try:
             forklift.log_info("Driving home...")
             
             # Start driving forward
-            forklift.bot.drive(RETURN_SPEED, 0)
+            forklift.alvik.drive(RETURN_SPEED, 0)
             
             # Loop until we see the line
             while True:
                 # Read sensors
-                l, c, r = forklift.bot.get_line_sensors()
+                l, c, r = forklift.alvik.get_line_sensors()
                 
                 # Check if ANY sensor sees the black line (> 500)
                 if l > BLACK_LINE_THRESHOLD or c > BLACK_LINE_THRESHOLD or r > BLACK_LINE_THRESHOLD:
-                    forklift.bot.brake() # STOP!
+                    forklift.alvik.brake() # STOP!
                     forklift.log_info("Home found!")
                     break # Exit the loop
                 
@@ -191,8 +191,8 @@ try:
         # ----------------------------------------------------------------
         elif current_state == STATE_DONE:
             forklift.log_info("Success!")
-            forklift.bot.left_led.set_color(0, 1, 0) # Green
-            forklift.bot.right_led.set_color(0, 1, 0)
+            forklift.alvik.left_led.set_color(0, 1, 0) # Green
+            forklift.alvik.right_led.set_color(0, 1, 0)
             time.sleep(2)
             current_state = STATE_IDLE # Go back to start
 
@@ -200,8 +200,8 @@ try:
         # STATE 99: ERROR (Failure)
         # ----------------------------------------------------------------
         elif current_state == STATE_ERROR:
-            forklift.bot.left_led.set_color(1, 0, 0) # Red
-            forklift.bot.right_led.set_color(1, 0, 0)
+            forklift.alvik.left_led.set_color(1, 0, 0) # Red
+            forklift.alvik.right_led.set_color(1, 0, 0)
             time.sleep(2)
             current_state = STATE_IDLE
 
@@ -211,6 +211,6 @@ except KeyboardInterrupt:
     print("Stopped by user.")
 
 finally:
-    forklift.bot.stop()
+    forklift.alvik.stop()
 
 # Developed with the assistance of Google Gemini

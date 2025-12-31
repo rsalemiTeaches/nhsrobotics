@@ -1,13 +1,10 @@
 # forklift_bot.py
-# Version: V05
+# Version: V07
 # Purpose: Extends SuperBot to add specific Forklift control.
 #          Logic: Servo 180 = Ground (Down), Servo 0 = Raised (Up).
 #          Mapping: Level 0 (Down) -> 10 (Up).
 # Updates:
-#   - FIXED: Uses 'set_servo_positions(pos_A, pos_B)' from ArduinoAlvik class.
-#   - Assumes Forklift is on Servo A.
-#   - Keeps Servo B static at 0.
-#   - V05: raise_fork is now BLOCKING (it waits until movement is done).
+#   - REFACTOR: Updated to use self.alvik instead of self.bot to match nhs_robotics.py V36.
 
 from nhs_robotics import SuperBot
 import time
@@ -17,7 +14,7 @@ class ForkLiftBot(SuperBot):
         # Initialize the parent SuperBot class
         super().__init__(alvik_inst)
         
-        self.log_info("ForkLiftBot V05 Initialized.")
+        self.log_info("ForkLiftBot V07 Initialized.")
         
         # Configuration: Which slot is the forklift?
         # True = Servo A, False = Servo B
@@ -42,9 +39,9 @@ class ForkLiftBot(SuperBot):
             self.angle_B = angle
             
         try:
-            # Call the method on the ALVIK instance (self.bot), not a servo object.
+            # Call the method on the ALVIK instance (self.alvik)
             # We must pass values for BOTH servos.
-            self.bot.set_servo_positions(self.angle_A, self.angle_B)
+            self.alvik.set_servo_positions(self.angle_A, self.angle_B)
             
         except Exception as e:
             self.log_error(f"Servo Error: {e}")
