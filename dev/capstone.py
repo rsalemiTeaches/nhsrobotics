@@ -1,8 +1,8 @@
 # capstone.py
-# Version: V23
-# Purpose: Capstone solution consistent with nhs_robotics.py V32 architecture.
+# Version: V27
+# Purpose: Capstone solution consistent with nhs_robotics.py V35.
 # Logic: Find Tag -> Align -> Approach -> Lift -> Spin -> Return -> Drop.
-# Notes: Uses high-level blocking methods from SuperBot for clean logic.
+# Notes: Renamed robot -> forklift per instructions.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import Button
@@ -13,12 +13,11 @@ import sys
 # --- CONFIGURATION ---
 ALIGN_TARGET_DIST = 25.0    # Distance to stop for alignment
 PICKUP_TARGET_DIST = 8.0    # Final distance for pickup
-APPROACH_SPEED = 5          # Slow speed for visual servoing
+APPROACH_SPEED = 5          # Slow speed for visual servoing (cm/s)
 RETURN_SPEED = 15           # Faster speed for return
 BLACK_THRESHOLD = 500       # Line sensor threshold
 
 # --- STATE CONSTANTS ---
-# Using integers for speed and standard practice
 STATE_IDLE              = 0
 STATE_ALIGN             = 1
 STATE_APPROACH          = 2
@@ -35,23 +34,23 @@ alvik = ArduinoAlvik()
 alvik.begin()
 
 # Instantiate ForkLiftBot
-robot = ForkLiftBot(alvik)
-robot.enable_info_logging()
+forklift = ForkLiftBot(alvik)
+forklift.enable_info_logging()
 
-robot.log_info("Initializing Capstone V23...")
+forklift.log_info("Initializing Capstone V27...")
 
 # Hardware Check
-if robot.husky is None:
-    robot.log_error("CRITICAL: HuskyLens not found.")
+if forklift.husky is None:
+    forklift.log_error("CRITICAL: HuskyLens not found.")
     while True:
-        robot.bot.left_led.set_color(1, 0, 0)
+        forklift.bot.left_led.set_color(1, 0, 0)
         time.sleep(0.5)
-        robot.bot.left_led.set_color(0, 0, 0)
+        forklift.bot.left_led.set_color(0, 0, 0)
         time.sleep(0.5)
 
 # Input Buttons
-btn_start = Button(robot.bot.get_touch_center)
-btn_cancel = Button(robot.bot.get_touch_cancel)
+btn_start = Button(forklift.bot.get_touch_center)
+btn_cancel = Button(forklift.bot.get_touch_cancel)
 
 # Global Variables
 current_state = STATE_IDLE
@@ -64,51 +63,49 @@ try:
         # STATE: IDLE
         # ------------------------------------------------------------------
         if current_state == STATE_IDLE:
-            robot.update_display("Capstone V23", "Center: START", "Cancel: EXIT")
+            forklift.update_display("Capstone V27", "Center: START", "Cancel: EXIT")
             
             # Blink Blue
             if (time.ticks_ms() // 500) % 2 == 0:
-                robot.bot.left_led.set_color(0, 0, 1) 
-                robot.bot.right_led.set_color(0, 0, 1)
+                forklift.bot.left_led.set_color(0, 0, 1) 
+                forklift.bot.right_led.set_color(0, 0, 1)
             else:
-                robot.bot.left_led.set_color(0, 0, 0) 
-                robot.bot.right_led.set_color(0, 0, 0)
+                forklift.bot.left_led.set_color(0, 0, 0) 
+                forklift.bot.right_led.set_color(0, 0, 0)
             
             if btn_cancel.get_touch():
-                robot.log_info("Exit requested.")
+                forklift.log_info("Exit requested.")
                 current_state = STATE_EXIT
                 
             if btn_start.get_touch():
-                robot.log_info("Mission Start...")
-                robot.bot.left_led.set_color(0, 0, 0)
-                robot.bot.right_led.set_color(0, 0, 0)
-                robot.lower_fork()
+                forklift.log_info("Mission Start...")
+                forklift.bot.left_led.set_color(0, 0, 0)
+                forklift.bot.right_led.set_color(0, 0, 0)
+                forklift.lower_fork()
                 current_state = STATE_ALIGN
 
         # ------------------------------------------------------------------
         # STATE: ALIGN
         # ------------------------------------------------------------------
         elif current_state == STATE_ALIGN:
-            robot.log_info("Aligning to Tag...")
+            forklift.log_info("Aligning to Tag...")
             
-            # align_to_tag handles the scan, math, and turns (blocking)
-            success = robot.align_to_tag(target_id=1, align_dist=ALIGN_TARGET_DIST)
+            success = forklift.align_to_tag(target_id=1, align_dist=ALIGN_TARGET_DIST)
             
             if success:
-                robot.log_info("Aligned.")
+                forklift.log_info("Aligned.")
                 current_state = STATE_APPROACH
             else:
-                robot.log_error("Align Failed: Tag Not Found")
+                forklift.log_error("Align Failed: Tag Not Found")
                 current_state = STATE_FAIL
 
         # ------------------------------------------------------------------
         # STATE: APPROACH
         # ------------------------------------------------------------------
         elif current_state == STATE_APPROACH:
-            robot.log_info("Approaching Box...")
+            forklift.log_info("Approaching Box...")
             
-            # approach_tag handles visual steering and blind finish (blocking)
-            success = robot.approach_tag(
+            success = forklift.approach_tag(
                 target_id=1, 
                 stop_distance=PICKUP_TARGET_DIST, 
                 speed=APPROACH_SPEED,
@@ -116,18 +113,18 @@ try:
             )
             
             if success:
-                robot.log_info("Arrived at Box.")
+                forklift.log_info("Arrived at Box.")
                 current_state = STATE_LIFT
             else:
-                robot.log_error("Approach Failed: Lost Tag")
+                forklift.log_error("Approach Failed: Lost Tag")
                 current_state = STATE_FAIL
 
         # ------------------------------------------------------------------
         # STATE: LIFT
         # ------------------------------------------------------------------
         elif current_state == STATE_LIFT:
-            robot.log_info("Lifting Box...")
-            robot.raise_fork(10)
+            forklift.log_info("Lifting Box...")
+            forklift.raise_fork(10)
             time.sleep(0.5)
             current_state = STATE_RETURN_SPIN
 
@@ -135,9 +132,8 @@ try:
         # STATE: RETURN SPIN
         # ------------------------------------------------------------------
         elif current_state == STATE_RETURN_SPIN:
-            robot.log_info("Spinning 180...")
-            # Use simple rotate for best reliability
-            robot.bot.rotate(180)
+            forklift.log_info("Spinning 180...")
+            forklift.bot.rotate(180)
             time.sleep(0.5)
             current_state = STATE_RETURN_DRIVE
 
@@ -145,20 +141,19 @@ try:
         # STATE: RETURN DRIVE
         # ------------------------------------------------------------------
         elif current_state == STATE_RETURN_DRIVE:
-            robot.log_info("Returning to Edge...")
+            forklift.log_info("Returning to Edge...")
             
-            # drive_to_line blocks until line threshold is met
-            robot.drive_to_line(speed=RETURN_SPEED, threshold=BLACK_THRESHOLD, blocking=True)
+            forklift.drive_to_line(speed=RETURN_SPEED, threshold=BLACK_THRESHOLD, blocking=True)
             
-            robot.log_info("Edge Detected.")
+            forklift.log_info("Edge Detected.")
             current_state = STATE_DROP
 
         # ------------------------------------------------------------------
         # STATE: DROP
         # ------------------------------------------------------------------
         elif current_state == STATE_DROP:
-            robot.log_info("Dropping Box...")
-            robot.lower_fork()
+            forklift.log_info("Dropping Box...")
+            forklift.lower_fork()
             time.sleep(1.0)
             current_state = STATE_SUCCESS
 
@@ -166,9 +161,9 @@ try:
         # STATE: SUCCESS
         # ------------------------------------------------------------------
         elif current_state == STATE_SUCCESS:
-            robot.log_info("MISSION COMPLETE")
-            robot.bot.left_led.set_color(0, 1, 0)
-            robot.bot.right_led.set_color(0, 1, 0)
+            forklift.log_info("MISSION COMPLETE")
+            forklift.bot.left_led.set_color(0, 1, 0)
+            forklift.bot.right_led.set_color(0, 1, 0)
             time.sleep(3)
             current_state = STATE_IDLE
 
@@ -176,22 +171,22 @@ try:
         # STATE: FAIL
         # ------------------------------------------------------------------
         elif current_state == STATE_FAIL:
-            robot.log_error("MISSION FAILED")
-            robot.bot.left_led.set_color(1, 0, 0)
-            robot.bot.right_led.set_color(1, 0, 0)
+            forklift.log_error("MISSION FAILED")
+            forklift.bot.left_led.set_color(1, 0, 0)
+            forklift.bot.right_led.set_color(1, 0, 0)
             time.sleep(3)
             current_state = STATE_IDLE
         
         time.sleep(0.01)
 
 except KeyboardInterrupt:
-    robot.log_info("Aborted via KeyboardInterrupt.")
+    forklift.log_info("Aborted via KeyboardInterrupt.")
 except Exception as e:
-    robot.log_error(f"Critical Error: {e}")
+    forklift.log_error(f"Critical Error: {e}")
 finally:
-    robot.bot.stop()
-    robot.bot.left_led.set_color(0, 0, 0)
-    robot.bot.right_led.set_color(0, 0, 0)
-    robot.log_info("Program terminated.")
+    forklift.bot.stop()
+    forklift.bot.left_led.set_color(0, 0, 0)
+    forklift.bot.right_led.set_color(0, 0, 0)
+    forklift.log_info("Program terminated.")
 
 # Developed with the assistance of Google Gemini

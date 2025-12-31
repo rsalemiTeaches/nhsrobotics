@@ -1,16 +1,14 @@
 # nhs_robotics.py
-# Version: V32 (Architecture Fixes: Pure Query move_complete, Integer Modes)
+# Version: V35
 # 
 # Includes:
 # 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
 # 2. "SuperBot" Class: Wraps an existing ArduinoAlvik object to add features
 #
-# NEW IN V32:
-# - Replaced string modes with integer constants (MODE_IDLE, etc.).
-# - Refactored move_complete() to be a PURE QUERY function (no side effects).
-# - It no longer brakes on success; caller must brake.
-# - Fixed bug where mode was not reset to IDLE after completion.
-# - High-level methods now handle braking explicitly.
+# NEW IN V35:
+# - Reverted MODE_APRIL_TAG actuation to use self.bot.drive() (cm/s, deg/s) 
+#   instead of set_wheels_speed (RPM) to fix unit mismatch and speed issues.
+# - Blind finish logic remains, relying on accurate cm/s driving.
 
 # --- IMPORTS ---
 import qwiic_buzzer
@@ -25,7 +23,7 @@ from nanolib import NanoLED
 
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V32")
+print("Loading nhs_robotics.py V35")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -188,8 +186,8 @@ class SuperBot:
     # Mode Constants (Integers)
     MODE_IDLE = 0
     MODE_DISTANCE = 1
-    MODE_VISUAL_SERVO = 2
-    MODE_LINE_FOLLOW = 3
+    MODE_APRIL_TAG = 2 
+    MODE_DRIVE_TO_LINE = 3 
 
     def __init__(self, robot):
         self.bot = robot
@@ -227,14 +225,14 @@ class SuperBot:
         self._drive_start_time = 0
         self._drive_timeout_ms = 0
         
-        # Visual Servo Mode Variables
+        # April Tag Mode Variables
         self._vs_target_id = 1
         self._vs_stop_distance = 0
         self._vs_speed = 0
         self._vs_lost_count = 0
         self._vs_last_dist = 999.0
         
-        # Line Follow Mode Variables
+        # Drive To Line Mode Variables
         self._lf_speed = 0
         self._lf_threshold = 500
         
@@ -253,7 +251,7 @@ class SuperBot:
         if self.shared_i2c:
             try:
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V32")
+                self.screen.show_lines("SuperBot", "Online", "V35")
             except Exception:
                 pass
 
@@ -333,21 +331,21 @@ class SuperBot:
 
     def approach_tag(self, target_id=1, stop_distance=8.0, speed=5, blocking=True):
         """
-        Visual Servoing approach.
+        Visual Servoing approach (AprilTag Mode).
         Blocking=True: Runs until done, then brakes.
         Blocking=False: Returns immediately, sets mode. Caller calls move_complete().
         """
         self.log_info(f"Approaching ID {target_id}...")
         
         # Setup state
-        self._current_mode = self.MODE_VISUAL_SERVO
+        self._current_mode = self.MODE_APRIL_TAG
         self._vs_target_id = target_id
         self._vs_stop_distance = stop_distance
-        self._vs_speed = speed
+        self._vs_speed = speed # This is now interpreted as cm/s, NOT RPM
         self._vs_lost_count = 0
         self._vs_last_dist = 999.0
         
-        # Start moving
+        # Start moving (Straight initially)
         self.bot.drive(speed, 0)
         
         if blocking:
@@ -366,7 +364,7 @@ class SuperBot:
         """
         self.log_info("Driving to Line...")
         
-        self._current_mode = self.MODE_LINE_FOLLOW
+        self._current_mode = self.MODE_DRIVE_TO_LINE
         self._lf_speed = speed
         self._lf_threshold = threshold
         
@@ -590,8 +588,8 @@ class SuperBot:
                 
             return False
 
-        # --- MODE 2: VISUAL SERVOING ---
-        elif self._current_mode == self.MODE_VISUAL_SERVO:
+        # --- MODE 2: APRIL TAG ---
+        elif self._current_mode == self.MODE_APRIL_TAG:
             try:
                 self.husky.request()
             except: 
@@ -607,16 +605,11 @@ class SuperBot:
                         self.log_info("Tag lost (Close). Blind finish.")
                         remaining = self._vs_last_dist - self._vs_stop_distance
                         if remaining > 0:
-                            # We can't blocking drive here inside move_complete!
-                            # We must signal done, and let caller handle blind finish?
-                            # Or we just accept we are "done" with the servo part.
-                            # For now, let's stop and consider it success.
-                            # Better approach: Just return True, caller handles the rest?
-                            # No, caller expects us to be AT the target.
-                            # This is tricky for non-blocking. 
-                            # Let's just return True (Success/Done) and assume momentum/blind finish is separate.
-                            self._current_mode = self.MODE_IDLE
-                            return True
+                            # Use blocking drive for the blind finish
+                            # Note: self._vs_speed is now cm/s
+                            self.drive_distance(remaining, speed_cm_s=self._vs_speed, blocking=True)
+                        self._current_mode = self.MODE_IDLE
+                        return True
                     else:
                         self.log_error("Lost Tag (Far)")
                         self.bot.brake() # Safety brake
@@ -637,18 +630,18 @@ class SuperBot:
                 
             # Steering Logic
             error = 160 - tag.xCenter
-            turn = error * 0.15 
-            if turn > 30: turn = 30
-            if turn < -30: turn = -30
+            turn_rate = error * 0.15 
+            if turn_rate > 30: turn_rate = 30
+            if turn_rate < -30: turn_rate = -30
             
-            left = self._vs_speed - turn
-            right = self._vs_speed + turn
-            self.bot.set_wheels_speed(left, right)
+            # FIXED: Use drive(linear, angular) for cm/s + deg/s
+            # NOT set_wheels_speed(RPM)
+            self.bot.drive(self._vs_speed, turn_rate)
             
             return False
 
-        # --- MODE 3: LINE FOLLOW ---
-        elif self._current_mode == self.MODE_LINE_FOLLOW:
+        # --- MODE 3: DRIVE TO LINE ---
+        elif self._current_mode == self.MODE_DRIVE_TO_LINE:
             l, c, r = self.bot.get_line_sensors()
             if l > self._lf_threshold or c > self._lf_threshold or r > self._lf_threshold:
                 self._current_mode = self.MODE_IDLE
