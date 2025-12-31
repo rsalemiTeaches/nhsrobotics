@@ -118,7 +118,8 @@ class oLED:
             try:
                 self.display.fill(0)
                 self.display.show()
-            except: pass
+            except:  # noqa: E722
+                pass
 
     def show_lines(self, line1="", line2="", line3=""):
         if self.display:
@@ -128,7 +129,8 @@ class oLED:
                 self.display.text(str(line2), 0, 10)
                 self.display.text(str(line3), 0, 20)
                 self.display.show()
-            except: pass
+            except:  # noqa: E722
+                pass
 
 class Buzzer:
     def __init__(self, scl_pin=12, sda_pin=11, i2c_driver=None):
@@ -142,7 +144,7 @@ class Buzzer:
             if i2c_driver is None:
                 i2c_driver = I2CDriver(scl=scl_pin, sda=sda_pin)
             self._buzzer = qwiic_buzzer.QwiicBuzzer(i2c_driver=i2c_driver)
-            if self._buzzer.begin() == False:
+            if not self._buzzer.begin():
                 self._buzzer = None
                 return 
             self._volume = self._buzzer.VOLUME_LOW
@@ -212,9 +214,9 @@ class SuperBot:
         self._init_peripherals()
         
         if self.husky:
-            print(f"SuperBot Init Complete. HuskyLens is active.")
+            print("uperBot Init Complete. HuskyLens is active.")
         else:
-            print(f"SuperBot Init Complete. HuskyLens is NONE.")
+            print("SuperBot Init Complete. HuskyLens is NONE.")
 
         # --- STATE VARIABLES ---
         self._current_mode = self.MODE_IDLE
