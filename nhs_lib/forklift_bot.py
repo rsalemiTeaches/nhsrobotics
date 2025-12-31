@@ -1,5 +1,5 @@
 # forklift_bot.py
-# Version: V04
+# Version: V05
 # Purpose: Extends SuperBot to add specific Forklift control.
 #          Logic: Servo 180 = Ground (Down), Servo 0 = Raised (Up).
 #          Mapping: Level 0 (Down) -> 10 (Up).
@@ -7,6 +7,7 @@
 #   - FIXED: Uses 'set_servo_positions(pos_A, pos_B)' from ArduinoAlvik class.
 #   - Assumes Forklift is on Servo A.
 #   - Keeps Servo B static at 0.
+#   - V05: raise_fork is now BLOCKING (it waits until movement is done).
 
 from nhs_robotics import SuperBot
 import time
@@ -16,7 +17,7 @@ class ForkLiftBot(SuperBot):
         # Initialize the parent SuperBot class
         super().__init__(alvik_inst)
         
-        self.log_info("ForkLiftBot V04 Initialized.")
+        self.log_info("ForkLiftBot V05 Initialized.")
         
         # Configuration: Which slot is the forklift?
         # True = Servo A, False = Servo B
@@ -53,6 +54,8 @@ class ForkLiftBot(SuperBot):
         Smoothly moves the fork to the specified level (0-10).
         0  = Down (180 degrees)
         10 = Up   (0 degrees)
+        
+        BLOCKING: This function will wait until the servo has finished moving.
         """
         # Clamp input between 0 and 10
         if level < 0: level = 0
@@ -82,6 +85,9 @@ class ForkLiftBot(SuperBot):
             
         # Ensure we hit exactly the target at the end
         self.set_fork_angle(target_angle)
+        
+        # EXTRA WAIT: Just to be safe and ensure physics settles
+        time.sleep(0.2)
 
     def lower_fork(self):
         """

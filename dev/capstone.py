@@ -125,7 +125,6 @@ try:
         elif current_state == STATE_LIFT:
             forklift.log_info("Lifting Box...")
             forklift.raise_fork(10)
-            time.sleep(0.5)
             current_state = STATE_RETURN_SPIN
 
         # ------------------------------------------------------------------
@@ -134,7 +133,6 @@ try:
         elif current_state == STATE_RETURN_SPIN:
             forklift.log_info("Spinning 180...")
             forklift.bot.rotate(180)
-            time.sleep(0.5)
             current_state = STATE_RETURN_DRIVE
 
         # ------------------------------------------------------------------
@@ -154,7 +152,6 @@ try:
         elif current_state == STATE_DROP:
             forklift.log_info("Dropping Box...")
             forklift.lower_fork()
-            time.sleep(1.0)
             current_state = STATE_SUCCESS
 
         # ------------------------------------------------------------------
