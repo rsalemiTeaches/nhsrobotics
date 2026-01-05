@@ -1,3 +1,5 @@
-# import the demo
-import 
+
+import dev.capstone_student  # noqa: F401
+
+
 

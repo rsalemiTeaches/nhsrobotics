@@ -1,9 +1,12 @@
 [submodule "libs_on_github/Qwiic_I2C_Py"]
-	path = libs_on_github/Qwiic_I2C_Py
-	url = https://github.com/sparkfun/Qwiic_I2C_Py
-[submodule "libs_on_github/Quiic_Buzzer_Py"]
-	path = libs_on_github/Qwiic_Buzzer_Py
-	url = https://github.com/sparkfun/Qwiic_Buzzer_Py
+    path = libs_on_github/Qwiic_I2C_Py
+    url = https://github.com/rsalemiTeaches/Qwiic_I2C_Py
+	branch = master
+[submodule "libs_on_github/Qwiic_Buzzer_Py"]
+    path = libs_on_github/Qwiic_Buzzer_Py
+    url = https://github.com/sparkfun/Qwiic_Buzzer_Py
+    branch = main
 [submodule "libs_on_github/arduino-alvik-mpy"]
-	path = libs_on_github/arduino-alvik-mpy
-	url = https://github.com/arduino/arduino-alvik-mpy
+    path = libs_on_github/arduino-alvik-mpy
+    url = https://github.com/arduino/arduino-alvik-mpy
+	branch = main
