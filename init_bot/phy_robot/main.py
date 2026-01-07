@@ -1,4 +1,4 @@
 # import the demo
-import workspace.marsRoverDrop
+import marsRoverDrop
 
 
