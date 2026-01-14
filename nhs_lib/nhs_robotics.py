@@ -19,6 +19,7 @@ import time
 import os
 import math
 from nanolib import NanoLED
+from controller import Controller
 
 from qwiic_huskylens import QwiicHuskylens
 
@@ -406,46 +407,12 @@ class SuperBot:
         servo.write(target_angle)
         time.sleep(duration_ms / 1000.0)
 
-    def rotate_precise(self, degrees):
-        self.alvik.rotate(degrees)
         
     def get_yaw(self):
         try:
             return self.alvik.get_orientation()[2]
         except:
             return 0.0
-
-    def turn_to_heading(self, target_angle, tolerance=2.0, timeout=5):
-        self.log_info(f"Turn to {target_angle:.1f}")
-        start_time = time.ticks_ms()
-        
-        while True:
-            if time.ticks_diff(time.ticks_ms(), start_time) > timeout * 1000:
-                self.alvik.brake()
-                self.log_info("Turn Timeout")
-                break
-
-            current_yaw = self.get_yaw()
-            error = target_angle - current_yaw
-            
-            if error > 180: error -= 360
-            if error < -180: error += 360
-            
-            if abs(error) <= tolerance:
-                self.alvik.brake()
-                break
-            
-            rotation_speed = error * 2.0
-            MAX_SPEED = 50
-            MIN_SPEED = 15
-            
-            if rotation_speed > MAX_SPEED: rotation_speed = MAX_SPEED
-            if rotation_speed < -MAX_SPEED: rotation_speed = -MAX_SPEED
-            if rotation_speed > 0 and rotation_speed < MIN_SPEED: rotation_speed = MIN_SPEED
-            if rotation_speed < 0 and rotation_speed > -MIN_SPEED: rotation_speed = -MIN_SPEED
-            
-            self.alvik.drive(0, rotation_speed)
-            time.sleep(0.01)
 
     def center_on_tag(self, target_id=1, tolerance=5):
         if not self.husky: return False

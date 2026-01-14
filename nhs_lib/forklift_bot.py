@@ -25,12 +25,13 @@ class ForkLiftBot(SuperBot):
         self.angle_B = 0 
         
         # Ensure fork starts on the ground
-        self.set_fork_angle(180)
+        self._set_fork_angle(180)
 
-    def set_fork_angle(self, angle):
+    def _set_fork_angle(self, angle):
         """
         Sets the servo angle using the main alvik method:
         set_servo_positions(angle_A, angle_B)
+        Moves instantly to the specified angle (0-180).
         """
         # Update internal tracking for the active servo
         if self.USE_SERVO_A:
@@ -55,8 +56,10 @@ class ForkLiftBot(SuperBot):
         BLOCKING: This function will wait until the servo has finished moving.
         """
         # Clamp input between 0 and 10
-        if level < 0: level = 0
-        if level > 10: level = 10
+        if level < 0: 
+            level = 0
+        if level > 10: 
+            level = 10
         
         # Map Level (0-10) to Angle (180-0)
         target_angle = int(180 - (level * 18))
@@ -77,11 +80,11 @@ class ForkLiftBot(SuperBot):
         stop_val = target_angle + (-1 if step < 0 else 1)
         
         for angle in range(start_angle, stop_val, step):
-            self.set_fork_angle(angle)
+            self._set_fork_angle(angle)
             time.sleep(0.02) # Short delay to control speed
             
         # Ensure we hit exactly the target at the end
-        self.set_fork_angle(target_angle)
+        self._set_fork_angle(target_angle)
         
         # EXTRA WAIT: Just to be safe and ensure physics settles
         time.sleep(0.2)
