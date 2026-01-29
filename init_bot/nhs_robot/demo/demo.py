@@ -1,133 +1,84 @@
+# demo.py
+# Version: V06
+# Main Dispatcher for Natick High School Robotics
+# Re-synced with SuperBot V41 architecture.
+
 from arduino_alvik import ArduinoAlvik
+from nhs_robotics import SuperBot
 from time import sleep_ms
 
-# Import the demo modules.
-# These files must be on the board in the same directory or Python path.
-import line_follower
-import hand_follower
-import touch_move
-import color_maze_runner
-import sumo_rev0
+# Note: These paths assume files are in a 'demo' folder on the robot
+import demo.line_follower as line_follower
+import demo.hand_follower as hand_follower
+import demo.touch_move as touch_move
+import demo.color_maze_runner as color_maze_runner
+import demo.sumo_rev0 as sumo_rev0
 
-# Developed with the assistance of Google Gemini V02
+def update_menu_visuals(sb, index):
+    """Updates LEDs and Screen based on menu selection."""
+    # 0: Blue, 1: Green, 2: Magenta, 3: Red, 4: Yellow
+    colors = [(0,0,1), (0,1,0), (1,0,1), (1,0,0), (1,1,0)]
+    r, g, b = colors[index]
+    sb.alvik.left_led.set_color(r, g, b)
+    sb.alvik.right_led.set_color(r, g, b)
+    
+    labels = [
+        "Line Follower", 
+        "Hand Follower", 
+        "Touch Move", 
+        "Maze Runner", 
+        "Sumo Bot"
+    ]
+    sb.update_display("SELECT DEMO:", labels[index], "OK to Start")
 
-def update_led_status(alvik, val):
-    """
-    Updates the LED colors based on the current menu selection.
-    """
-    if val == 0:
-        # Blue - Line Follower
-        alvik.left_led.set_color(0, 0, 1)
-        alvik.right_led.set_color(0, 0, 1)
-    elif val == 1:
-        # Green - Hand Follower
-        alvik.left_led.set_color(0, 1, 0)
-        alvik.right_led.set_color(0, 1, 0)
-    elif val == 2:
-        # Magenta - Touch Move
-        alvik.left_led.set_color(1, 0, 1)
-        alvik.right_led.set_color(1, 0, 1)    
-    elif val == 3:
-        # Red - Color Maze
-        alvik.left_led.set_color(1, 0, 0)
-        alvik.right_led.set_color(1, 0, 0)
-    elif val == 4:
-        # Yellow - Sumo
-        alvik.left_led.set_color(1, 1, 0)
-        alvik.right_led.set_color(1, 1, 0)
-
-def blink_start(alvik):
-    """
-    Visual feedback that a mode has been selected.
-    """
-    alvik.left_led.set_color(1, 1, 1)
-    alvik.right_led.set_color(1, 1, 1)
-    sleep_ms(200)
-    alvik.left_led.set_color(0, 0, 0)
-    alvik.right_led.set_color(0, 0, 0)
-    sleep_ms(200)
-
-# --- Top Level Initialization ---
+# --- Main Setup ---
 alvik = ArduinoAlvik()
 alvik.begin()
+sb = SuperBot(alvik)
 
-# Wait for the system to stabilize
-sleep_ms(1000)
+menu_index = 0
+MAX_ITEMS = 5 
 
-menu_status = 0
-MAX_MENU_ITEMS = 5
-
-print("Alvik Demo Menu Started")
-print("Use Up/Down to select, OK (Check) to run.")
+print("RoboNatick Menu V06 Started.")
 
 try:
     while True:
-        # Update the visual indicator for the current menu item
-        update_led_status(alvik, menu_status)
+        # Update visuals for current selection
+        update_menu_visuals(sb, menu_index)
 
-        # 1. Navigation Logic (Up/Down)
-        if alvik.get_touch_up():
-            if menu_status < MAX_MENU_ITEMS - 1:
-                menu_status += 1
-            # Debounce: Wait for release
-            while alvik.get_touch_up():
-                sleep_ms(50)
+        # Rising-edge navigation (tap logic)
+        if sb.get_pressed_up():
+            menu_index = (menu_index + 1) % MAX_ITEMS
         
-        if alvik.get_touch_down():
-            if menu_status > 0:
-                menu_status -= 1
-            # Debounce: Wait for release
-            while alvik.get_touch_down():
-                sleep_ms(50)
+        if sb.get_pressed_down():
+            menu_index = (menu_index - 1) % MAX_ITEMS
 
-        # 2. Selection Logic (OK/Right)
-        # We use get_touch_ok (check mark) as the enter key
-        if alvik.get_touch_ok():
-            print(f"Starting Demo #{menu_status}")
-            blink_start(alvik)
+        # Enter Selected Demo
+        if sb.get_pressed_ok():
+            print(f"Starting Demo: {menu_index}")
+            
+            # Dispatch to blocking demo functions
+            if menu_index == 0:
+                line_follower.run_line_follower(sb)
+            elif menu_index == 1:
+                hand_follower.run_hand_follower(sb)
+            elif menu_index == 2:
+                touch_move.run_touch_move(sb)
+            elif menu_index == 3:
+                color_maze_runner.run_color_maze_runner(sb)
+            elif menu_index == 4:
+                sumo_rev0.run_sumo(sb)
+            
+            print("Returned to Main Menu.")
+            # Clear buttons to ensure return doesn't double-trigger menu navigation
+            sleep_ms(200)
 
-            # --- DISPATCHER ---
-            # This calls the run function of the specific module.
-            # Crucially, these functions are BLOCKING.
-            # They will not return until the user cancels execution 
-            # within the specific demo (usually via the X button).
-            
-            if menu_status == 0:
-                print("Running Line Follower...")
-                line_follower.run_line_follower(alvik)
-            
-            elif menu_status == 1:
-                print("Running Hand Follower...")
-                hand_follower.run_hand_follower(alvik)
-            
-            elif menu_status == 2:
-                print("Running Touch Move...")
-                touch_move.run_touch_move(alvik)
-            
-            elif menu_status == 3:
-                print("Running Color Maze Runner...")
-                color_maze_runner.run_color_maze_runner(alvik)
-            
-            elif menu_status == 4:
-                print("Running Sumo...")
-                sumo_rev0.run_sumo(alvik)
-
-            # --- CLEANUP AFTER DEMO ---
-            print("Demo finished. returning to menu.")
-            alvik.stop() # Ensure motors are off
-            alvik.left_led.set_color(0, 0, 0)
-            alvik.right_led.set_color(0, 0, 0)
-            
-            # Wait for button release to avoid accidental re-entry
-            while alvik.get_touch_ok():
-                sleep_ms(100)
-            sleep_ms(500)
-
-        sleep_ms(50)
+        sleep_ms(20)
 
 finally:
-    # This block ensures motors stop even if the program crashes or is interrupted
-    alvik.stop()
-    alvik.left_led.set_color(0, 0, 0)
-    alvik.right_led.set_color(0, 0, 0)
-    print("Program Exited Safely.")
+    # Safety cleanup
+    sb.alvik.stop()
+    sb.alvik.brake()
+    print("System Shutdown.")
+
+# Developed with the assistance of Google Gemini V06

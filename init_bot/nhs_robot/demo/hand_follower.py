@@ -1,56 +1,35 @@
-from arduino_alvik import ArduinoAlvik
+# hand_follower.py
+# Version: V02
+# Refactored for SuperBot Event Architecture
+
 from time import sleep_ms
 
-# Developed with the assistance of Google Gemini V01
-
-def run_hand_follower(alvik):
+def run_hand_follower(sb):
     """
-    Runs the hand follower logic loop.
-    Blocks until the 'Cancel' (X) button is touched.
+    Main loop for hand following.
+    Uses the provided SuperBot (sb) instance.
     """
-    reference = 10.0 # Target distance in cm
-    
-    print("Hand Follower Started. Press 'X' to stop.")
-    
-    # Set initial LED state
-    alvik.left_led.set_color(0, 1, 0)
-    alvik.right_led.set_color(0, 1, 0)
+    target_dist = 12.0 # cm
+    print("Hand Follower Active. Press 'X' to exit.")
+    sb.update_display("RUNNING:", "Hand Follower", "X to Exit")
 
-    # Main execution loop for this specific demo
-    while not alvik.get_touch_cancel():
+    while not sb.get_pressed_cancel():
         # Get distances: Left, Center-Left, Center, Center-Right, Right
-        # We only use Center (C) for this simple follower
-        L, CL, C, CR, R = alvik.get_distance()
+        _, _, center_dist, _, _ = sb.alvik.get_distance()
         
-        # Calculate error (Distance - Target)
-        error = C - reference
-        
-        # Simple Proportional control
-        # If error is positive (too far), move forward
-        # If error is negative (too close), move backward
-        speed = error * 10
-        
-        # Limit speed to avoid crazy behavior (optional but good practice)
-        if speed > 50: speed = 50
-        if speed < -50: speed = -50
-        
-        alvik.set_wheels_speed(speed, speed)
-        
-        sleep_ms(100)
+        if center_dist is None: center_dist = target_dist
 
-    # Cleanup before returning
-    alvik.stop()
-    alvik.left_led.set_color(0, 0, 0)
-    alvik.right_led.set_color(0, 0, 0)
+        error = center_dist - target_dist
+        speed = error * 8
+        
+        # Deadzone to prevent jitter
+        if abs(error) < 1.0: speed = 0
+            
+        sb.alvik.set_wheels_speed(speed, speed)
+        sleep_ms(50)
+
+    # Clean stop
+    sb.alvik.brake()
     print("Hand Follower Stopped.")
 
-if __name__ == "__main__":
-    # Allow running this file standalone for testing
-    alvik = ArduinoAlvik()
-    alvik.begin()
-    
-    # Wait for a touch to start (as per original logic logic)
-    while alvik.get_touch_ok():
-        sleep_ms(50)
-        
-    run_hand_follower(alvik)
+# Developed with the assistance of Google Gemini V02

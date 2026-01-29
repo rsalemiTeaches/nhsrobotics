@@ -1,66 +1,38 @@
-from arduino_alvik import ArduinoAlvik
+# line_follower.py
+# Version: V02
+# Refactored for SuperBot Event Architecture
+
 from time import sleep_ms
 
-# Developed with the assistance of Google Gemini V01
-
-def calculate_center(left: int, center: int, right: int):
-    """
-    Calculates the centroid of the line position.
-    Returns a value roughly between 0 (left) and 2 (right).
-    """
-    centroid = 0
+def calculate_center(left, center, right):
+    """Centroid calculation for line positioning."""
     sum_weight = left + center + right
-    sum_values = left + 2 * center + 3 * right
-    
-    if sum_weight != 0:
-        centroid = sum_values / sum_weight
-        # Shift range so center is 0
-        centroid = 2 - centroid
-    return centroid
+    if sum_weight == 0: return 0
+    # Values between -1 (left) and 1 (right)
+    raw_pos = (left * -1 + center * 0 + right * 1) / sum_weight
+    return raw_pos
 
-def run_line_follower(alvik):
+def run_line_follower(sb):
     """
-    Runs the line follower logic loop.
-    Blocks until the 'Cancel' (X) button is touched.
+    Main loop for line following.
+    Uses the provided SuperBot (sb) instance.
     """
-    kp = 50.0
-    
-    print("Line Follower Started. Press 'X' to stop.")
-    
-    # Main execution loop for this specific demo
-    while not alvik.get_touch_cancel():
-        line_sensors = alvik.get_line_sensors()
-        # Debug print (optional, can be commented out for speed)
-        # print(f'Sensors: {line_sensors}')
+    kp = 40.0
+    print("Line Follower Active. Press 'X' to exit.")
+    sb.update_display("RUNNING:", "Line Follower", "X to Exit")
 
-        error = calculate_center(*line_sensors)
+    while not sb.get_pressed_cancel():
+        L, C, R = sb.alvik.get_line_sensors()
+        error = calculate_center(L, C, R)
         control = error * kp
 
-        # Visual feedback based on control effort
-        if control > 0.2:
-            alvik.left_led.set_color(1, 0, 0)
-            alvik.right_led.set_color(0, 0, 0)
-        elif control < -0.2:
-            alvik.left_led.set_color(1, 0, 0)
-            alvik.right_led.set_color(0, 0, 0)
-        else:
-            alvik.left_led.set_color(0, 1, 0)
-            alvik.right_led.set_color(0, 1, 0)
-
-        # Drive motors
-        alvik.set_wheels_speed(30 - control, 30 + control)
+        # Basic steering logic
+        sb.alvik.set_wheels_speed(30 + control, 30 - control)
         
-        # Small delay for loop stability
-        sleep_ms(100)
-    
-    # Cleanup before returning
-    alvik.stop()
-    alvik.left_led.set_color(0, 0, 0)
-    alvik.right_led.set_color(0, 0, 0)
+        sleep_ms(50)
+
+    # Clean stop
+    sb.alvik.brake()
     print("Line Follower Stopped.")
 
-if __name__ == "__main__":
-    # Allow running this file standalone for testing
-    alvik = ArduinoAlvik()
-    alvik.begin()
-    run_line_follower(alvik)
+# Developed with the assistance of Google Gemini V02
