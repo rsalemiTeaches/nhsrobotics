@@ -1,8 +1,9 @@
 # nhs_robotics.py
-# Version: V45
+# Version: V46
 # 
-# RESTORED: Full SuperBot functionality from V36 (HuskyLens, Logging, Moves)
-# ADDED: Debounced 'pressed' button methods from V44
+# RESTORED: Full SuperBot functionality (HuskyLens, Logging, Moves)
+# ADDED: Debounced 'pressed' button methods
+# FIXED: Buzzer initialization added (connects to shared I2C)
 #
 # Includes:
 # 1. Helper classes (oLED, Buzzer, Button, NanoLED)
@@ -21,7 +22,7 @@ from nanolib import NanoLED
 
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V45")
+print("Loading nhs_robotics.py V46")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -33,7 +34,6 @@ def get_closest_distance(d1, d2, d3, d4, d5):
 class Button:
     """
     Detects a single 'rising edge' press event.
-    (Imported from V44 to replace the older V36 state machine)
     """
     def __init__(self, getter_func):
         self.get_value = getter_func
@@ -159,10 +159,11 @@ class SuperBot:
         self.screen = None
         self.husky = None
         self.qwiic_driver = None
+        self.buzzer = None
         
         self._init_peripherals()
         
-        # --- NEW BUTTON INITIALIZATION (Added from V44) ---
+        # --- BUTTON INITIALIZATION ---
         self._btn_up = Button(self.alvik.get_touch_up)
         self._btn_down = Button(self.alvik.get_touch_down)
         self._btn_left = Button(self.alvik.get_touch_left)
@@ -170,10 +171,12 @@ class SuperBot:
         self._btn_ok = Button(self.alvik.get_touch_ok)
         self._btn_cancel = Button(self.alvik.get_touch_cancel)
         
-        if self.husky:
-            print(f"SuperBot Init Complete. HuskyLens is active.")
-        else:
-            print(f"SuperBot Init Complete. HuskyLens is NONE.")
+        # --- STATUS REPORT ---
+        print(f"SuperBot Init Complete.")
+        if self.husky: print(" - HuskyLens: ACTIVE")
+        else: print(" - HuskyLens: NONE")
+        if self.buzzer and self.buzzer.connected: print(" - Buzzer: ACTIVE")
+        else: print(" - Buzzer: NONE")
 
         # --- STATE VARIABLES ---
         self._current_mode = self.MODE_IDLE
@@ -200,7 +203,7 @@ class SuperBot:
         self._current_speed_cm_s = 0.0
         self._kp_heading = 4.0 
 
-    # --- DEBOUNCED TOUCH ACCESSORS (Added from V44) ---
+    # --- DEBOUNCED TOUCH ACCESSORS ---
     def get_pressed_up(self): return self._btn_up.is_pressed()
     def get_pressed_down(self): return self._btn_down.is_pressed()
     def get_pressed_left(self): return self._btn_left.is_pressed()
@@ -209,28 +212,46 @@ class SuperBot:
     def get_pressed_cancel(self): return self._btn_cancel.is_pressed()
 
     def _init_peripherals(self):
+        # 1. Setup Shared I2C Bus (Raw MicroPython object)
         try:
             self.shared_i2c = I2C(1, scl=Pin(12), sda=Pin(11), freq=400000)
         except Exception as e:
             self.shared_i2c = None
             print(f"I2C Init Error: {e}")
 
+        # 2. Setup OLED (Uses raw I2C)
         if self.shared_i2c:
             try:
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V45")
+                self.screen.show_lines("SuperBot", "Online", "V46")
             except Exception:
                 pass
 
+        # 3. Setup Qwiic Driver (Wrapper for Qwiic libraries)
         if self.shared_i2c:
             try:
                 self.qwiic_driver = MicroPythonI2C(esp32_i2c=self.shared_i2c)
+                
+                # 4. Setup Buzzer (Uses shared Qwiic Driver)
+                try:
+                    # Pass the SHARED driver so we don't create a new bus
+                    self.buzzer = Buzzer(i2c_driver=self.qwiic_driver)
+                    # Manually set the connected flag if not set by init
+                    if self.buzzer._buzzer and self.buzzer._buzzer.is_connected():
+                         self.buzzer.connected = True
+                    else:
+                         self.buzzer.connected = False
+                except Exception as e:
+                    print(f"Buzzer Init Error: {e}")
+                    self.buzzer = None
+                
+                # 5. Setup HuskyLens (Uses shared Qwiic Driver)
                 print("Init HuskyLens...")
                 self.update_display("Init HuskyLens...", "Please Wait")
                 
                 attempts = 0
                 success = False
-                while attempts < 10 and not success:
+                while attempts < 3 and not success:
                     try:
                         self.husky = QwiicHuskylens(i2c_driver=self.qwiic_driver)
                         if self.husky.begin():
@@ -255,7 +276,8 @@ class SuperBot:
                     
             except Exception as e:
                 self.husky = None
-                self.log_error(f"Husky Setup Error: {e}")
+                self.buzzer = None
+                self.log_error(f"Qwiic Setup Error: {e}")
     
     @staticmethod
     def _get_closest_distance(d1, d2, d3, d4, d5):
