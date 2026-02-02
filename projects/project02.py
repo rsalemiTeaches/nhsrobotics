@@ -29,9 +29,6 @@ try:
     if alvik.get_touch_cancel():
       break
 
-    # Set both LEDs to BLUE
-    alvik.right_led.set_color(0,0,1)
-    alvik.left_led.set_color(0,0,1)
 
     # Check to see if the LEFT ARROW is pushed
     # If the LEFT ARROW is upushed set the LEFT
@@ -42,7 +39,8 @@ try:
     # WORK: Check to see if the RIGHT ARROW is pushed
     # WORK: If the RIGHT ARROW is pushed set the
     # WORK RIGHT LED to GREEN 
-
+    # elif alvik.get_touch_right():
+    #  alvik.right_led.set_color(0,1,0)
 
     # WORK: Check to see if the UP ARROW is pushed.
     # WORK: If the UP ARROW is pushed set both 
@@ -53,6 +51,10 @@ try:
     # WORK: If the DOWN ARROW is pushed set both 
     # WORK: LEDS to PURPLE (RED, OFF, BLUE)
 
+    # Set both LEDs to BLUE
+    else:
+      alvik.right_led.set_color(0,0,1)
+      alvik.left_led.set_color(0,0,1)
     
     # WORK: Sleep for 10 ms
 

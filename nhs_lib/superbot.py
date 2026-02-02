@@ -1,12 +1,13 @@
 # nhs_robotics.py
-# Version: V45
+# Version: V36
 # 
-# RESTORED: Full SuperBot functionality from V36 (HuskyLens, Logging, Moves)
-# ADDED: Debounced 'pressed' button methods from V44
-#
 # Includes:
-# 1. Helper classes (oLED, Buzzer, Button, NanoLED)
-# 2. "SuperBot" Class: Wraps an existing ArduinoAlvik object
+# 1. Original helper classes (oLED, Buzzer, Button, Controller, NanoLED)
+# 2. "SuperBot" Class: Wraps an existing ArduinoAlvik object to add features
+#
+# NEW IN V36:
+# - REFACTOR: Renamed self.bot -> self.alvik for student consistency.
+# - Students can now access sb.alvik.left_led, etc.
 
 # --- IMPORTS ---
 import qwiic_buzzer
@@ -21,7 +22,7 @@ from nanolib import NanoLED
 
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V45")
+print("Loading nhs_robotics.py V36")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -29,24 +30,71 @@ def get_closest_distance(d1, d2, d3, d4, d5):
     return SuperBot._get_closest_distance(d1, d2, d3, d4, d5)
 
 # --- CLASSES ---
+# ---------------------------------------------------------------------
+# PART 1: THE BUTTON CLASS
+# ---------------------------------------------------------------------
 
 class Button:
     """
-    Detects a single 'rising edge' press event.
-    (Imported from V44 to replace the older V36 state machine)
-    """
-    def __init__(self, getter_func):
-        self.get_value = getter_func
-        self.previous_state = False
+    A class to manage a button's state and detect a single "press" 
+    (a "rising edge") to prevent rapid repeats from holding it down.
 
-    def is_pressed(self):
-        """Returns True only on the moment the button is first touched."""
-        current_state = self.get_value()
-        pressed = False
-        if current_state and not self.previous_state:
-            pressed = True
-        self.previous_state = current_state
-        return pressed
+    This class works like a simple state machine with two states:
+    - STATE_UP: The button is not being pressed.
+    - STATE_PRESSED: The button is being held down.
+    
+    It only reports a "press" on the single frame when the button
+    goes from STATE_UP to STATE_PRESSED.
+    """
+    # Class-level constants for our states
+    STATE_UP = 1
+    STATE_PRESSED = 2
+    
+    def __init__(self, get_touch_function):
+        """
+        Initializes the button's internal state.
+        
+        get_touch_function: A function (like alvik.get_touch_up) that
+                            will be called to get the hardware state.
+        """
+        # Save the function that was passed in, so we can call it later
+        self.get_hardware_state = get_touch_function
+        
+        # Initialize the internal state
+        self.current_state = self.STATE_UP
+
+    def get_touch(self):
+        """
+        Checks the button state. This MUST be called in every loop.
+        
+        It updates the internal state machine and returns True ONLY 
+        on the "rising edge" — the single moment the button was 
+        first pressed.
+        """
+        return_value = False
+        
+        # Call the hardware function we saved during __init__
+        is_pressed = self.get_hardware_state()
+
+        # --- This is the State Machine logic ---
+        
+        # Check if the current state is UP
+        if self.current_state == self.STATE_UP:
+            if is_pressed:
+                # This is the "rising edge"!
+                return_value = True
+                # Transition to the PRESSED state
+                self.current_state = self.STATE_PRESSED
+        
+        # Check if the current state is PRESSED
+        elif self.current_state == self.STATE_PRESSED:
+            if not is_pressed:
+                # The button was released.
+                # Transition back to the UP state.
+                self.current_state = self.STATE_UP
+                
+        # Return True only if this was the frame it was pressed
+        return return_value
 
 class oLED:
     def __init__(self, i2cDriver = None):
@@ -141,7 +189,7 @@ class SuperBot:
     MODE_DRIVE_TO_LINE = 3 
 
     def __init__(self, alvik):
-        self.alvik = alvik 
+        self.alvik = alvik # REFACTOR: Was self.bot
         
         # --- CONSTANTS ---
         self.K_CONSTANT = 1624.0
@@ -161,14 +209,6 @@ class SuperBot:
         self.qwiic_driver = None
         
         self._init_peripherals()
-        
-        # --- NEW BUTTON INITIALIZATION (Added from V44) ---
-        self._btn_up = Button(self.alvik.get_touch_up)
-        self._btn_down = Button(self.alvik.get_touch_down)
-        self._btn_left = Button(self.alvik.get_touch_left)
-        self._btn_right = Button(self.alvik.get_touch_right)
-        self._btn_ok = Button(self.alvik.get_touch_ok)
-        self._btn_cancel = Button(self.alvik.get_touch_cancel)
         
         if self.husky:
             print(f"SuperBot Init Complete. HuskyLens is active.")
@@ -200,14 +240,6 @@ class SuperBot:
         self._current_speed_cm_s = 0.0
         self._kp_heading = 4.0 
 
-    # --- DEBOUNCED TOUCH ACCESSORS (Added from V44) ---
-    def get_pressed_up(self): return self._btn_up.is_pressed()
-    def get_pressed_down(self): return self._btn_down.is_pressed()
-    def get_pressed_left(self): return self._btn_left.is_pressed()
-    def get_pressed_right(self): return self._btn_right.is_pressed()
-    def get_pressed_ok(self): return self._btn_ok.is_pressed()
-    def get_pressed_cancel(self): return self._btn_cancel.is_pressed()
-
     def _init_peripherals(self):
         try:
             self.shared_i2c = I2C(1, scl=Pin(12), sda=Pin(11), freq=400000)
@@ -218,7 +250,7 @@ class SuperBot:
         if self.shared_i2c:
             try:
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V45")
+                self.screen.show_lines("SuperBot", "Online", "V36")
             except Exception:
                 pass
 
@@ -695,3 +727,5 @@ class SuperBot:
                 self.screen.show_lines(l1, l2, l3)
             except Exception:
                 pass
+
+# Developed with the assistance of Google Gemini
