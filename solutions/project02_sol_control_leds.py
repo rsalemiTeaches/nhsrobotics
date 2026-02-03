@@ -10,61 +10,61 @@
 #                  Down--Both LEDs are purple
 #                  Cancel--Stop Running                   
 # ==========================================================
+# Version: V01
 
-
-# WORK Import the ArduinoAlvik class and the sleep_ms() function
-from arduino_alvik import ArduinoAlvik #get the alvik controller description
+# Import the ArduinoAlvik class and the sleep_ms() function
+from arduino_alvik import ArduinoAlvik # get the alvik controller description
 from time import sleep_ms
 
-# WORK Create a new ArduinoAlvik object named bot
+# Create a new ArduinoAlvik object named alvik
 alvik = ArduinoAlvik() # get an alvik controller
 
 try:
-  alvik.begin() # Start the bot
+    alvik.begin() # Start the bot
 
-  # Loop forever
-  while True:
-    
-    # Check to see if the user pressed X
-    if alvik.get_touch_cancel():
-      break
+    # Loop forever
+    while True:
+        
+        # Check to see if the user pressed X (Cancel)
+        if alvik.get_touch_cancel():
+            break
 
-    # Set both LEDs to BLUE
-    alvik.right_led.set_color(0,0,1)
-    alvik.left_led.set_color(0,0,1)
+        # Check to see if the LEFT ARROW is pushed
+        # If the LEFT ARROW is pushed set the LEFT LED to GREEN
+        if alvik.get_touch_left():
+            alvik.left_led.set_color(0, 1, 0)
+            alvik.right_led.set_color(0, 0, 0) # Keep other LED off for clarity
 
-    # Check to see if the LEFT ARROW is pushed
-    # If the LEFT ARROW is upushed set the LEFT
-    # LED to GREEN
+        # Check to see if the RIGHT ARROW is pushed
+        # If the RIGHT ARROW is pushed set the RIGHT LED to GREEN 
+        elif alvik.get_touch_right():
+            alvik.left_led.set_color(0, 0, 0)
+            alvik.right_led.set_color(0, 1, 0)
 
-    if alvik.get_touch_left():
-      alvik.left_led.set_color(0,1,0)
-    # WORK: Check to see if the RIGHT ARROW is pushed
-    # WORK: If the RIGHT ARROW is pushed set the
-    # WORK RIGHT LED to GREEN 
-    if alvik.get_touch_right():
-      alvik.right_led.set_color(0,1,0)
+        # Check to see if the UP ARROW is pushed.
+        # If the UP ARROW is pushed set both LEDS to Yellow (RED + GREEN)
+        elif alvik.get_touch_up():
+            alvik.left_led.set_color(1, 1, 0)
+            alvik.right_led.set_color(1, 1, 0)
 
-    # WORK: Check to see if the UP ARROW is pushed.
-    # WORK: If the UP ARROW is pushed set both 
-    # WORKD LEDS to Yellow (RED, GREEN, OFF)
-    if alvik.get_touch_up():
-      alvik.right_led.set_color(1,1,0)
-      alvik.left_led.set_color(1,1,0)
+        # Check to see if the DOWN ARROW is pushed.
+        # If the DOWN ARROW is pushed set both LEDS to PURPLE (RED + BLUE)
+        elif alvik.get_touch_down():
+            alvik.left_led.set_color(1, 0, 1)
+            alvik.right_led.set_color(1, 0, 1)
 
-    # WORK: Check to see if the DOWN ARROW is pushed.
-    # WORK: If the DOWN ARROW is pushed set both 
-    # WORK: LEDS to PURPLE (RED, OFF, BLUE)
-    if alvik.get_touch_down():
-      alvik.right_led.set_color(1,0,1)
-      alvik.left_led.set_color(1,0,1)
-    
-    # WORK: Sleep for 10 ms
-    sleep_ms(10)
+        # No directional button--Two blue LEDs
+        else:
+            alvik.left_led.set_color(0, 0, 1)
+            alvik.right_led.set_color(0, 0, 1)
+        
+        # Small delay to keep the processor from running too fast
+        sleep_ms(10)
+
 finally:
-  # WORK  When you are out of the loop 
-  # or there is an interruption
-  # turn off both LEDs and stop the robot.
-  alvik.right_led.set_color(0,0,0)
-  alvik.left_led.set_color(0,0,0)
-  alvik.stop()
+    # Cleanup: Stop the robot and turn off LEDs
+    alvik.left_led.set_color(0, 0, 0)
+    alvik.right_led.set_color(0, 0, 0)
+    alvik.stop()
+
+# Developed with the assistance of Google Gemini
