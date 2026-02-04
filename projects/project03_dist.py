@@ -3,7 +3,7 @@
 #       In this project, you'll use the SuperBot to monitor
 #       distances and change the LED colors as a warning.
 # ==========================================================
-# Version: V01
+# Version: V02
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
@@ -13,8 +13,8 @@ from time import sleep_ms
 alvik = ArduinoAlvik()
 
 # WORK: Initialize the SuperBot object and name it sb
-# Remove the hashtag from the line below to create the SuperBot
-# sb = SuperBot(alvik) 
+# Hint: sb = SuperBot(alvik)
+# sb = 
 
 # 2. Configuration: Set the distance thresholds (in cm)
 THRESHOLD_RED = 3      # Very close
@@ -28,44 +28,38 @@ try:
     # 3. Main loop: Run until the Cancel (X) button is pressed
     while not alvik.get_touch_cancel():
 
-        # 4. Get the single closest distance directly from the SuperBot
-        # The SuperBot handles reading the sensors and finding the minimum value
-        closest_distance = sb.get_closest_distance()
+        # WORK: Get the single closest distance from the SuperBot and store it 
+        # Hint: closest_distance = sb.get_closest_distance()
+        closest_distance = 0 # Replace 0 with the correct command
 
-        # 5. if/elif/else chain for color warning logic 
-        # We control the LEDs directly through the alvik object
+        # --- WORK (FLEX): OLED DISPLAY ---
+        # To show the distance on the screen, use the command below:
+        # sb.update_display("Dist:", closest_distance)
         
-        # Very Close
+
+        # 4. WORK: Complete the if/elif/else chain for color warning logic 
+        
+        # Zone 1: Very Close
         if closest_distance < THRESHOLD_RED:
             alvik.left_led.set_color(1, 0, 0) # Red
             alvik.right_led.set_color(1, 0, 0)
         
-        # Close
-        # WORK: Uncomment the elif line below to enable the Purple check
-        # elif closest_distance < THRESHOLD_PURPLE:
-            alvik.left_led.set_color(1, 0, 1) # Purple
-            alvik.right_led.set_color(1, 0, 1)
+        # Zone 2: Close (Purple)
+        # elif ...
             
-        # Nearby
-        # WORK: Write the elif statement for THRESHOLD_BLUE. 
-        # We added 'pass' so the code runs, but you need to add the LED code.
-        elif closest_distance < THRESHOLD_BLUE:
-            # WORK: Set LEDs to Blue (0, 0, 1)
-            pass
+        # Zone 3: Nearby (Blue)
+        # elif ...
             
-        # All Clear
-        # WORK: Write the else statement
-        else:
-            # WORK: Set LEDs to Green (0, 1, 0)
-            pass
+        # Zone 4: All Clear (Green)
+        # else:
+        
 
         # Small delay for sensor stability
         sleep_ms(50)
 
 finally:
-    # 6. Cleanup logic: Leave the robot in a safe state
-    alvik.left_led.set_color(0, 0, 0)
-    alvik.right_led.set_color(0, 0, 0)
-    alvik.stop()  # Shut down background threads
-
-# Developed with the assistance of Google Gemini
+    # 5. WORK: Cleanup logic
+    # Turn off both LEDs so they don't stay lit!
+    # Hint: set_color(0, 0, 0)
+    
+    print("Project 03 Stopped.")

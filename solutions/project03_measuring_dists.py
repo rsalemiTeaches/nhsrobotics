@@ -1,17 +1,19 @@
 # ==========================================================
 #              Project 03: Proximity Indicator
-#       In this project, we use the SuperBot to monitor
+#       In this project, you'll use the SuperBot to monitor
 #       distances and change the LED colors as a warning.
 # ==========================================================
-# Version: V01
+# Version: V02
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
 from time import sleep_ms
 
-# 1. Initialize the base Alvik and the SuperBot
-# We create the SuperBot object to initialize the shared drivers (I2C, Buzzer)
+# 1. Initialize the base Alvik 
 alvik = ArduinoAlvik()
+
+# WORK: Initialize the SuperBot object and name it sb
+# We name it 'sb' as per the SuperBot naming convention.
 sb = SuperBot(alvik) 
 
 # 2. Configuration: Set the distance thresholds (in cm)
@@ -29,6 +31,10 @@ try:
         # 4. Get the single closest distance directly from the SuperBot
         # The SuperBot handles reading the sensors and finding the minimum value
         closest_distance = sb.get_closest_distance()
+
+        # --- FLEX: OLED DISPLAY ---
+        # Show the real-time distance on the OLED screen
+        sb.update_display("Dist:", closest_distance)
 
         # 5. if/elif/else chain for color warning logic 
         # We control the LEDs directly through the alvik object
@@ -58,9 +64,9 @@ try:
 
 finally:
     # 6. Cleanup logic: Leave the robot in a safe state
+    # We turn off LEDs and clear the display
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
-    alvik.brake() # Safely stop the motors (brake physically stops wheels)
-    alvik.stop()  # Shut down background threads
-
-# Developed with the assistance of Google Gemini
+    sb.update_display("Program", "Stopped")
+    print("Project 03 Stopped.")
+    
