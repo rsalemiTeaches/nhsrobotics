@@ -1,8 +1,8 @@
 # nhs_robotics.py
-# Version: V46
+# Version: V47
 # 
 # RESTORED: Full SuperBot functionality (HuskyLens, Logging, Moves)
-# ADDED: Debounced 'pressed' button methods
+# ADDED: NanoLED integration (initialized in __init__, wrappers added)
 # FIXED: Buzzer initialization added (connects to shared I2C)
 #
 # Includes:
@@ -22,7 +22,7 @@ from nanolib import NanoLED
 
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V46")
+print("Loading nhs_robotics.py V47")
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
 
@@ -163,6 +163,10 @@ class SuperBot:
         
         self._init_peripherals()
         
+        # --- NANO LED SETUP ---
+        # Automatically initialize the NanoLED singleton
+        self.nano_led = NanoLED()
+        
         # --- BUTTON INITIALIZATION ---
         self._btn_up = Button(self.alvik.get_touch_up)
         self._btn_down = Button(self.alvik.get_touch_down)
@@ -211,6 +215,23 @@ class SuperBot:
     def get_pressed_ok(self): return self._btn_ok.is_pressed()
     def get_pressed_cancel(self): return self._btn_cancel.is_pressed()
 
+    # --- NANO LED METHODS ---
+    def set_nano_rgb(self, r, g, b):
+        """Sets the Nano LED color using 0-255 RGB values."""
+        self.nano_led.set_rgb(r, g, b)
+
+    def set_nano_color(self, r, g, b):
+        """Sets the Nano LED color using 0 or 1 (on/off) values."""
+        self.nano_led.set_color(r, g, b)
+
+    def set_nano_brightness(self, percentage):
+        """Sets the Nano LED brightness (0-100)."""
+        self.nano_led.set_brightness(percentage)
+
+    def nano_off(self):
+        """Turns the Nano LED off."""
+        self.nano_led.off()
+
     def _init_peripherals(self):
         # 1. Setup Shared I2C Bus (Raw MicroPython object)
         try:
@@ -223,7 +244,7 @@ class SuperBot:
         if self.shared_i2c:
             try:
                 self.screen = oLED(i2cDriver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V46")
+                self.screen.show_lines("SuperBot", "Online", "V47")
             except Exception:
                 pass
 
@@ -717,3 +738,4 @@ class SuperBot:
                 self.screen.show_lines(l1, l2, l3)
             except Exception:
                 pass
+# --- END OF FILE ---
