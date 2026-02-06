@@ -27,10 +27,11 @@ try:
         # WORK: Use the sb object to get the closest distance
         closest_distance = 0 
         if closest_distance < STOP_DISTANCE:
-            # WORK: Stop the robot and turn LEDs RED
+            # WORK: Uncomment the code beloe
+            # alvik.set_wheels_speed(0, 0)
             pass
         else:
-            # WORK: Drive the robot forward and turn LEDs GREEN
+            # WORK: use set_wheels_speed() to drive forward at DRIVE_SPEED
             pass
         sleep_ms(50)
 finally:
