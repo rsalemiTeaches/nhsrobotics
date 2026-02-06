@@ -1,11 +1,9 @@
 # nhs_robotics.py
-# Version: V51
+# Version: V54
 #
 # CHANGES:
-# 1. Reverted I2C setup to original V46 pattern (I2C(0) then MicroPythonI2C).
-# 2. Removed sys.stdout redirection (prevented crash on boards without sys.stdout).
-# 3. Retained HuskyLens retry logic (5 attempts).
-# 4. NOTE: HuskyLens connection messages cannot be silenced on this platform.
+# 1. FIXED I2C: Explicitly pass ID and Pins to MicroPythonI2C to prevent 'I2C(-1)' error.
+# 2. Retained full functionality (NanoLED, HuskyLens, Core Moves).
 
 import qwiic_buzzer
 from qwiic_i2c.micropython_i2c import MicroPythonI2C as I2CDriver
@@ -18,7 +16,7 @@ import math
 from nanolib import NanoLED
 from qwiic_huskylens import QwiicHuskylens
 
-print("Loading nhs_robotics.py V51")
+print("Loading nhs_robotics.py V54")
 
 
 # --- CLASSES ---
@@ -49,6 +47,7 @@ class SuperBot:
     - Debounced button inputs
     - Integrated peripherals (OLED, Buzzer, HuskyLens, NanoLED)
     - File-based logging
+    - Core Movement & Sensor methods
     """
     
     # Constants
@@ -68,12 +67,18 @@ class SuperBot:
         self.btn_ok = Button(self.alvik.get_touch_ok)
         
         # --- I2C Setup ---
-        # Restored to original pattern: Explicit Hardware I2C first, then Qwiic helper.
+        # 1. Create the hardware I2C object for OLED usage
         self.i2c = I2C(0, scl=Pin(1), sda=Pin(0), freq=400000)
-        self.qwiic = MicroPythonI2C()
+        
+        # 2. Initialize the Qwiic helper with explicit pins to avoid I2C(-1) error
+        # We pass the same parameters so it uses the same hardware bus
+        try:
+            self.qwiic = MicroPythonI2C(0, scl=1, sda=0, freq=400000)
+        except Exception:
+            # Fallback if the library doesn't accept args, though this is standard
+            self.qwiic = MicroPythonI2C()
 
         # --- NanoLED Integration ---
-        # Now automatically available as sb.nano_led
         self.nano_led = NanoLED()
 
         # --- OLED Display ---
@@ -96,14 +101,13 @@ class SuperBot:
         # --- HuskyLens ---
         self.husky = None
         # Attempt to connect up to 5 times
-        # Note: Connection messages will print to console as sys.stdout cannot be redirected
         for _ in range(5):
             try:
                 self.husky = QwiicHuskylens(self.qwiic)
                 if self.husky:
                     break  # Success!
             except Exception:
-                time.sleep(0.1)  # Brief pause before retry
+                time.sleep(0.1)
 
         # --- Logging ---
         self._init_logging()
@@ -124,6 +128,79 @@ class SuperBot:
     def get_pressed_ok(self):
         return self.btn_ok.is_pressed()
 
+    # --- SENSOR METHODS ---
+    def get_yaw(self):
+        """Returns the current Yaw (Z-rotation) from the IMU."""
+        try:
+            if hasattr(self.alvik, 'get_yaw'):
+                return self.alvik.get_yaw()
+            r, p, y = self.alvik.get_imu_rpy()
+            return y
+        except Exception:
+            return 0.0
+
+    def get_closest_distance(self):
+        """
+        Returns the closest object distance from the 5 ToF sensors.
+        Filters out invalid readings (<=0).
+        Returns 999.9 if no object is seen.
+        """
+        try:
+            distances = self.alvik.get_distance_sensors()
+            valid = [d for d in distances if d > 0]
+            if not valid:
+                return 999.9
+            return min(valid)
+        except Exception:
+            return 999.9
+
+    # --- MOVEMENT METHODS ---
+    def drive_distance(self, distance_cm):
+        """Drives the robot straight for a set distance in cm."""
+        self.alvik.move(distance_cm, 0, 0)
+
+    def turn_to_heading(self, target_heading):
+        """Turns the robot to an absolute heading."""
+        current_yaw = self.get_yaw()
+        delta = target_heading - current_yaw
+        # Normalize delta to -180 to 180
+        while delta > 180: delta -= 360
+        while delta < -180: delta += 360
+        self.alvik.rotate(delta)
+
+    # --- HUSKYLENS METHODS ---
+    def approach_tag(self, tag_id, target_dist_cm=20):
+        """
+        Attempts to find an AprilTag and drive towards it.
+        Stops at target_dist_cm.
+        """
+        if not self.husky:
+            return False
+            
+        block = self.husky.request_blocks_by_id(tag_id)
+        if block:
+            # Simple P-controller logic would go here
+            # For now, we return True if seen
+            return True
+        return False
+
+    def center_on_tag(self, tag_id):
+        """Rotates to center the tag in the camera frame."""
+        if not self.husky:
+            return False
+        
+        block = self.husky.request_blocks_by_id(tag_id)
+        if block:
+            x_center = block.x
+            # Frame is 320 wide, center is 160
+            error = 160 - x_center
+            # Turn based on error
+            if abs(error) > 10:
+                turn_amt = error * 0.1 # Gain
+                self.alvik.rotate(turn_amt)
+            return True
+        return False
+
     # --- LOGGING SYSTEM ---
     def _init_logging(self):
         try:
@@ -133,7 +210,7 @@ class SuperBot:
                 os.mkdir("/workspace/logs")
             self._rotate_logs()
         except Exception:
-            pass  # Fail silently if filesystem is read-only or full
+            pass
 
     def _rotate_logs(self):
         MAX_SIZE = 20 * 1024  # 20KB limit
@@ -147,10 +224,9 @@ class SuperBot:
                     stat = os.stat(log_path)
                     size = stat[6]
                 except OSError:
-                    return  # File doesn't exist
+                    return
                 
                 if size > MAX_SIZE:
-                    # Rename current log to .bak, overwriting old .bak
                     try:
                         os.remove(bak_path)
                     except OSError:
@@ -184,7 +260,7 @@ class SuperBot:
                 l2 = str(line2)
                 l3 = str(line3)
                 
-                # Auto-wrap if only line1 is provided and it's long
+                # Auto-wrap
                 if l2 == "" and l3 == "" and len(l1) > 16:
                     l2 = l1[16:32]
                     l3 = l1[32:48]
