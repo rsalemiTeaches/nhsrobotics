@@ -173,10 +173,14 @@ class SuperBot:
         
         # --- STATUS REPORT ---
         print(f"SuperBot Init Complete.")
-        if self.husky: print(" - HuskyLens: ACTIVE")
-        else: print(" - HuskyLens: NONE")
-        if self.buzzer and self.buzzer.connected: print(" - Buzzer: ACTIVE")
-        else: print(" - Buzzer: NONE")
+        if self.husky: 
+            print(" - HuskyLens: ACTIVE")
+        else: 
+            print(" - HuskyLens: NONE")
+        if self.buzzer and self.buzzer.connected: 
+            print(" - Buzzer: ACTIVE")
+        else: 
+            print(" - Buzzer: NONE")
 
         # --- STATE VARIABLES ---
         self._current_mode = self.MODE_IDLE
