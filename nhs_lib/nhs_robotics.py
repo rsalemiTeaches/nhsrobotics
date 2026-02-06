@@ -343,9 +343,9 @@ class SuperBot:
                             except Exception:
                                 pass
                         else:
-                            print(f"Husky Attempt {attempts + 1} Failed")
+                            print(f"HuskyLens Search {attempts + 1}")
                     except Exception as e:
-                        print(f"Husky Attempt {attempts + 1} Error: {e}")
+                        print(f"Husky Search Error {attempts + 1} Error: {e}")
 
                     if not success:
                         attempts += 1
@@ -353,8 +353,8 @@ class SuperBot:
 
                 if not success:
                     self.husky = None
-                    self.log_error("HuskyLens Init FAILED")
-                    self.update_display("Error:", "HuskyLens Fail")
+                    self.log_info("No HuskyLens")
+                    self.update_display("No HuskyLens")
 
             except Exception as e:
                 self.husky = None
