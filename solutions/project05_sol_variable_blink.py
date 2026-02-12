@@ -57,7 +57,7 @@ def turn_on_led(interval):
 # --- MAIN LOOP ---
 try:
     # We access the raw 'ok' button from the underlying alvik object for the kill switch
-    while not sb.alvik.get_touch_ok():
+    while not sb.alvik.get_touch_cancel():
         
         # --- TASK 1: CHECK INPUTS (Debounced by SuperBot) ---
         
@@ -112,4 +112,4 @@ except Exception as e:
 finally:
     print("Stopping program.")
     sb.nano_led.off()
-    sb.stop() # Stops threads and resets
+    alvik.stop() # Stops threads and resets
