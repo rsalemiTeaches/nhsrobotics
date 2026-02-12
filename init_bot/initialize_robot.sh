@@ -1,175 +1,172 @@
 #!/bin/bash
-# v24 - Added --clean-workspace (-c) flag to purge student files while keeping safety marker.
+# v27 - FIXED: Added carriage return stripping (tr -d '\r') to remote output.
+#       This fixes the bug where files were falsely identified as "extraneous"
+#       due to invisible characters in the serial output.
+#
 # Developed with the assistance of Google Gemini
 
-# ==============================================================================
-# Alvik Robot Synchronization Script
-#
-# This script synchronizes a MicroPython device to mirror a local source
-# directory. It protects the /workspace path and any path specified in the
-# local .robotignore file.
-# ==============================================================================
+set -e
 
-set -e # Exit immediately if a command exits with a non-zero status.
-
-# --- SCRIPT LOGIC ---
+# --- CONFIGURATION ---
 PORT=""
 SOURCE_DIR=""
 CLEAN_WORKSPACE=false
 ROBOTIGNORE_FILENAME=".robotignore"
 SAFETY_FILE_NAME="STORE_FILES_HERE_FOR_SAFETY.md"
 
-# --- Argument Parsing ---
+# --- ARGUMENT PARSING ---
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-        -d|--dir)
-        SOURCE_DIR="$2"
-        shift 2
-        ;;
-        -p|--port)
-        PORT="$2"
-        shift 2
-        ;;
-        -c|--clean-workspace)
-        CLEAN_WORKSPACE=true
-        shift
-        ;;
-        *)
-        echo "Unknown option: $1"
-        exit 1
-        ;;
+        -d|--dir) SOURCE_DIR="$2"; shift 2 ;;
+        -p|--port) PORT="$2"; shift 2 ;;
+        -c|--clean-workspace) CLEAN_WORKSPACE=true; shift ;;
+        *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
-echo "Running initialize_robot.sh - v24"
+echo "Running initialize_robot.sh - v27 (CRLF Fix)"
 
-# --- Validate Arguments ---
-if [ -z "$SOURCE_DIR" ]; then
-    echo "❌ ERROR: Source directory not specified. Use -d <path>."
-    exit 1
-fi
-if [ ! -d "$SOURCE_DIR" ]; then
-    echo "❌ ERROR: Source '$SOURCE_DIR' is not a valid directory."
-    exit 1
-fi
+# --- VALIDATION ---
+if [ -z "$SOURCE_DIR" ]; then echo "❌ ERROR: Source directory not specified. Use -d <path>."; exit 1; fi
+if [ ! -d "$SOURCE_DIR" ]; then echo "❌ ERROR: Source '$SOURCE_DIR' is not a valid directory."; exit 1; fi
 
-# --- Auto-detect port and build command arguments ---
+# --- AUTO-DETECT PORT ---
 if [ -z "$PORT" ]; then
-    echo "🔎 Port not specified. Auto-detecting Alvik..."
+    echo "🔎 Auto-detecting Alvik..."
     PORT=$(mpremote connect list | grep 'usbmodem' | awk '{print $1}' | head -n 1)
-    if [ -z "$PORT" ]; then
-        echo "❌ ERROR: No Alvik robot found. Please connect the robot and try again, or specify a port with -p."
-        exit 1
-    fi
+    if [ -z "$PORT" ]; then echo "❌ ERROR: No robot found."; exit 1; fi
     echo "✅ Found Alvik on port: $PORT"
 fi
-
-# Use an array for command arguments for robustness.
 CONNECT_ARGS=("connect" "${PORT}")
 
-# --- Ensure /workspace directory and safety file exist ---
+# --- SETUP WORKSPACE ---
 echo "------------------------------------------"
-echo "🛠️  Ensuring /workspace directory and safety file exist..."
+echo "🛠️  Checking /workspace..."
 if ! mpremote "${CONNECT_ARGS[@]}" ls :workspace > /dev/null 2>&1; then
-    echo "   - /workspace not found. Creating it..."
     mpremote "${CONNECT_ARGS[@]}" mkdir :workspace
-    echo "   - ✅ /workspace created."
-else
-    echo "   - ✅ /workspace already exists."
+    echo "   - Created /workspace"
 fi
+# Ensure safety file
+mpremote "${CONNECT_ARGS[@]}" exec "
+import os
+try:
+    with open('/workspace/${SAFETY_FILE_NAME}', 'w') as f: f.write('# Safe place!')
+except: pass
+"
 
-SAFETY_FILE_PATH=":workspace/${SAFETY_FILE_NAME}"
-if ! mpremote "${CONNECT_ARGS[@]}" ls "${SAFETY_FILE_PATH}" > /dev/null 2>&1; then
-    echo "   - Safety marker file not found. Creating it..."
-    mpremote "${CONNECT_ARGS[@]}" exec "with open('/workspace/${SAFETY_FILE_NAME}', 'w') as f: f.write('# This is a safe place for your files!')"
-    echo "   - ✅ Safety marker file created."
-else
-    echo "   - ✅ Safety marker file already exists."
-fi
-
-# --- Optional Workspace Cleanup ---
+# --- OPTIONAL WORKSPACE CLEAN ---
 if [ "$CLEAN_WORKSPACE" = true ]; then
-    echo "------------------------------------------"
-    echo "🧹 Cleaning /workspace directory..."
-    WORKSPACE_FILES=$(mpremote "${CONNECT_ARGS[@]}" ls :workspace)
-    while IFS= read -r line; do
-        if [ -z "$line" ]; then continue; fi
-        item_name=$(echo "$line" | sed 's/^[ ]*[0-9]*[ ]*//')
-        item_name=${item_name%/}
-        if [[ "$item_name" != "$SAFETY_FILE_NAME" ]]; then
-            echo "   - Deleting ':workspace/$item_name'"
-            mpremote "${CONNECT_ARGS[@]}" rm -r ":workspace/$item_name" > /dev/null 2>&1 || true
-        fi
-    done <<< "$WORKSPACE_FILES"
+    echo "🧹 Cleaning /workspace (keeping safety file)..."
+    mpremote "${CONNECT_ARGS[@]}" exec "
+import os
+try:
+    for f in os.ilistdir('/workspace'):
+        name = f[0]
+        if name != '${SAFETY_FILE_NAME}':
+            path = '/workspace/' + name
+            try:
+                os.remove(path)
+            except:
+                pass 
+            print('Deleted ' + path)
+except: pass
+"
     echo "✅ Workspace cleaned."
 fi
 
-# --- Build Whitelist ---
+# --- BUILD WHITELIST ---
 WHITELIST=("/workspace") 
 if [ -f "${SOURCE_DIR}/${ROBOTIGNORE_FILENAME}" ]; then
-    echo "------------------------------------------"
-    echo "Found .robotignore file. Building whitelist..."
+    echo "Found .robotignore. Building whitelist..."
     while IFS= read -r line; do
         if [[ -n "$line" && ! "$line" =~ ^\s*# ]]; then
-            WHITELIST+=("/${line}")
-            echo "   - Adding '/${line}' to whitelist."
+            # Ensure leading slash for comparison
+            [[ "$line" != /* ]] && line="/$line"
+            WHITELIST+=("$line")
         fi
     done < "${SOURCE_DIR}/${ROBOTIGNORE_FILENAME}"
 fi
 
-# --- Get File Lists ---
-echo "------------------------------------------"
-echo "🔎 Reading local and remote file systems..."
-LOCAL_FILES=($(cd "$SOURCE_DIR" && ls -A))
-REMOTE_FILES=$(mpremote "${CONNECT_ARGS[@]}" ls -r :)
-echo "✅ File systems read."
+# --- PYTHON FILESYSTEM WALKER ---
+WALKER_SCRIPT="
+import os
+def walk(top):
+    try:
+        for entry in os.ilistdir(top):
+            name = entry[0]
+            if name in ['.', '..']: continue
+            
+            # Construct full path
+            if top == '/': path = '/' + name
+            elif top == '': path = name
+            else: path = top + '/' + name
+            
+            # Entry[1] is type. 0x4000=Dir, 0x8000=File
+            is_dir = (entry[1] & 0x4000) == 0x4000
+            
+            if is_dir:
+                print('D|' + path)
+                walk(path)
+            else:
+                print('F|' + path)
+    except OSError:
+        pass
+walk('')
+"
 
-# --- Clean Stale Files ---
 echo "------------------------------------------"
-echo "🧹 Cleaning stale files from the device..."
+echo "🔎 Scanning remote filesystem recursively..."
+# FIX: Pipe output to tr -d '\r' to strip carriage returns
+REMOTE_ITEMS=$(mpremote "${CONNECT_ARGS[@]}" exec "$WALKER_SCRIPT" | tr -d '\r')
+
+echo "🧹 Comparing and Cleaning..."
+
+# Process the remote list line by line
 while IFS= read -r line; do
-    if [ -z "$line" ] || [[ "$line" == "ls :/"* ]]; then continue; fi
-    item_name=$(echo "$line" | sed 's/^[ ]*[0-9]*[ ]*//')
-    item_name=${item_name%/}
-    normalized_path="/${item_name}"
-    on_whitelist=false
-    for whitelisted_item in "${WHITELIST[@]}"; do
-        if [[ "${normalized_path}" == "${whitelisted_item}"* ]]; then
-            on_whitelist=true
-            break
-        fi
-    done
-    if [ "$on_whitelist" = true ]; then
-        echo "   - Keeping '/${item_name}' (whitelisted)"
-        continue
-    fi
-    is_in_source=false
-    for local_item in "${LOCAL_FILES[@]}"; do
-        if [[ "$item_name" == "$local_item" ]]; then
-            is_in_source=true
-            break
-        fi
-    done
-    if [ "$is_in_source" = false ]; then
-        path_to_delete=":${item_name}"
-        echo "   - Deleting '$path_to_delete' (stale)"
-        mpremote "${CONNECT_ARGS[@]}" rm -r "$path_to_delete" > /dev/null 2>&1 || true
-    fi
-done <<< "$REMOTE_FILES"
-echo "✅ Stale files cleaned."
+    if [[ -z "$line" ]]; then continue; fi
+    
+    TYPE=$(echo "$line" | cut -d'|' -f1)
+    RPATH=$(echo "$line" | cut -d'|' -f2)
+    
+    # Normalize path with leading slash for whitelist check
+    NORM_PATH="/$RPATH"
+    [[ "$RPATH" == /* ]] || NORM_PATH="/$RPATH"
 
-# --- Copy Files ---
-echo "------------------------------------------"
-echo "📂 Copying new/changed files to the device from '$SOURCE_DIR'..."
-for item in "${LOCAL_FILES[@]}"; do
-    if [[ "$item" == "$ROBOTIGNORE_FILENAME" ]]; then
-        continue
+    # 1. WHITELIST CHECK
+    SKIP=false
+    for allow in "${WHITELIST[@]}"; do
+        if [[ "$NORM_PATH" == "$allow"* ]]; then
+            # echo "   - Keeping '$RPATH' (Whitelisted)"
+            SKIP=true
+            break
+        fi
+    done
+    if [ "$SKIP" = true ]; then continue; fi
+
+    # 2. LOCAL EXISTENCE CHECK
+    LOCAL_PATH="${SOURCE_DIR}/${RPATH}"
+    
+    EXISTS_LOCALLY=false
+    if [ "$TYPE" == "D" ]; then
+        if [ -d "$LOCAL_PATH" ]; then EXISTS_LOCALLY=true; fi
+    else
+        if [ -f "$LOCAL_PATH" ]; then EXISTS_LOCALLY=true; fi
     fi
-    source_path="${SOURCE_DIR}/${item}"
-    dest_path=":"
-    echo "   - Copying '${item}' to '${dest_path}'"
-    mpremote "${CONNECT_ARGS[@]}" cp -r "${source_path}" "${dest_path}"
-done
+
+    # 3. DELETE IF STALE
+    if [ "$EXISTS_LOCALLY" = false ]; then
+        echo "   - 🗑️  Removing extraneous item: $RPATH"
+        mpremote "${CONNECT_ARGS[@]}" rm -r ":$RPATH" > /dev/null 2>&1 || true
+    fi
+
+done <<< "$REMOTE_ITEMS"
+
+echo "✅ Cleanup complete."
+
+# --- COPY FILES ---
+echo "------------------------------------------"
+echo "📂 Uploading local files..."
+mpremote "${CONNECT_ARGS[@]}" cp -r "${SOURCE_DIR}/"* :
 
 echo "✅ Synchronization complete."
