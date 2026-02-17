@@ -24,7 +24,11 @@ try:
 
   # Loop forever
   while True:
-    
+
+    # IMPORTANT: Sleep for 10 ms so that the robot 
+    # has time to process the button presses.
+    sleep_ms(10)
+
     # Check to see if the user pressed X
     if alvik.get_touch_cancel():
       break
@@ -56,7 +60,6 @@ try:
       alvik.right_led.set_color(0,0,1)
       alvik.left_led.set_color(0,0,1)
     
-    # WORK: Sleep for 10 ms
 
 finally:
   # WORK  When you are out of the loop 

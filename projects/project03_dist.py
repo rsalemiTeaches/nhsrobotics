@@ -28,6 +28,11 @@ try:
     # 3. Main loop: Run until the Cancel (X) button is pressed
     while not alvik.get_touch_cancel():
 
+
+        # WORK: Sleep for 10 ms so that the robot 
+        # has time to process the button presses.
+        
+
         # WORK: Get the single closest distance from the SuperBot and store it 
         # Hint: closest_distance = sb.get_closest_distance()
         closest_distance = 0 # Replace 0 with the correct command

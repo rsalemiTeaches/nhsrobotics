@@ -28,6 +28,11 @@ try:
     # 3. Main loop: Run until the Cancel (X) button is pressed
     while not alvik.get_touch_cancel():
 
+        
+        # IMPORTANT: Sleep for 10 ms so that the robot 
+        # has time to process the button presses.
+        sleep_ms(10)
+
         # 4. Get the single closest distance directly from the SuperBot
         # The SuperBot handles reading the sensors and finding the minimum value
         closest_distance = sb.get_closest_distance()
@@ -58,9 +63,6 @@ try:
         else:
             alvik.left_led.set_color(0, 1, 0) # Green
             alvik.right_led.set_color(0, 1, 0)
-
-        # Small delay for sensor stability
-        sleep_ms(50)
 
 finally:
     # 6. Cleanup logic: Leave the robot in a safe state

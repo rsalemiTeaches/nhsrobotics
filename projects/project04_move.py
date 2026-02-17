@@ -19,6 +19,9 @@ try:
     print("Project 04: Obstacle Stop Started.")
     print(f"Driving forward; stopping within {STOP_DISTANCE}cm.")
     while True:
+        # WORK: Sleep for 10 ms so that the robot 
+        # has time to process the button presses.
+
 # --- Input Check ---
         if alvik.get_touch_cancel():
             print("Cancel button pressed.")
@@ -33,7 +36,7 @@ try:
         else:
             # WORK: use set_wheels_speed() to drive forward at DRIVE_SPEED
             pass
-        sleep_ms(50)
+
 finally:
 # --- Shutdown ---
     print("Stopping robot.")

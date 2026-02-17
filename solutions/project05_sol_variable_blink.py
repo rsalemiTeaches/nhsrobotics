@@ -58,6 +58,11 @@ def turn_on_led(interval):
 try:
     # We access the raw 'ok' button from the underlying alvik object for the kill switch
     while not sb.alvik.get_touch_cancel():
+        # IMPORTANT: Sleep for 10 ms so that the robot 
+        # has time to process the button presses.
+        # Notice how we use the time module when we don't
+        # import sleep_ms() directly.
+        time.sleep_ms(10)     
         
         # --- TASK 1: CHECK INPUTS (Debounced by SuperBot) ---
         
