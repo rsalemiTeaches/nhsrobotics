@@ -127,7 +127,6 @@ try:
             # Behavior: Solid Red
             alvik.left_led.set_color(1, 0, 0)
             alvik.right_led.set_color(1, 0, 0)
-
             # Transition: Checkmark -> HAPPY (Resurrection)
             if alvik.get_touch_ok():
                 current_state = STATE_HAPPY

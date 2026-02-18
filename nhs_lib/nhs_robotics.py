@@ -201,7 +201,7 @@ class SuperBot:
         self.__info_logging_enabled = False
         self._ensure_log_directory()
         self._rotate_logs()
-
+        self._first_error_logged = False
 
         # --- PERIPHERALS ---
         self.shared_i2c = None
@@ -734,7 +734,6 @@ class SuperBot:
     def enable_info_logging(self):
         self.__info_logging_enabled = True
         self._append_to_file('/workspace/logs/messages.log', '#' * 30)
-        self._append_to_file('/workspace/logs/errors.log', '#' * 30)
         print("Logging set to ON")
         self.update_display("Log: ON")
 
@@ -750,6 +749,9 @@ class SuperBot:
             self._append_to_file('/workspace/logs/messages.log', message)
 
     def log_error(self, message: str):
+        if not self._first_error_logged:
+            self._append_to_file('/workspace/logs/errors.log', '#' * 30)
+            self._first_error_logged = True
         full_msg = f"ERROR: {message}"
         print(full_msg)
         self.update_display(full_msg)
