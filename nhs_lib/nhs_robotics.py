@@ -198,11 +198,10 @@ class SuperBot:
         self.DEGREES_PER_CM = 33.88
 
         # --- LOGGING ---
-        self.info_logging_enabled = False
+        self.__info_logging_enabled = False
         self._ensure_log_directory()
         self._rotate_logs()
-        self._append_to_file('/workspace/logs/messages.log', '#' * 30)
-        self._append_to_file('/workspace/logs/errors.log', '#' * 30)
+
 
         # --- PERIPHERALS ---
         self.shared_i2c = None
@@ -733,19 +732,21 @@ class SuperBot:
     # --- LOGGING & IO METHODS ---
 
     def enable_info_logging(self):
-        self.info_logging_enabled = True
+        self.__info_logging_enabled = True
+        self._append_to_file('/workspace/logs/messages.log', '#' * 30)
+        self._append_to_file('/workspace/logs/errors.log', '#' * 30)
         print("Logging set to ON")
         self.update_display("Log: ON")
 
     def disable_info_logging(self):
-        self.info_logging_enabled = False
+        self.__info_logging_enabled = False
         print("Logging set to OFF")
         self.update_display("Log: OFF")
 
     def log_info(self, message: str):
         print(message)
         self.update_display(message)
-        if self.info_logging_enabled:
+        if self.__info_logging_enabled:
             self._append_to_file('/workspace/logs/messages.log', message)
 
     def log_error(self, message: str):
