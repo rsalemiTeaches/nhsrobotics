@@ -21,6 +21,9 @@ INTERVAL_STEP = 100      # Change amount per press
 # --- HELPER FUNCTION: Map Value ---
 # We provide this helper to make the math easier.
 # It converts a value from one range to another.
+# For example if you want to map numbers from
+# 0-50 to 0-255, you can use:
+# map_value(x, 0, 50, 0, 255)   
 def map_value(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
 

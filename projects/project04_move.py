@@ -43,5 +43,5 @@ finally:
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
     # WORK: Use alvik.brake() to stop the wheels
-    # WORK: Use the correct method to kill the background threads
+    # WORK: Use alvik.stop() to end the program and cleanup resources
 # Developed with the assistance of Google Gemini
