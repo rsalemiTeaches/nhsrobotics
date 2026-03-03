@@ -9,13 +9,13 @@ from nhs_robotics import SuperBot
 from time import sleep_ms
 # --- Initialization ---
 alvik = ArduinoAlvik()
+alvik.begin()
 sb = SuperBot(alvik)
 # --- Configuration ---
 DRIVE_SPEED = 30     # Speed in RPM
 STOP_DISTANCE = 10   # Stop distance in cm
 try:
 # --- Robot Startup ---
-    alvik.begin()
     print("Project 04: Obstacle Stop Started.")
     print(f"Driving forward; stopping within {STOP_DISTANCE}cm.")
     while True:
