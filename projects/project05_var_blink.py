@@ -67,7 +67,7 @@ def turn_on_led(interval):
 
 # --- MAIN LOOP ---
 try:
-    while not sb.alvik.get_touch_ok():
+    while not sb.alvik.get_touch_cancel():
         # IMPORTANT: Sleep for 10 ms so that the robot 
         # has time to process the button presses.
         # Notice how we use the time module when we don't
