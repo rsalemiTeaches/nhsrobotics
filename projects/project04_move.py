@@ -9,13 +9,13 @@ from nhs_robotics import SuperBot
 from time import sleep_ms
 # --- Initialization ---
 alvik = ArduinoAlvik()
+alvik.begin()
 sb = SuperBot(alvik)
 # --- Configuration ---
 DRIVE_SPEED = 30     # Speed in RPM
 STOP_DISTANCE = 10   # Stop distance in cm
 try:
 # --- Robot Startup ---
-    alvik.begin()
     print("Project 04: Obstacle Stop Started.")
     print(f"Driving forward; stopping within {STOP_DISTANCE}cm.")
     while True:
@@ -43,5 +43,5 @@ finally:
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
     # WORK: Use alvik.brake() to stop the wheels
-    # WORK: Use the correct method to kill the background threads
+    # WORK: Use alvik.stop() to end the program and cleanup resources
 # Developed with the assistance of Google Gemini

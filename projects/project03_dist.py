@@ -11,6 +11,7 @@ from time import sleep_ms
 
 # 1. Initialize the base Alvik 
 alvik = ArduinoAlvik()
+alvik.begin()
 
 # WORK: Initialize the SuperBot object and name it sb
 # Hint: sb = SuperBot(alvik)
@@ -22,16 +23,13 @@ THRESHOLD_PURPLE = 10   # Medium range
 THRESHOLD_BLUE = 15    # Nearby
 
 try:
-    alvik.begin()
     print("Project 03 Started using SuperBot.")
 
     # 3. Main loop: Run until the Cancel (X) button is pressed
     while not alvik.get_touch_cancel():
-
-
-        # WORK: Sleep for 10 ms so that the robot 
-        # has time to process the button presses.
-        
+        # Sleep for 10 ms so that the robot 
+        # has time to process the sensor data
+        sleep_ms(10)
 
         # WORK: Get the single closest distance from the SuperBot and store it 
         # Hint: closest_distance = sb.get_closest_distance()
@@ -59,10 +57,9 @@ try:
         # else:
         
 
-        # Small delay for sensor stability
-        sleep_ms(50)
 
 finally:
+    alvik.stop()
     # 5. WORK: Cleanup logic
     # Turn off both LEDs so they don't stay lit!
     # Hint: set_color(0, 0, 0)
