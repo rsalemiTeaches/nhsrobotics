@@ -742,17 +742,24 @@ class SuperBot:
         print("Logging set to OFF")
         self.update_display("Log: OFF")
 
-    def log_info(self, message: str):
+    def log_info(self, *args, sep=' '):
+        # Convert all arguments to strings and join them with the separator
+        message = sep.join(str(arg) for arg in args)
+        
         print(message)
         self.update_display(message)
         if self.__info_logging_enabled:
             self._append_to_file('/workspace/logs/messages.log', message)
 
-    def log_error(self, message: str):
+    def log_error(self, *args, sep=' '):
         if not self._first_error_logged:
             self._append_to_file('/workspace/logs/errors.log', '#' * 30)
             self._first_error_logged = True
-        full_msg = f"ERROR: {message}"
+            
+        # Convert all arguments to strings and join them with the separator
+        base_message = sep.join(str(arg) for arg in args)
+        full_msg = f"ERROR: {base_message}"
+        
         print(full_msg)
         self.update_display(full_msg)
         self._append_to_file('/workspace/logs/errors.log', full_msg)
