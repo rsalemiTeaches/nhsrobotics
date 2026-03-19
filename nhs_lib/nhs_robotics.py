@@ -1,5 +1,5 @@
 # nhs_robotics.py
-# Version: V48
+# Version: V49
 #
 # RESTORED: Full SuperBot functionality (HuskyLens, Logging, Moves)
 # MODIFIED: Refactored for PEP 8 compliance (Spacing, Imports, Naming)
@@ -28,7 +28,7 @@ from qwiic_i2c.micropython_i2c import MicroPythonI2C
 # Local Modules
 from nanolib import NanoLED
 
-print("Loading nhs_robotics.py V48")
+print("Loading nhs_robotics.py V49")
 
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
