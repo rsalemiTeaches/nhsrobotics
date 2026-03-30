@@ -1,0 +1,1 @@
+../proj_beg/p06_tomagotchi_beg.py
