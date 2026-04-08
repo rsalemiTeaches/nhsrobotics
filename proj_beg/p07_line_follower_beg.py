@@ -1,92 +1,59 @@
-# project07_scaffold_line_follower.py
-# Version: V02
-# Description: Alternating Action/Transition scaffold for State Machine
+# project07_line_sm_student.py
+# --- Section ---
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
-from time import sleep_ms, ticks_ms, ticks_diff
-
+from time import sleep_ms
+# --- Section ---
 alvik = ArduinoAlvik()
-
+# --- Section ---
 try:
+# --- Section ---
     alvik.begin()
     sb = SuperBot(alvik)
-
+# --- Section ---
     # --- Constants & States ---
-    STATE_FORWARD = 0
     STATE_LINE_LEFT = 1
     STATE_LINE_RIGHT = 2
-    STATE_LOST_LINE = 3
-
-    # --- Tuning Parameters ---
-    BLACK_THRESHOLD = 59
-    LOST_DELAY_MS = 2000
-    FAST_SPEED = 20
-    SLOW_SPEED = 5
-
+    BLACK_THRESHOLD = 60
+    BASE_SPEED = 30
+    SPEED_INCREMENT = 15
+# --- Section ---
     # --- Initial Setup ---
-    current_state = STATE_FORWARD
-    lost_time = None
+    current_state = STATE_LINE_LEFT
     sb.enable_info_logging()
     print("Press X to stop.")
-
+    sb.log_info("Get to work,you!")
+# --- Section ---
     # --- Main Loop ---
     while not alvik.get_touch_cancel():
+# --- Section ---
         sleep_ms(10)
-        
+# --- Section ---
         # 1. SENSE
-        l_sensor, c_sensor, r_sensor = alvik.get_line_sensors()
-
-        # 2. DECIDE & ACT (State Machine)
-        if current_state == STATE_FORWARD:
-            # ACTION (Provided)
-            alvik.set_wheels_speed(FAST_SPEED, FAST_SPEED)
-            alvik.left_led.set_color(0, 1, 0) # Green
-            alvik.right_led.set_color(0, 1, 0)
-            
-            # WORK: Implement TRANSITIONS
-            # If l_sensor is greater than BLACK_THRESHOLD, go to STATE_LINE_LEFT
-            # If r_sensor is greater than BLACK_THRESHOLD, go to STATE_LINE_RIGHT
-
-        elif current_state == STATE_LINE_LEFT:
-            # WORK: Implement ACTIONS
-            # Set wheel speeds to turn the robot back toward the line (Right wheel faster than Left)
-            # Set LEDs to a unique color for this state
-            
-            # TRANSITION (Provided)
-            if l_sensor < BLACK_THRESHOLD:
-                current_state = STATE_FORWARD
-            elif max(l_sensor, c_sensor, r_sensor) < BLACK_THRESHOLD:
-                current_state = STATE_LOST_LINE
-                lost_time = ticks_ms()
-
+        # WORK: Use alvik.get_line_sensors() to get values for l_sensor, c_sensor, and r_sensor
+# --- Section ---
+        if current_state == STATE_LINE_LEFT:
+# --- Section ---
+            # WORK: Define ACTIONS for STATE_LINE_LEFT (Set wheel speeds and LEDs)
+# --- Section ---
+            # WORK: Define TRANSITION to STATE_LINE_RIGHT if the right sensor sees black
+            pass
+# --- Section ---
         elif current_state == STATE_LINE_RIGHT:
-            # ACTION (Provided)
-            alvik.set_wheels_speed(SLOW_SPEED, FAST_SPEED)
-            alvik.left_led.set_color(0, 0, 1) # Blue
-            alvik.right_led.set_color(0, 0, 1)
-            
-            # WORK: Implement TRANSITIONS
-            # If r_sensor is back on white, go to STATE_FORWARD
-            # If all sensors are white, go to STATE_LOST_LINE (and initialize lost_time)
-
-        elif current_state == STATE_LOST_LINE:
-            # WORK: Implement ACTION (The Timeout)
-            # If ticks_diff(ticks_ms(), lost_time) > LOST_DELAY_MS, stop and break the loop
-            
-            # TRANSITION (Provided)
-            sb.log_info("LOST", l_sensor, c_sensor, r_sensor)
-            if l_sensor > BLACK_THRESHOLD:
-                current_state = STATE_LINE_LEFT
-            elif r_sensor > BLACK_THRESHOLD:
-                current_state = STATE_LINE_RIGHT
-
+# --- Section ---
+            # WORK: Define ACTIONS for STATE_LINE_RIGHT (Set wheel speeds and LEDs)
+# --- Section ---
+            # WORK: Define TRANSITION to STATE_LINE_LEFT if the left sensor sees black
+            pass
+# --- Section ---
 finally:
+# --- Section ---
     # Cleanup when the X button is pressed
     alvik.brake()
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
-    sb.log_info("Program", "Stopped")
+    sb.update_display("Program", "Stopped")
     alvik.stop()
-    print("Program ended.")
-
-# Developed with the assistance of Google Gemini.
+# --- Section ---
+# Developed with the assistance of Google Gemini
+# V02

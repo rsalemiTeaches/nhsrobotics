@@ -19,11 +19,9 @@ try:
     STATE_CHECK_LINE = 4
     
     
-    BLACK_THRESHOLD = 59
-    LOST_DELAY_MS = 2000  # Must lose the line for 1000ms before stopping
-    BASE_SPEED = 50
-    SPEED_INCREMENT = 10
-    lost_time = None
+    BLACK_THRESHOLD = 60
+    BASE_SPEED = 30
+    SPEED_INCREMENT = 15
     # --- Initial Setup ---
     current_state = STATE_LINE_LEFT
     sb.enable_info_logging()
@@ -35,7 +33,6 @@ try:
     while not alvik.get_touch_cancel():
         sleep_ms(10)
         # 1. SENSE
-        # We use an underscore '_' to unpack and ignore the center sensor
         l_sensor, c_sensor, r_sensor = alvik.get_line_sensors()
 
         if current_state == STATE_LINE_LEFT:
@@ -43,18 +40,18 @@ try:
             alvik.set_wheels_speed(BASE_SPEED - SPEED_INCREMENT, BASE_SPEED + SPEED_INCREMENT)
             alvik.left_led.set_color(0, 1, 0) # Green
             alvik.right_led.set_color(0, 0, 0) # Off
-            sb.log_info("STATE_LINE_LEFT", l_sensor, c_sensor, r_sensor)
+            #sb.log_info("STATE_LINE_LEFT", l_sensor, c_sensor, r_sensor)
             # --- TRANSITIONS ---
-            if l_sensor < BLACK_THRESHOLD:
+            if r_sensor > BLACK_THRESHOLD:
                 current_state = STATE_LINE_RIGHT
         elif current_state == STATE_LINE_RIGHT:
             # --- ACTIONS ---
             alvik.set_wheels_speed(BASE_SPEED + SPEED_INCREMENT, BASE_SPEED - SPEED_INCREMENT)
             alvik.left_led.set_color(0, 0, 0) # Off
             alvik.right_led.set_color(0, 1, 0) # Green
-            sb.log_info("STATE_LINE_RIGHT", l_sensor, c_sensor, r_sensor)
+            #sb.log_info("STATE_LINE_RIGHT", l_sensor, c_sensor, r_sensor)
             # --- TRANSITIONS ---
-            if r_sensor < BLACK_THRESHOLD:
+            if l_sensor > BLACK_THRESHOLD:
                 current_state = STATE_LINE_LEFT
 
 finally:
