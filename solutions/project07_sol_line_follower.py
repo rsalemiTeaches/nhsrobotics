@@ -3,7 +3,6 @@
 # Description: A State Machine-based line follower
 
 from arduino_alvik import ArduinoAlvik
-from init_bot.nhs_robot.projects.p07_line_follower import make_log_line
 from nhs_robotics import SuperBot
 from time import sleep_ms, ticks_ms, ticks_diff
 
@@ -14,7 +13,6 @@ try:
     sb = SuperBot(alvik)
 
     # --- Constants & States ---
-    STATE_FORWARD = 0
     STATE_LINE_LEFT = 1
     STATE_LINE_RIGHT = 2
     STATE_LOST_LINE = 3
@@ -23,11 +21,11 @@ try:
     
     BLACK_THRESHOLD = 59
     LOST_DELAY_MS = 2000  # Must lose the line for 1000ms before stopping
-    FAST_SPEED = 20
-    SLOW_SPEED = 5
+    BASE_SPEED = 50
+    SPEED_INCREMENT = 10
     lost_time = None
     # --- Initial Setup ---
-    current_state = STATE_FORWARD
+    current_state = STATE_LINE_LEFT
     sb.enable_info_logging()
     print("Press X to stop.")
     sb.log_info("SYSTEM START: Line Follower SM")
@@ -42,51 +40,22 @@ try:
 
         if current_state == STATE_LINE_LEFT:
             # --- ACTIONS ---
-            alvik.set_wheels_speed(SLOW_SPEED, FAST_SPEED)
+            alvik.set_wheels_speed(BASE_SPEED - SPEED_INCREMENT, BASE_SPEED + SPEED_INCREMENT)
             alvik.left_led.set_color(0, 1, 0) # Green
             alvik.right_led.set_color(0, 0, 0) # Off
             sb.log_info("STATE_LINE_LEFT", l_sensor, c_sensor, r_sensor)
             # --- TRANSITIONS ---
             if l_sensor < BLACK_THRESHOLD:
                 current_state = STATE_LINE_RIGHT
-            elif max(l_sensor, c_sensor, r_sensor) < BLACK_THRESHOLD:
-                current_state = STATE_LOST_LINE
         elif current_state == STATE_LINE_RIGHT:
             # --- ACTIONS ---
-            alvik.set_wheels_speed(FAST_SPEED, SLOW_SPEED)
+            alvik.set_wheels_speed(BASE_SPEED + SPEED_INCREMENT, BASE_SPEED - SPEED_INCREMENT)
             alvik.left_led.set_color(0, 0, 0) # Off
             alvik.right_led.set_color(0, 1, 0) # Green
             sb.log_info("STATE_LINE_RIGHT", l_sensor, c_sensor, r_sensor)
             # --- TRANSITIONS ---
             if r_sensor < BLACK_THRESHOLD:
                 current_state = STATE_LINE_LEFT
-            elif max(l_sensor, c_sensor, r_sensor) < BLACK_THRESHOLD:
-                current_state = STATE_LOST_LINE;
-
-        #Flex: Make the robot stop if has not seen the line for a while
-
-        elif current_state == STATE_LOST_LINE :
-            lost_time = ticks_ms()
-            if l_sensor > BLACK_THRESHOLD:
-                current_state = STATE_LINE_LEFT       
-            elif r_sensor > BLACK_THRESHOLD:
-                current_state = STATE_LINE_RIGHT
-            else:
-                if ticks_diff(ticks_ms(), lost_time) > LOST_DELAY_MS:
-                    sb.log_info("Line lost for too long. Stopping.")
-                    break
-                current_state = STATE_LOST_LINE
-
-            sb.log_info("STATE_LOST_LINE", l_sensor, c_sensor, r_sensor)
-            
-        elif current_state == STATE_CHECK_LINE:
-            alvik.left_led.set_color(1, 0, 0) # Red
-            alvik.right_led.set_color(1, 0, 0) # Red
-            sb.log_info("STATE_CHECK_LINE", l_sensor, c_sensor, r_sensor)
-            if l_sensor > BLACK_THRESHOLD:
-                current_state = STATE_LINE_LEFT       
-            elif r_sensor > BLACK_THRESHOLD:
-                current_state = STATE_LINE_RIGHT
 
 finally:
     # Cleanup when the X button is pressed
@@ -95,5 +64,5 @@ finally:
     alvik.right_led.set_color(0, 0, 0)
     sb.update_display("Program", "Stopped")
     alvik.stop()
-    print("Program ended.")
+    
     
