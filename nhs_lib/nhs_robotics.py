@@ -24,6 +24,7 @@ import ssd1306
 import qwiic_buzzer
 from qwiic_huskylens import QwiicHuskylens
 from qwiic_i2c.micropython_i2c import MicroPythonI2C
+from wifi_controller import Controller
 
 # Local Modules
 from nanolib import NanoLED
