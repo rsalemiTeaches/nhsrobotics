@@ -1,9 +1,10 @@
 # nhs_robotics.py
-# Version: V49
+# Version: V50
 #
 # RESTORED: Full SuperBot functionality (HuskyLens, Logging, Moves)
 # MODIFIED: Refactored for PEP 8 compliance (Spacing, Imports, Naming)
 # ADDED: NanoLED integration
+# DISABLED: Hardware file logging disabled to prevent flash corruption.
 #
 # Includes:
 # 1. Helper classes (OLED, Buzzer, Button, NanoLED)
@@ -29,7 +30,7 @@ from wifi_controller import Controller
 # Local Modules
 from nanolib import NanoLED
 
-print("Loading nhs_robotics.py V49")
+print("Loading nhs_robotics.py V50")
 
 
 # --- HELPER FUNCTIONS (Legacy Bridge) ---
@@ -306,7 +307,7 @@ class SuperBot:
         if self.shared_i2c:
             try:
                 self.screen = OLED(i2c_driver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V48")
+                self.screen.show_lines("SuperBot", "Online", "V50")
             except Exception:
                 pass
 
@@ -734,7 +735,6 @@ class SuperBot:
 
     def enable_info_logging(self):
         self.__info_logging_enabled = True
-        self._append_to_file('/workspace/logs/messages.log', '#' * 30)
         print("Logging set to ON")
         self.update_display("Log: ON")
 
@@ -749,12 +749,10 @@ class SuperBot:
         
         print(message)
         self.update_display(message)
-        if self.__info_logging_enabled:
-            self._append_to_file('/workspace/logs/messages.log', message)
+        # DISABLED: self._append_to_file('/workspace/logs/messages.log', message)
 
     def log_error(self, *args, sep=' '):
         if not self._first_error_logged:
-            self._append_to_file('/workspace/logs/errors.log', '#' * 30)
             self._first_error_logged = True
             
         # Convert all arguments to strings and join them with the separator
@@ -763,46 +761,19 @@ class SuperBot:
         
         print(full_msg)
         self.update_display(full_msg)
-        self._append_to_file('/workspace/logs/errors.log', full_msg)
+        # DISABLED: self._append_to_file('/workspace/logs/errors.log', full_msg)
 
     def _ensure_log_directory(self):
-        try:
-            os.mkdir('/workspace/logs')
-        except OSError:
-            pass
+        # TEMPORARILY DISABLED: Alvik filesystem corruption issue.
+        pass
 
     def _rotate_logs(self):
-        max_size = 20 * 1024
-
-        def rotate_file(filename):
-            try:
-                log_path = f'/workspace/logs/{filename}'
-                bak_path = f'/workspace/logs/{filename.replace(".log", ".bak")}'
-                try:
-                    stat = os.stat(log_path)
-                    size = stat[6]
-                except OSError:
-                    return
-                if size > max_size:
-                    print(f"Rotating {filename}...")
-                    try:
-                        os.remove(bak_path)
-                    except OSError:
-                        pass
-                    os.rename(log_path, bak_path)
-            except Exception:
-                pass
-
-        rotate_file('messages.log')
-        rotate_file('errors.log')
+        # TEMPORARILY DISABLED: Alvik filesystem corruption issue.
+        pass
 
     def _append_to_file(self, filename, text):
-        try:
-            timestamp = time.ticks_ms() / 1000.0
-            with open(filename, 'a') as f:
-                f.write(f"[{timestamp:.2f}] {text}\n")
-        except Exception:
-            pass
+        # TEMPORARILY DISABLED: Alvik filesystem corruption issue.
+        pass
 
     # --- HARDWARE HELPERS ---
 
@@ -819,4 +790,3 @@ class SuperBot:
                 self.screen.show_lines(l1, l2, l3)
             except Exception:
                 pass
-            
