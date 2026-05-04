@@ -1,4 +1,5 @@
 #!/bin/bash
+# v28 - FIXED: Added explicit removal of legacy /workspace/logs directory.
 # v27 - FIXED: Added carriage return stripping (tr -d '\r') to remote output.
 #       This fixes the bug where files were falsely identified as "extraneous"
 #       due to invisible characters in the serial output.
@@ -25,7 +26,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "Running initialize_robot.sh - v27 (CRLF Fix)"
+echo "Running initialize_robot.sh - v28 (Remove Workspace Logs)"
 
 # --- VALIDATION ---
 if [ -z "$SOURCE_DIR" ]; then echo "❌ ERROR: Source directory not specified. Use -d <path>."; exit 1; fi
@@ -47,6 +48,12 @@ if ! mpremote "${CONNECT_ARGS[@]}" ls :workspace > /dev/null 2>&1; then
     mpremote "${CONNECT_ARGS[@]}" mkdir :workspace
     echo "   - Created /workspace"
 fi
+
+echo "🧹 Removing legacy log directories..."
+mpremote "${CONNECT_ARGS[@]}" rm -r :/workspace/logs > /dev/null 2>&1 || true
+mpremote "${CONNECT_ARGS[@]}" rm -r :/workspace/log > /dev/null 2>&1 || true
+echo "   - Cleared logs"
+
 # Ensure safety file
 mpremote "${CONNECT_ARGS[@]}" exec "
 import os
