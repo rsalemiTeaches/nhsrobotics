@@ -46,17 +46,6 @@ try:
         # Update data from the web server
         ctl.update()
 
-        # Safety Check: Stop motors if link is lost
-        if not ctl.is_connected():
-            alvik.set_wheels_speed(0, 0)
-            while not ctl.is_connected():
-                alvik.left_led.set_color(1, 0, 0) # Red Blink = Link Lost
-                time.sleep(0.2)
-                alvik.left_led.set_color(0, 0, 0)
-                time.sleep(0.2)
-                ctl.update()
-            alvik.left_led.set_color(0, 1, 0) # Back to Green
-
         # --- WORK: TANK DRIVE LOGIC ---
         # 1. Calculate speeds by multiplying the stick (ctl.left_y) by MAX_RPM
         # Note: You may need to multiply by -1 if the robot drives backwards!

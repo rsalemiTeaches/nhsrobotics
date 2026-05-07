@@ -28,25 +28,11 @@ print("Connected!")
 try:
     # --- MAIN LOOP ---
     while True:
-        # 1. Update Data from Wi-Fi
+        # Update Data from Wi-Fi
         ctl.update()
 
-        # 2. Safety Check (Link Lost?)
-        if not ctl.is_connected():
-            print("Link Lost!")
-            alvik.set_wheels_speed(0, 0) # Stop motors immediately
-            # Blink Red until reconnected
-            while not ctl.is_connected():
-                alvik.left_led.set_color(1, 0, 0)
-                alvik.right_led.set_color(0, 0, 0)
-                time.sleep(0.1)
-                alvik.left_led.set_color(0, 0, 0)
-                alvik.right_led.set_color(1, 0, 0)
-                time.sleep(0.1)
-                ctl.update()
-            print("Link Restored.")
 
-        # 3. Drive Logic (Tank Drive)
+        # Drive Logic (Tank Drive)
         # Using the correct variable names from our V50 wifi_controller
         left_speed = ctl.left_y * MAX_SPEED
         right_speed = ctl.right_y * MAX_SPEED
