@@ -18,8 +18,6 @@ sb = SuperBot(alvik)
 
 print("\n--- Starting Logging Feature Test ---\n")
 
-# Enable info logging so messages are written to /workspace/logs/messages.log
-sb.enable_info_logging()
 time.sleep(1)
 
 # Test 1: Standard single-string logging (Backwards compatibility)
@@ -51,5 +49,3 @@ print("\n--- Logging Test Complete ---")
 print("Please check the OLED screen to see if the last error is displayed.")
 print("Then, check /workspace/logs/messages.log and /workspace/logs/errors.log on the Alvik.")
 
-# Turn off logging before exiting
-sb.disable_info_logging()

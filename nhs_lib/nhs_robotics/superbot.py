@@ -1,189 +1,17 @@
-# nhs_robotics.py
-# Version: V50
-#
-# RESTORED: Full SuperBot functionality (HuskyLens, Logging, Moves)
-# MODIFIED: Refactored for PEP 8 compliance (Spacing, Imports, Naming)
-# ADDED: NanoLED integration
-# DISABLED: Hardware file logging disabled to prevent flash corruption.
-#
-# Includes:
-# 1. Helper classes (OLED, Buzzer, Button, NanoLED)
-# 2. "SuperBot" Class: Wraps an existing ArduinoAlvik object
-
-# --- IMPORTS ---
-
-# Standard Library
-import math
-import os
-import time
-
+# --- "SuperBot" Class ---
 # MicroPython Hardware
 from machine import Pin, I2C
 
 # Third-Party / Drivers
 import ssd1306
 import qwiic_buzzer
+import time
 from qwiic_huskylens import QwiicHuskylens
 from qwiic_i2c.micropython_i2c import MicroPythonI2C
-from wifi_controller import Controller
-
-# Local Modules
-from nanolib import NanoLED
-
-print("Loading nhs_robotics.py V50")
+from .peripherals import Button, OLED, NanoLED, Buzzer
 
 
-# --- HELPER FUNCTIONS (Legacy Bridge) ---
 
-def get_closest_distance(d1, d2, d3, d4, d5):
-    """Legacy wrapper for SuperBot static method."""
-    return SuperBot.get_closest_distance_static(d1, d2, d3, d4, d5)
-
-
-# --- CLASSES ---
-
-class Button:
-    """
-    Detects a single 'rising edge' press event.
-    """
-    def __init__(self, getter_func):
-        self.get_value = getter_func
-        self.previous_state = False
-
-    def is_pressed(self):
-        """Returns True only on the moment the button is first touched."""
-        current_state = self.get_value()
-        pressed = False
-        if current_state and not self.previous_state:
-            pressed = True
-        self.previous_state = current_state
-        return pressed
-
-
-class OLED:
-    """
-    Wrapper for the SSD1306 OLED Display.
-    """
-    def __init__(self, i2c_driver=None):
-        scl_pin = 12
-        sda_pin = 11
-        i2c_address = 0x3c
-        oled_width = 128
-        oled_height = 32
-        self.display = None
-
-        try:
-            if i2c_driver is None:
-                i2c_driver = I2C(1, scl=Pin(scl_pin), sda=Pin(sda_pin))
-            self.display = ssd1306.SSD1306_I2C(
-                oled_width, oled_height, i2c_driver, i2c_address
-            )
-            self.clear()
-        except Exception:
-            pass
-
-    def clear(self):
-        if self.display:
-            try:
-                self.display.fill(0)
-                self.display.show()
-            except Exception:
-                pass
-
-    def show_lines(self, line1="", line2="", line3=""):
-        if self.display:
-            try:
-                self.display.fill(0)
-                self.display.text(str(line1), 0, 0)
-                self.display.text(str(line2), 0, 10)
-                self.display.text(str(line3), 0, 20)
-                self.display.show()
-            except Exception:
-                pass
-
-
-# Alias for backward compatibility with student code
-oLED = OLED
-
-
-class Buzzer:
-    def __init__(self, scl_pin=12, sda_pin=11, i2c_driver=None):
-        self.frequency = 2730
-        self.duration = 100
-        self._buzzer = None
-
-        # Constants (initialized to 0, populated if connected)
-        self.NOTE_C4 = 0
-        self.NOTE_G3 = 0
-        self.NOTE_A3 = 0
-        self.NOTE_B3 = 0
-        self.NOTE_REST = 0
-        self.EFFECT_SIREN = 0
-        self.EFFECT_YES = 0
-        self.EFFECT_NO = 0
-        self.EFFECT_LAUGH = 0
-        self.EFFECT_CRY = 0
-
-        try:
-            if i2c_driver is None:
-                # Use the class directly to avoid circular dependency or import issues
-                i2c_driver = MicroPythonI2C(
-                    esp32_i2c=I2C(1, scl=Pin(scl_pin), sda=Pin(sda_pin))
-                )
-
-            self._buzzer = qwiic_buzzer.QwiicBuzzer(i2c_driver=i2c_driver)
-            if self._buzzer.begin() is False:
-                self._buzzer = None
-                return
-
-            self._volume = self._buzzer.VOLUME_LOW
-            self.NOTE_C4 = self._buzzer.NOTE_C4
-            self.NOTE_G3 = self._buzzer.NOTE_G3
-            self.NOTE_A3 = self._buzzer.NOTE_A3
-            self.NOTE_B3 = self._buzzer.NOTE_B3
-            self.NOTE_REST = 0
-            self.EFFECT_SIREN = 0
-            self.EFFECT_YES = 2
-            self.EFFECT_NO = 4
-            self.EFFECT_LAUGH = 6
-            self.EFFECT_CRY = 8
-            self.connected = True
-        except Exception:
-            self._buzzer = None
-            self.connected = False
-
-    def set_frequency(self, new_frequency):
-        self.frequency = new_frequency
-
-    def set_duration(self, new_duration_ms):
-        self.duration = new_duration_ms
-
-    def on(self):
-        if self._buzzer:
-            try:
-                self._buzzer.configure(
-                    self.frequency, self.duration, self._volume
-                )
-                self._buzzer.on()
-            except Exception:
-                pass
-
-    def off(self):
-        if self._buzzer:
-            try:
-                self._buzzer.off()
-            except Exception:
-                pass
-
-    def play_effect(self, effect_number):
-        if self._buzzer:
-            try:
-                self._buzzer.play_sound_effect(effect_number, self._volume)
-            except Exception:
-                pass
-
-
-# --- "SuperBot" Class ---
 
 class SuperBot:
     # Mode Constants
@@ -790,3 +618,6 @@ class SuperBot:
                 self.screen.show_lines(l1, l2, l3)
             except Exception:
                 pass
+
+print("Loaded superbot.py V01")
+
