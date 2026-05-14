@@ -6,7 +6,6 @@ from machine import Pin, I2C
 import ssd1306
 import qwiic_buzzer
 import time
-import math
 from qwiic_huskylens import QwiicHuskylens
 from qwiic_i2c.micropython_i2c import MicroPythonI2C
 from .peripherals import Button, OLED, NanoLED, Buzzer
