@@ -89,6 +89,19 @@ try:
                 sb.log_info("Transition:", "WAITING", "->", "SEARCHING")
                 
         elif current_state == STATE_SEARCHING:
+            # ACT
+            # WORK: Turn both LEDs Green (0, 1, 0) and set wheels to SEARCH_SPEED
+
+            pass
+
+            # THINK
+            # WORK: Check if an edge is detected. If so, switch to STATE_TURNING. 
+            #       Otherwise, if distance is less than ATTACK_DISTANCE, switch to STATE_PUSHING.
+            # if edge_detected:
+            #     current_state = STATE_TURNING
+            #     sb.log_info("State:", "TURNING", "Edge detected!")
+            # elif distance_cm < ATTACK_DISTANCE:
+            #     current_state = STATE_PUSHING
             sb.log_info("State:", "PUSHING", "Target:", distance_cm, "cm")
             pass
                 
@@ -106,15 +119,20 @@ try:
         elif current_state == STATE_TURNING:
             # ACT
             # WORK: Turn both LEDs Red (1, 0, 0) and stop the motors (brake).
+            # alvik.left_led.set_color(1, 0, 0)
+            # alvik.right_led.set_color(1, 0, 0)
+            # alvik.brake()
+            
             # WORK: Print an evade message, back up 5 cm, and rotate 120 degrees (both blocking)
             # sb.log_info("Executing", "evade maneuver...")
-            # use alvik.move()
-            # use alvik.rotate()
+            # alvik.move(-5, 'cm', blocking=True)
+            # alvik.rotate(120, 'deg', blocking=True)
             pass
             
             # THINK
             # WORK: Force the state back to STATE_SEARCHING now that the turn is complete.
-            sb.log_info("State:", "SEARCHING", "Maneuver complete.")
+            # current_state = STATE_SEARCHING
+            # sb.log_info("State:", "SEARCHING", "Maneuver complete.")
             pass
 
         # Small delay to keep the SENSE loop stable

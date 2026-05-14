@@ -1,0 +1,1 @@
+This project contains spicy projects.  These have the least scaffolding.
