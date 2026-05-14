@@ -22,11 +22,6 @@ class MockBlock:
 
 def test_calculate_approach_vector(bot):
     try:
-        # Monkey-patch math into superbot module since it's missing the import
-        import sys
-        if 'nhs_robotics.superbot' in sys.modules:
-            sys.modules['nhs_robotics.superbot'].math = math
-
         # Test with width 0
         zero_block = MockBlock(0, 160)
         vector = bot.calculate_approach_vector(zero_block, 10.0)
