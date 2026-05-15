@@ -47,5 +47,3 @@ sb.log_error("Test 5: Connection to", sensor_name, "timed out. Code:", error_cod
 
 print("\n--- Logging Test Complete ---")
 print("Please check the OLED screen to see if the last error is displayed.")
-print("Then, check /workspace/logs/messages.log and /workspace/logs/errors.log on the Alvik.")
-
