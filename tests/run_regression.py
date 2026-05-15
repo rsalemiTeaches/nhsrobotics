@@ -2,7 +2,11 @@
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
+import sys
 
+# Append the root-level tests directory to the sys.path list
+if "/tests" not in sys.path:
+    sys.path.append("/tests")
 from regression_utils import RegressionRunner
 import regression_logic
 import regression_hardware
