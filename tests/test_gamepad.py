@@ -8,7 +8,7 @@ import sys
 # Standard imports for Alvik testing
 try:
     from arduino_alvik import ArduinoAlvik
-    from nhs_robotics import SuperBot, NanoLED
+    from nhs_robotics import SuperBot
     from controller import Controller
 except ImportError:
     print("[SKIP] test_gamepad - Hardware modules not found (must run on Alvik)")
@@ -21,7 +21,6 @@ def test_gamepad():
 
     print("Initializing SuperBot...")
     bot = SuperBot(alvik)
-    nano_led = NanoLED()
 
     print("Initializing Web Controller...")
     # This sets up the AP 'Alvik-Link' and starts the server
@@ -69,22 +68,23 @@ def test_gamepad():
             # Cross -> Buzzer
             if pad.buttons.get('cross'):
                 print("[PASS] Cross pressed - Buzzing!")
-                bot.buzz()
+                if bot.buzzer: bot.buzzer.on()
+            else:
+                if bot.buzzer: bot.buzzer.off()
 
             # Square -> OLED
             if pad.buttons.get('square'):
                 print("[PASS] Square pressed - OLED Text!")
-                bot.text("Gamepad", 0, 0)
-                bot.text("Square!", 0, 20)
-                bot.show()
-                time.sleep(0.1) # Debounce
+                if bot.screen: bot.screen.show_lines("Gamepad", "Square!")
+            else:
+                if bot.screen: bot.screen.clear()
 
             # Triangle -> NanoLED
             if pad.buttons.get('triangle'):
                 print("[PASS] Triangle pressed - NanoLED!")
-                nano_led.set_rgb(255, 0, 0) # Red
+                bot.set_nano_rgb(255, 0, 0) # Red
             else:
-                nano_led.off() # Off
+                bot.nano_off() # Off
 
             # Circle -> Built-in LEDs (using alvik base directly as bot doesn't wrap it)
             if pad.buttons.get('circle'):
@@ -105,13 +105,20 @@ def test_gamepad():
             alvik.set_wheels_speed(0, 0)
             alvik.left_led.set_color(0, 0, 0)
             alvik.right_led.set_color(0, 0, 0)
-            nano_led.off()
+            bot.nano_off()
+            if bot.buzzer: bot.buzzer.off()
+            if bot.screen: bot.screen.clear()
 
         # Short sleep to prevent busy waiting
         time.sleep(0.02)
 
     # Cleanup
     alvik.set_wheels_speed(0, 0)
+    alvik.left_led.set_color(0, 0, 0)
+    alvik.right_led.set_color(0, 0, 0)
+    bot.nano_off()
+    if bot.buzzer: bot.buzzer.off()
+    if bot.screen: bot.screen.clear()
     print("Gamepad test finished.")
 
 if __name__ == "__main__":
