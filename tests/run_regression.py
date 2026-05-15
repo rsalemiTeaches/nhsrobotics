@@ -2,7 +2,10 @@
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
+import sys
 
+if "/tests" not in sys.path:
+    sys.path.append("/tests")
 from regression_utils import RegressionRunner
 import regression_logic
 import regression_hardware
