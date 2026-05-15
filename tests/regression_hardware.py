@@ -104,8 +104,8 @@ def test_line_sensors(bot):
 def test_builtin_leds(bot):
     import time
     try:
-        bot.alvik.left_led.set_color(0, 255, 0)
-        bot.alvik.right_led.set_color(0, 255, 0)
+        bot.alvik.left_led.set_color(0, 1, 0)
+        bot.alvik.right_led.set_color(0, 1, 0)
         time.sleep(0.1)
         bot.alvik.left_led.set_color(0, 0, 0)
         bot.alvik.right_led.set_color(0, 0, 0)
