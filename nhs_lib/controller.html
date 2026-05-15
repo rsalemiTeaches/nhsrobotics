@@ -48,6 +48,8 @@
   <script>
     let interval = null;
     let busy = false; // Flow Control Flag
+    let lastQuery = ""; // Throttle state
+    let lastTime = 0;   // Heartbeat timer
 
     window.addEventListener("gamepadconnected", (e) => {
       document.getElementById("status").innerText = "Active!";
@@ -108,22 +110,31 @@
           }
       }
 
-      if (busy) return;
-      busy = true; 
+      // 3. Bandwidth Throttling & Heartbeat
+      let currentQuery = `ax=${lx.toFixed(2)},${ly.toFixed(2)},${rx.toFixed(2)},${ry.toFixed(2)}&tr=${l2.toFixed(2)},${r2.toFixed(2)}&mk=${mask}`;
+      let now = Date.now();
 
-      // V05 FIX: Restore AbortController (50ms timeout)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 50);
-      
-      fetch(`/update?ax=${lx.toFixed(2)},${ly.toFixed(2)},${rx.toFixed(2)},${ry.toFixed(2)}&tr=${l2.toFixed(2)},${r2.toFixed(2)}&mk=${mask}&z=${Date.now()}`, { signal: controller.signal })
-        .then(response => { 
-            clearTimeout(timeoutId);
-            busy = false; 
-        }) 
-        .catch(e => { 
-            // If it times out or fails, clear busy so we try again next loop
-            busy = false; 
-        });      
+      // Send if data changed OR 250ms heartbeat elapsed
+      if (currentQuery !== lastQuery || (now - lastTime) > 250) {
+        if (busy) return;
+        busy = true;
+        lastQuery = currentQuery;
+        lastTime = now;
+
+        // V05 FIX: Restore AbortController (50ms timeout)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 50);
+
+        fetch(`/update?${currentQuery}&z=${now}`, { signal: controller.signal })
+          .then(response => {
+              clearTimeout(timeoutId);
+              busy = false;
+          })
+          .catch(e => {
+              // If it times out or fails, clear busy so we try again next loop
+              busy = false;
+          });
+      }
     }
   </script>
 </body>

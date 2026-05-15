@@ -177,20 +177,25 @@ class Controller:
         if r:
             try:
                 cl, _ = self.socket.accept()
-                req = cl.recv(1024)
-                
-                if req:
-                    parse_result = self.parse_request(req)
+                cl.settimeout(0.1) # Prevent server from hanging on recv
+                try:
+                    req = cl.recv(1024)
                     
-                    if parse_result == "HOME":
-                        # Send HTML Header and Content
-                        cl.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
-                        cl.send(self.html)
-                    else:
-                        # Send Empty Success Response (Fast)
-                        cl.send('HTTP/1.0 200 OK\r\n\r\n')
+                    if req:
+                        parse_result = self.parse_request(req)
                         
-                cl.close()
+                        if parse_result == "HOME":
+                            # Send HTML Header and Content
+                            cl.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
+                            cl.send(self.html)
+                        else:
+                            # Send Empty Success Response (Fast)
+                            cl.send('HTTP/1.0 200 OK\r\n\r\n')
+                except OSError:
+                    # Timeout or disconnect during recv
+                    pass
+                finally:
+                    cl.close()
             except OSError:
                 pass
             
