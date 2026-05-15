@@ -36,3 +36,23 @@ def test_calculate_approach_vector(bot):
         return 1, ""
     except Exception as e:
         return 0, str(e)
+
+def test_logging(bot):
+    try:
+        # Test 1: Standard single-string logging
+        bot.log_info("Test 1: Standard single string.")
+
+        # Test 2: Multiple arguments of mixed types
+        bot.log_info("Test 2: Distance to tag", 2, "is", 12.4, "cm.")
+
+        # Test 3: Multiple arguments with a custom separator
+        bot.log_info("Test 3: Target Coordinates", 150, 200, sep=" | ")
+
+        # Test 4: Single-string error logging
+        bot.log_error("Test 4: Single string simulated error.")
+
+        # Test 5: Multiple arguments error logging
+        bot.log_error("Test 5: Connection to", "HuskyLens", "timed out. Code:", 503)
+        return 1, ""
+    except Exception as e:
+        return 0, str(e)

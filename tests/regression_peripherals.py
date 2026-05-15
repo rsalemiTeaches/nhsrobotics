@@ -24,3 +24,16 @@ def test_huskylens(bot):
         return 1, ""
     except Exception as e:
         return 0, str(e)
+
+def test_gamepad_init(bot):
+    try:
+        from controller import Controller
+        import time
+        pad = Controller(verbose=False)
+        # Process one update tick
+        pad.update()
+        return 1, "Controller initialized and updated"
+    except ImportError:
+        return 2, "Hardware modules not found (must run on Alvik)"
+    except Exception as e:
+        return 0, str(e)
