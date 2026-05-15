@@ -8,7 +8,7 @@ import sys
 # Standard imports for Alvik testing
 try:
     from arduino_alvik import ArduinoAlvik
-    from nhs_robotics import SuperBot
+    from nhs_robotics import SuperBot, NanoLED
     from controller import Controller
 except ImportError:
     print("[SKIP] test_gamepad - Hardware modules not found (must run on Alvik)")
@@ -21,6 +21,7 @@ def test_gamepad():
 
     print("Initializing SuperBot...")
     bot = SuperBot(alvik)
+    nano_led = NanoLED()
 
     print("Initializing Web Controller...")
     # This sets up the AP 'Alvik-Link' and starts the server
@@ -81,9 +82,9 @@ def test_gamepad():
             # Triangle -> NanoLED
             if pad.buttons.get('triangle'):
                 print("[PASS] Triangle pressed - NanoLED!")
-                bot.lights(255, 0, 0) # Red
+                nano_led.set_rgb(255, 0, 0) # Red
             else:
-                bot.lights(0, 0, 0) # Off
+                nano_led.off() # Off
 
             # Circle -> Built-in LEDs (using alvik base directly as bot doesn't wrap it)
             if pad.buttons.get('circle'):
@@ -104,7 +105,7 @@ def test_gamepad():
             alvik.set_wheels_speed(0, 0)
             alvik.left_led.set_color(0, 0, 0)
             alvik.right_led.set_color(0, 0, 0)
-            bot.lights(0, 0, 0)
+            nano_led.off()
 
         # Short sleep to prevent busy waiting
         time.sleep(0.02)
