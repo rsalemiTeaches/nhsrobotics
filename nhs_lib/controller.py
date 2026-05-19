@@ -101,12 +101,19 @@ class Controller:
             except OSError:
                 print(f"ERROR: Could not find 'controller.html' in {file_path} or root.")
                 self.html = "<h1>Error: controller.html missing. Check /lib folder!</h1>"
-
+    def _reset_state(self):
+            """Zeros out all inputs if connection is lost to prevent ghost inputs."""
+            self.left_x, self.left_y = 0.0, 0.0
+            self.right_x, self.right_y = 0.0, 0.0
+            self.L2, self.R2 = 0.0, 0.0
+            for key in self.buttons:
+                self.buttons[key] = False
     def is_connected(self):
         """Returns True if a valid packet was received in the last 300.0 seconds (5 mins)."""
-        time_ok =  ((time.time() - self.last_packet_time) < 300.0)
+# Calculates: current_ticks - last_packet_time accounting for hardware rollover
+        elapsed = time.ticks_diff(time.ticks_ms(), self.last_packet_time)
+        time_ok = elapsed < 1000 
         connected_ok = self.connected
-        print(time_ok, connected_ok)
         return time_ok and connected_ok
 
     def _check_verbose(self):
@@ -117,7 +124,9 @@ class Controller:
         """Parses the URL parameters from the HTTP GET request."""
         try:
             req_line = req.decode().split('\r\n')[0]
-            
+             # Mark connection as active immediately upon receiving data
+            self.last_packet_time = time.ticks_ms()
+            self.connected = True           
             # Update Heartbeat on Home Page Load (GET / )
             if req_line.startswith('GET / '): 
                 return "HOME"
@@ -126,9 +135,6 @@ class Controller:
             if '?' not in req_line:
                 return "UNKNOWN"
             
-            # Mark connection as active immediately upon receiving data
-            self.last_packet_time = time.time()
-            self.connected = True
             # Robustly extract query string: GET /update?ax=... HTTP/1.1
             url_part = req_line.split(' ')[1]
             query_string = url_part.split('?')[1]
@@ -176,7 +182,9 @@ class Controller:
         """Main server loop to be called in the main loop."""
         # Non-blocking check for new connections
         r, _, _ = select.select([self.socket], [], [], 0) 
-        
+        if not self.is_connected():
+            self._reset_state()
+            
         if r:
             try:
                 cl, _ = self.socket.accept()

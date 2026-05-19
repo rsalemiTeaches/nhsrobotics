@@ -10,7 +10,7 @@ alvik.begin()
 
 # 2. Initialize Wi-Fi Controller
 print("Starting Wi-Fi Access Point...")
-ssid = "Alvik-"+ubinascii.hexlify(machine.unique_id()).decode('utf-8').upper()
+ssid = "Alvik-"+ubinascii.hexlify(machine.unique_id()).decode('utf-8').upper()[-4:]
 ctl = Controller(ssid=ssid, password="password")
 MAX_SPEED = 1.0 # 100% speed multiplier
 
