@@ -31,10 +31,10 @@ class Controller:
         self.verbose = verbose
         
         # --- STATE VARIABLES ---
-        self.left_stick_x = 0.0
-        self.left_stick_y = 0.0
-        self.right_stick_x = 0.0
-        self.right_stick_y = 0.0
+        self.left_x = 0.0
+        self.left_y = 0.0
+        self.right_x = 0.0
+        self.right_y = 0.0
         self.L2 = 0.0
         self.R2 = 0.0
         self.last_packet_time = -500.0
@@ -104,11 +104,14 @@ class Controller:
 
     def is_connected(self):
         """Returns True if a valid packet was received in the last 300.0 seconds (5 mins)."""
-        return ((time.time() - self.last_packet_time) < 300.0) and self.connected
+        time_ok =  ((time.time() - self.last_packet_time) < 300.0)
+        connected_ok = self.connected
+        print(time_ok, connected_ok)
+        return time_ok and connected_ok
 
     def _check_verbose(self):
         if self.verbose:
-            print(f"L:({self.left_stick_x:.2f}, {self.left_stick_y:.2f}) R:({self.right_stick_x:.2f}, {self.right_stick_y:.2f}) Btn:{self.buttons['cross']}")
+            print(f"L:({self.left_x:.2f}, {self.left_y:.2f}) R:({self.right_x:.2f}, {self.right_y:.2f}) Btn:{self.buttons['cross']}")
 
     def parse_request(self, req):
         """Parses the URL parameters from the HTTP GET request."""
@@ -141,10 +144,10 @@ class Controller:
                 if key == 'ax':
                     vals = val.split(',')
                     if len(vals) == 4:
-                        self.left_stick_x = float(vals[0])
-                        self.left_stick_y = float(vals[1])
-                        self.right_stick_x = float(vals[2])
-                        self.right_stick_y = float(vals[3])
+                        self.left_x = float(vals[0])
+                        self.left_y = float(vals[1])
+                        self.right_x = float(vals[2])
+                        self.right_y = float(vals[3])
 
                 # Triggers (L2, R2)
                 if key == 'tr':

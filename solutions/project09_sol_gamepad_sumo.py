@@ -1,6 +1,8 @@
 from arduino_alvik import ArduinoAlvik
-from wifi_controller import Controller
+from controller import Controller
 import time
+import ubinascii
+import machine
 
 # 1. Initialize Robot
 alvik = ArduinoAlvik()
@@ -8,20 +10,14 @@ alvik.begin()
 
 # 2. Initialize Wi-Fi Controller
 print("Starting Wi-Fi Access Point...")
-ctl = Controller(ssid="Alvik-Link", password="password")
+ssid = "Alvik-"+ubinascii.hexlify(machine.unique_id()).decode('utf-8').upper()
+ctl = Controller(ssid=ssid, password="password")
 MAX_SPEED = 1.0 # 100% speed multiplier
 
 print("Waiting for connection... Connect phone and press a button.")
 
 # --- WAIT FOR HANDSHAKE ---
-while not ctl.is_connected():
-    alvik.left_led.set_color(1, 1, 0) # Yellow
-    alvik.right_led.set_color(0, 0, 0)
-    time.sleep(0.1)
-    alvik.left_led.set_color(0, 0, 0)
-    alvik.right_led.set_color(1, 1, 0)
-    time.sleep(0.1)
-    ctl.update()
+
 
 print("Connected!")
 
