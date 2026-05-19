@@ -1,9 +1,8 @@
 # Library: Alvik Web Controller
 # Features: Graphical UI (File Based), Bitmasking, Analog Triggers
 #
-# Version: V10.1
-# FIX: 'controller.html' path is now relative to this script.
-#      This solves the "FileNotFound" error when running from root while files are in /lib.
+# Version: V10.2
+# FIX: Fixed time.ticks_ms() initialization type error and indentation.
 
 import network
 import socket
@@ -37,10 +36,11 @@ class Controller:
         self.right_y = 0.0
         self.L2 = 0.0
         self.R2 = 0.0
-        self.last_packet_time = -500.0
+        
+        # FIX: Initialize as an integer tick count to prevent ticks_diff crashes
+        self.last_packet_time = time.ticks_ms()
         self.connected = False
 
-        
         # 17 Buttons
         self.buttons = {
             'cross': False, 'circle': False, 'square': False, 'triangle': False,
@@ -49,8 +49,6 @@ class Controller:
             'up': False, 'down': False, 'left': False, 'right': False,
             'ps': False
         }
-
-        # Connection Safety
         
         # --- WIFI SETUP (AP MODE) ---
         self.ap = network.WLAN(network.AP_IF)
@@ -72,27 +70,20 @@ class Controller:
         self._initialized = True
 
         # --- HTML PAGE (SMART FILE LOAD) ---
-        # V10 Change: Determine path relative to this script
         self.html = ""
         
-        # 1. Determine where this script (controller.py) lives
         try:
-            # __file__ is 'lib/controller.py'
             base_path = __file__.rsplit('/', 1)[0] 
             file_path = f"{base_path}/controller.html"
         except:
-            # Fallback if __file__ fails
             file_path = "controller.html"
 
-        # 2. Try to open the file
         try:
             with open(file_path, 'r') as f:
                 self.html = f.read()
-                # Template Replacement
                 self.html = self.html.replace('{{ssid}}', self.ssid)
                 print(f"Controller: Loaded UI from {file_path}")
         except OSError:
-            # Fallback: Try root if lib failed
             try:
                 with open('controller.html', 'r') as f:
                     self.html = f.read()
@@ -101,16 +92,17 @@ class Controller:
             except OSError:
                 print(f"ERROR: Could not find 'controller.html' in {file_path} or root.")
                 self.html = "<h1>Error: controller.html missing. Check /lib folder!</h1>"
+
     def _reset_state(self):
-            """Zeros out all inputs if connection is lost to prevent ghost inputs."""
-            self.left_x, self.left_y = 0.0, 0.0
-            self.right_x, self.right_y = 0.0, 0.0
-            self.L2, self.R2 = 0.0, 0.0
-            for key in self.buttons:
-                self.buttons[key] = False
+        """Zeros out all inputs if connection is lost to prevent ghost inputs."""
+        self.left_x, self.left_y = 0.0, 0.0
+        self.right_x, self.right_y = 0.0, 0.0
+        self.L2, self.R2 = 0.0, 0.0
+        for key in self.buttons:
+            self.buttons[key] = False
+
     def is_connected(self):
-        """Returns True if a valid packet was received in the last 300.0 seconds (5 mins)."""
-# Calculates: current_ticks - last_packet_time accounting for hardware rollover
+        """Returns True if a valid packet was received in the last 1000ms."""
         elapsed = time.ticks_diff(time.ticks_ms(), self.last_packet_time)
         time_ok = elapsed < 1000 
         connected_ok = self.connected
@@ -124,21 +116,19 @@ class Controller:
         """Parses the URL parameters from the HTTP GET request."""
         try:
             req_line = req.decode().split('\r\n')[0]
-             # Mark connection as active immediately upon receiving data
+            
+            # Update connection status immediately upon receiving data
             self.last_packet_time = time.ticks_ms()
             self.connected = True           
-            # Update Heartbeat on Home Page Load (GET / )
+            
             if req_line.startswith('GET / '): 
                 return "HOME"
             
-            # If no '?' is found, we can't parse parameters
             if '?' not in req_line:
                 return "UNKNOWN"
             
-            # Robustly extract query string: GET /update?ax=... HTTP/1.1
             url_part = req_line.split(' ')[1]
             query_string = url_part.split('?')[1]
-            
             pairs = query_string.split('&')
             mask = 0
             
@@ -146,7 +136,6 @@ class Controller:
                 if '=' not in pair: continue
                 key, val = pair.split('=')
                 
-                # Axes logic matching the JS sender
                 if key == 'ax':
                     vals = val.split(',')
                     if len(vals) == 4:
@@ -155,14 +144,12 @@ class Controller:
                         self.right_x = float(vals[2])
                         self.right_y = float(vals[3])
 
-                # Triggers (L2, R2)
                 if key == 'tr':
                     vals = val.split(',')
                     if len(vals) == 2:
                         self.L2 = float(vals[0])
                         self.R2 = float(vals[1])
                 
-                # Button Mask
                 if key == 'mk':
                     mask = int(val)
             
@@ -180,33 +167,28 @@ class Controller:
 
     def update(self):
         """Main server loop to be called in the main loop."""
-        # Non-blocking check for new connections
-        r, _, _ = select.select([self.socket], [], [], 0) 
         if not self.is_connected():
             self._reset_state()
+
+        # Non-blocking check for new connections
+        r, _, _ = select.select([self.socket], [], [], 0) 
             
         if r:
             try:
                 cl, _ = self.socket.accept()
-                cl.settimeout(0.1) # Prevent server from hanging on recv
+                cl.settimeout(0.1) 
                 try:
                     req = cl.recv(1024)
-                    
                     if req:
                         parse_result = self.parse_request(req)
-                        
                         if parse_result == "HOME":
-                            # Send HTML Header and Content
                             cl.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
                             cl.send(self.html)
                         else:
-                            # Send Empty Success Response (Fast)
                             cl.send('HTTP/1.0 200 OK\r\n\r\n')
                 except OSError:
-                    # Timeout or disconnect during recv
                     pass
                 finally:
                     cl.close()
             except OSError:
                 pass
-            
