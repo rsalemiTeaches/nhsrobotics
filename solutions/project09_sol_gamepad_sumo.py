@@ -12,12 +12,26 @@ alvik.begin()
 print("Starting Wi-Fi Access Point...")
 ssid = "Alvik-"+ubinascii.hexlify(machine.unique_id()).decode('utf-8').upper()[-4:]
 ctl = Controller(ssid=ssid, password="password")
-MAX_SPEED = 1.0 # 100% speed multiplier
+MAX_SPEED = 100.0 # 100% speed multiplier
 
 print("Waiting for connection... Connect phone and press a button.")
 
 # --- WAIT FOR HANDSHAKE ---
-
+led_toggle = False
+while not ctl.is_connected():
+    # Crucial: Keep processing background network sockets while waiting!
+    ctl.update()
+    
+    # Blink both LEDs Yellow (Red + Green) while waiting
+    if led_toggle:
+        alvik.left_led.set_color(1, 1, 0)
+        alvik.right_led.set_color(1, 1, 0)
+    else:
+        alvik.left_led.set_color(0, 0, 0)
+        alvik.right_led.set_color(0, 0, 0)
+        
+    led_toggle = not led_toggle
+    time.sleep(0.2) # Blink rate (200ms)
 
 print("Connected!")
 
@@ -27,9 +41,7 @@ try:
         # Update Data from Wi-Fi
         ctl.update()
 
-
         # Drive Logic (Tank Drive)
-        # Using the correct variable names from our V50 wifi_controller
         left_speed = ctl.left_y * MAX_SPEED
         right_speed = ctl.right_y * MAX_SPEED
         alvik.set_wheels_speed(left_speed, right_speed)
