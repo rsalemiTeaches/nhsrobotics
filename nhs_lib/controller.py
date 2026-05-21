@@ -1,11 +1,9 @@
 # Library: Alvik Web Controller
 # Features: Graphical UI (File Based), Bitmasking, Analog Triggers, WebSockets
 #
-# Version: V11.0
-# FIX: 'controller.html' path is now relative to this script.
-#      This solves the "FileNotFound" error when running from root while files are in /lib.
-# FIX: time.ticks_ms() rollover safety, network race condition, sequence traps, and ghost inputs.
-# FIX: Replaced HTTP polling with WebSockets and binary payload unpacking for extreme low-latency.
+# Version: V11.1
+# FIX: Robust socket read logic for non-blocking WebSockets over Wi-Fi
+# FIX: Added bot/logger integration for debugging.
 
 import network
 import socket
@@ -20,20 +18,19 @@ class Controller:
     _instance = None
 
     def __new__(cls, *args, **kwargs):
-        """Ensures only one instance of Controller is ever created."""
         if cls._instance is None:
             cls._instance = super(Controller, cls).__new__(cls)
             cls._instance._initialized = False 
         return cls._instance
 
-    def __init__(self, ssid="Alvik-Link", password="password", verbose=False):
-        """Initializes the instance only if it hasn't been initialized before."""
+    def __init__(self, ssid="Alvik-Link", password="password", verbose=False, bot=None):
         if self._initialized:
             return
             
         self.ssid = ssid
         self.password = password
         self.verbose = verbose
+        self.bot = bot
         
         # --- STATE VARIABLES ---
         self.left_x = 0.0
@@ -43,11 +40,9 @@ class Controller:
         self.L2 = 0.0
         self.R2 = 0.0
         
-        # Track time in integer milliseconds to prevent float/int crash in ticks_diff
         self.last_packet_time = time.ticks_ms()
         self.connected = False
         
-        # 17 Buttons
         self.buttons = {
             'cross': False, 'circle': False, 'square': False, 'triangle': False,
             'L1': False, 'R1': False, 'L2': False, 'R2': False,
@@ -57,6 +52,7 @@ class Controller:
         }
         
         # --- WIFI SETUP (AP MODE) ---
+        self._log(f"Starting AP: {self.ssid}")
         self.ap = network.WLAN(network.AP_IF)
         self.ap.active(True)
         self.ap.config(essid=self.ssid, password=self.password, authmode=3)
@@ -64,14 +60,16 @@ class Controller:
         while not self.ap.active():
             time.sleep(0.1)
             
-        print(f"Controller: AP '{self.ssid}' Active. IP: {self.ap.ifconfig()[0]}")
+        msg = f"AP Ready: {self.ap.ifconfig()[0]}"
+        self._log(msg)
+        print("Controller:", msg)
 
         # --- SOCKET SETUP ---
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind(('', 80))
         self.server_socket.listen(1)
-        self.server_socket.setblocking(False) # Non-blocking mode
+        self.server_socket.setblocking(False)
 
         self.ws_client = None
 
@@ -79,7 +77,6 @@ class Controller:
 
         # --- HTML PAGE (SMART FILE LOAD) ---
         self.html = ""
-        
         try:
             base_path = __file__.rsplit('/', 1)[0] 
             file_path = f"{base_path}/controller.html"
@@ -90,19 +87,28 @@ class Controller:
             with open(file_path, 'r') as f:
                 self.html = f.read()
                 self.html = self.html.replace('{{ssid}}', self.ssid)
-                print(f"Controller: Loaded UI from {file_path}")
         except OSError:
             try:
                 with open('controller.html', 'r') as f:
                     self.html = f.read()
                     self.html = self.html.replace('{{ssid}}', self.ssid)
-                    print("Controller: Loaded UI from root")
             except OSError:
-                print(f"ERROR: Could not find 'controller.html' in {file_path} or root.")
+                self._log("Error: HTML missing!")
                 self.html = "<h1>Error: controller.html missing. Check /lib folder!</h1>"
 
+    def _log(self, msg):
+        if self.bot and hasattr(self.bot, 'log_info'):
+            self.bot.log_info(msg)
+        elif self.bot and hasattr(self.bot, 'screen'):
+            try:
+                self.bot.screen.clear()
+                self.bot.screen.show_lines("CTRL LOG:", msg[:15], msg[15:30])
+            except:
+                pass
+        if self.verbose:
+            print("[Controller Log]", msg)
+
     def _reset_state(self):
-        """Zeros out all inputs if connection is lost to prevent runaway robots."""
         self.left_x, self.left_y = 0.0, 0.0
         self.right_x, self.right_y = 0.0, 0.0
         self.L2, self.R2 = 0.0, 0.0
@@ -110,14 +116,9 @@ class Controller:
             self.buttons[key] = False
 
     def is_connected(self):
-        """Returns True if a valid packet was received in the last 1000ms."""
         elapsed = time.ticks_diff(time.ticks_ms(), self.last_packet_time)
         time_ok = elapsed < 1000 
         return time_ok and self.connected
-
-    def _check_verbose(self):
-        if self.verbose:
-            print(f"L:({self.left_x:.2f}, {self.left_y:.2f}) R:({self.right_x:.2f}, {self.right_y:.2f}) Btn:{self.buttons['cross']}")
 
     def _close_ws(self):
         if self.ws_client:
@@ -126,21 +127,41 @@ class Controller:
             except:
                 pass
             self.ws_client = None
-        self.connected = False
-        self._reset_state()
-        if self.verbose: print("WebSocket Closed.")
+        if self.connected:
+            self.connected = False
+            self._reset_state()
+            self._log("WS Closed/Dropped")
+
+    def _read_exact(self, sock, n):
+        """Robustly reads exactly n bytes from a non-blocking socket."""
+        data = bytearray()
+        timeout_start = time.ticks_ms()
+        while len(data) < n:
+            if time.ticks_diff(time.ticks_ms(), timeout_start) > 200: # 200ms timeout for fragment
+                raise OSError("WS Read Timeout")
+            try:
+                r, _, _ = select.select([sock], [], [], 0.01)
+                if r:
+                    chunk = sock.recv(n - len(data))
+                    if not chunk:
+                        raise OSError("WS Socket Closed")
+                    data.extend(chunk)
+            except OSError as e:
+                # 11 is EAGAIN
+                if e.args[0] != 11:
+                    raise e
+        return bytes(data)
 
     def _handle_http_req(self, req, cl):
         req_line = req.decode().split('\r\n')[0]
 
-        # Serve UI
         if req_line.startswith('GET / HTTP'):
             cl.send('HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n')
             cl.send(self.html)
             cl.close()
+            self._log("Served UI")
             return
             
-        # Handle WebSocket Upgrade
         if req_line.startswith('GET /ws '):
             headers = req.decode().split('\r\n')
             key = None
@@ -150,7 +171,6 @@ class Controller:
                     break
             
             if key:
-                # WebSocket Handshake
                 magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
                 accept_key = binascii.b2a_base64(hashlib.sha1((key + magic).encode()).digest())[:-1].decode()
                 
@@ -163,14 +183,13 @@ class Controller:
                 cl.send(resp.encode())
                 cl.setblocking(False)
                 
-                # Close existing WS if any
                 if self.ws_client:
                     self._close_ws()
 
                 self.ws_client = cl
                 self.last_packet_time = time.ticks_ms()
                 self.connected = True
-                if self.verbose: print("WebSocket Connected!")
+                self._log("WS Connected!")
             else:
                 cl.close()
             return
@@ -178,26 +197,20 @@ class Controller:
         cl.close()
 
     def update(self):
-        """Main server loop to be called in the main loop."""
-        
-        # Safety wipe: clear ghost inputs if the connection drops
         if not self.is_connected():
             self._reset_state()
 
-        # Handle existing WebSocket connection
         if self.ws_client:
             r, _, _ = select.select([self.ws_client], [], [], 0)
             if r:
                 try:
-                    header = self.ws_client.recv(2)
-                    if not header:
-                        self._close_ws()
-                        return
+                    header = self._read_exact(self.ws_client, 2)
 
                     is_final = header[0] & 0x80
                     opcode = header[0] & 0x0f
 
                     if opcode == 8: # Close frame
+                        self._log("WS Graceful Close")
                         self._close_ws()
                         return
 
@@ -205,24 +218,25 @@ class Controller:
                     payload_len = header[1] & 0x7f
 
                     if payload_len == 126:
-                        ext_len = self.ws_client.recv(2)
+                        ext_len = self._read_exact(self.ws_client, 2)
                         payload_len = struct.unpack(">H", ext_len)[0]
                     elif payload_len == 127:
-                        ext_len = self.ws_client.recv(8)
+                        ext_len = self._read_exact(self.ws_client, 8)
                         payload_len = struct.unpack(">Q", ext_len)[0]
 
                     if is_masked:
-                        mask = self.ws_client.recv(4)
+                        mask = self._read_exact(self.ws_client, 4)
 
-                    payload = self.ws_client.recv(payload_len)
+                    if payload_len > 0:
+                        payload = self._read_exact(self.ws_client, payload_len)
+                    else:
+                        payload = b''
 
-                    if opcode == 2 and is_masked and payload_len == 28: # Binary Frame size 28 (6 floats = 24 bytes + 1 uint32 = 4 bytes)
-                        # Unmask
+                    if opcode == 2 and is_masked and payload_len == 28:
                         unmasked = bytearray(payload_len)
                         for i in range(payload_len):
                             unmasked[i] = payload[i] ^ mask[i % 4]
 
-                        # Unpack 6 floats and 1 uint32
                         lx, ly, rx, ry, l2, r2, btn_mask = struct.unpack('<ffffffI', unmasked)
 
                         self.left_x = lx
@@ -240,13 +254,11 @@ class Controller:
 
                         self.last_packet_time = time.ticks_ms()
                         self.connected = True
-                        self._check_verbose()
-                except OSError:
+                except OSError as e:
+                    self._log(f"WS Err: {e}")
                     self._close_ws()
 
-        # Non-blocking check for new connections
         r, _, _ = select.select([self.server_socket], [], [], 0)
-        
         if r:
             try:
                 cl, _ = self.server_socket.accept()
