@@ -1,15 +1,19 @@
 # Library: Alvik Web Controller
-# Features: Graphical UI (File Based), Bitmasking, Analog Triggers
+# Features: Graphical UI (File Based), Bitmasking, Analog Triggers, WebSockets
 #
-# Version: V10.2
+# Version: V11.0
 # FIX: 'controller.html' path is now relative to this script.
 #      This solves the "FileNotFound" error when running from root while files are in /lib.
 # FIX: time.ticks_ms() rollover safety, network race condition, sequence traps, and ghost inputs.
+# FIX: Replaced HTTP polling with WebSockets and binary payload unpacking for extreme low-latency.
 
 import network
 import socket
 import select
 import time
+import binascii
+import hashlib
+import struct
 
 class Controller:
     # --- SINGLETON IMPLEMENTATION ---
@@ -39,7 +43,7 @@ class Controller:
         self.L2 = 0.0
         self.R2 = 0.0
         
-        # FIX: Track time in integer milliseconds to prevent float/int crash in ticks_diff
+        # Track time in integer milliseconds to prevent float/int crash in ticks_diff
         self.last_packet_time = time.ticks_ms()
         self.connected = False
         
@@ -63,11 +67,13 @@ class Controller:
         print(f"Controller: AP '{self.ssid}' Active. IP: {self.ap.ifconfig()[0]}")
 
         # --- SOCKET SETUP ---
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind(('', 80))
-        self.socket.listen(5)
-        self.socket.setblocking(False) # Non-blocking mode
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.bind(('', 80))
+        self.server_socket.listen(1)
+        self.server_socket.setblocking(False) # Non-blocking mode
+
+        self.ws_client = None
 
         self._initialized = True
 
@@ -105,9 +111,7 @@ class Controller:
 
     def is_connected(self):
         """Returns True if a valid packet was received in the last 1000ms."""
-        # Calculate milliseconds passed, accounting for hardware clock rollover
         elapsed = time.ticks_diff(time.ticks_ms(), self.last_packet_time)
-        # 1000ms gives plenty of padding for the HTML 250ms heartbeat over Wi-Fi
         time_ok = elapsed < 1000 
         return time_ok and self.connected
 
@@ -115,61 +119,63 @@ class Controller:
         if self.verbose:
             print(f"L:({self.left_x:.2f}, {self.left_y:.2f}) R:({self.right_x:.2f}, {self.right_y:.2f}) Btn:{self.buttons['cross']}")
 
-    def parse_request(self, req):
-        """Parses the URL parameters from the HTTP GET request."""
-        try:
-            req_line = req.decode().split('\r\n')[0]
-            
-            # Mark connection as active FIRST so initial page loads register correctly
-            self.last_packet_time = time.ticks_ms()
-            self.connected = True           
-            
-            # Update Heartbeat on Home Page Load (GET / )
-            if req_line.startswith('GET / '): 
-                return "HOME"
-            
-            # If no '?' is found, we can't parse parameters
-            if '?' not in req_line:
-                return "UNKNOWN"
-            
-            # Robustly extract query string: GET /update?ax=... HTTP/1.1
-            url_part = req_line.split(' ')[1]
-            query_string = url_part.split('?')[1]
-            pairs = query_string.split('&')
-            mask = 0
-            
-            for pair in pairs:
-                if '=' not in pair: continue
-                key, val = pair.split('=')
-                
-                if key == 'ax':
-                    vals = val.split(',')
-                    if len(vals) == 4:
-                        self.left_x = float(vals[0])
-                        self.left_y = float(vals[1])
-                        self.right_x = float(vals[2])
-                        self.right_y = float(vals[3])
+    def _close_ws(self):
+        if self.ws_client:
+            try:
+                self.ws_client.close()
+            except:
+                pass
+            self.ws_client = None
+        self.connected = False
+        self._reset_state()
+        if self.verbose: print("WebSocket Closed.")
 
-                if key == 'tr':
-                    vals = val.split(',')
-                    if len(vals) == 2:
-                        self.L2 = float(vals[0])
-                        self.R2 = float(vals[1])
+    def _handle_http_req(self, req, cl):
+        req_line = req.decode().split('\r\n')[0]
+
+        # Serve UI
+        if req_line.startswith('GET / HTTP'):
+            cl.send('HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n')
+            cl.send(self.html)
+            cl.close()
+            return
+            
+        # Handle WebSocket Upgrade
+        if req_line.startswith('GET /ws '):
+            headers = req.decode().split('\r\n')
+            key = None
+            for h in headers:
+                if h.lower().startswith('sec-websocket-key:'):
+                    key = h.split(':')[1].strip()
+                    break
+            
+            if key:
+                # WebSocket Handshake
+                magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+                accept_key = binascii.b2a_base64(hashlib.sha1((key + magic).encode()).digest())[:-1].decode()
                 
-                if key == 'mk':
-                    mask = int(val)
+                resp = (
+                    "HTTP/1.1 101 Switching Protocols\r\n"
+                    "Upgrade: websocket\r\n"
+                    "Connection: Upgrade\r\n"
+                    f"Sec-WebSocket-Accept: {accept_key}\r\n\r\n"
+                )
+                cl.send(resp.encode())
+                cl.setblocking(False)
+                
+                # Close existing WS if any
+                if self.ws_client:
+                    self._close_ws()
+
+                self.ws_client = cl
+                self.last_packet_time = time.ticks_ms()
+                self.connected = True
+                if self.verbose: print("WebSocket Connected!")
+            else:
+                cl.close()
+            return
             
-            btn_names = ['cross', 'circle', 'square', 'triangle', 'L1', 'R1', 'L2', 'R2', 
-                         'share', 'options', 'L3', 'R3', 'up', 'down', 'left', 'right', 'ps']
-            
-            for i, name in enumerate(btn_names):
-                self.buttons[name] = bool((mask >> i) & 1)
-            
-            self._check_verbose()
-            return "DATA"
-        except Exception as e:
-            if self.verbose: print(f"Parse Error: {e}")
-            return "ERROR"
+        cl.close()
 
     def update(self):
         """Main server loop to be called in the main loop."""
@@ -178,30 +184,80 @@ class Controller:
         if not self.is_connected():
             self._reset_state()
 
+        # Handle existing WebSocket connection
+        if self.ws_client:
+            r, _, _ = select.select([self.ws_client], [], [], 0)
+            if r:
+                try:
+                    header = self.ws_client.recv(2)
+                    if not header:
+                        self._close_ws()
+                        return
+
+                    is_final = header[0] & 0x80
+                    opcode = header[0] & 0x0f
+
+                    if opcode == 8: # Close frame
+                        self._close_ws()
+                        return
+
+                    is_masked = header[1] & 0x80
+                    payload_len = header[1] & 0x7f
+
+                    if payload_len == 126:
+                        ext_len = self.ws_client.recv(2)
+                        payload_len = struct.unpack(">H", ext_len)[0]
+                    elif payload_len == 127:
+                        ext_len = self.ws_client.recv(8)
+                        payload_len = struct.unpack(">Q", ext_len)[0]
+
+                    if is_masked:
+                        mask = self.ws_client.recv(4)
+
+                    payload = self.ws_client.recv(payload_len)
+
+                    if opcode == 2 and is_masked and payload_len == 28: # Binary Frame size 28 (6 floats = 24 bytes + 1 uint32 = 4 bytes)
+                        # Unmask
+                        unmasked = bytearray(payload_len)
+                        for i in range(payload_len):
+                            unmasked[i] = payload[i] ^ mask[i % 4]
+
+                        # Unpack 6 floats and 1 uint32
+                        lx, ly, rx, ry, l2, r2, btn_mask = struct.unpack('<ffffffI', unmasked)
+
+                        self.left_x = lx
+                        self.left_y = ly
+                        self.right_x = rx
+                        self.right_y = ry
+                        self.L2 = l2
+                        self.R2 = r2
+
+                        btn_names = ['cross', 'circle', 'square', 'triangle', 'L1', 'R1', 'L2', 'R2',
+                                     'share', 'options', 'L3', 'R3', 'up', 'down', 'left', 'right', 'ps']
+
+                        for i, name in enumerate(btn_names):
+                            self.buttons[name] = bool((btn_mask >> i) & 1)
+
+                        self.last_packet_time = time.ticks_ms()
+                        self.connected = True
+                        self._check_verbose()
+                except OSError:
+                    self._close_ws()
+
         # Non-blocking check for new connections
-        r, _, _ = select.select([self.socket], [], [], 0) 
+        r, _, _ = select.select([self.server_socket], [], [], 0)
         
         if r:
             try:
-                cl, _ = self.socket.accept()
-                cl.settimeout(0.1) # Prevent server from hanging on recv
+                cl, _ = self.server_socket.accept()
+                cl.settimeout(0.5)
                 try:
                     req = cl.recv(1024)
-                    
                     if req:
-                        parse_result = self.parse_request(req)
-                        
-                        if parse_result == "HOME":
-                            # Send HTML Header and Content
-                            cl.send('HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n')
-                            cl.send(self.html)
-                        else:
-                            # Send Empty Success Response (Fast)
-                            cl.send('HTTP/1.0 200 OK\r\n\r\n')
+                        self._handle_http_req(req, cl)
+                    else:
+                        cl.close()
                 except OSError:
-                    # Timeout or disconnect during recv
-                    pass
-                finally:
                     cl.close()
             except OSError:
                 pass

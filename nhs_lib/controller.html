@@ -10,12 +10,14 @@
     .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 400px; margin: 0 auto; }
     .btn { background: #555; padding: 10px; border-radius: 5px; font-size: 10px; text-transform: uppercase; }
     .pressed { background: #00FF00 !important; color: #000; font-weight: bold; }
+    #ws-status { font-size: 12px; margin-top: 5px; color: #aaa; }
   </style>
 </head>
 <body>
   <!-- Python injects the SSID here -->
   <h1>{{ssid}}</h1>
   <div id="status" class="box">Connect Controller + Press Button</div>
+  <div id="ws-status">WS: Disconnected</div>
   
   <div class="box">
     <table style="margin: 0 auto;">
@@ -47,20 +49,54 @@
 
   <script>
     let interval = null;
-    let busy = false; // Flow Control Flag
-    let lastQuery = ""; // Throttle state
-    let lastTime = 0;   // Heartbeat timer
+    let ws = null;
+    let wsConnected = false;
+    let reconnectTimeout = null;
 
+    // --- WebSocket Logic ---
+    function connectWS() {
+      if (ws) ws.close();
+
+      const wsUrl = `ws://${window.location.host}/ws`;
+      document.getElementById('ws-status').innerText = "WS: Connecting...";
+      ws = new WebSocket(wsUrl);
+      ws.binaryType = "arraybuffer";
+
+      ws.onopen = () => {
+        wsConnected = true;
+        document.getElementById('ws-status').innerText = "WS: Connected";
+        document.getElementById('ws-status').style.color = "#0f0";
+      };
+
+      ws.onclose = () => {
+        wsConnected = false;
+        document.getElementById('ws-status').innerText = "WS: Disconnected (Retrying...)";
+        document.getElementById('ws-status').style.color = "#f00";
+        // Auto-reconnect every 2 seconds
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = setTimeout(connectWS, 2000);
+      };
+
+      ws.onerror = (err) => {
+        console.error("WebSocket Error:", err);
+        ws.close();
+      };
+    }
+
+    // Initial Connection
+    connectWS();
+
+    // --- Gamepad Logic ---
     window.addEventListener("gamepadconnected", (e) => {
       document.getElementById("status").innerText = "Active!";
       document.getElementById("status").classList.add("active");
+      // Fast 50ms polling loop because WS is extremely efficient
       if (!interval) interval = setInterval(sendData, 50);
     });
 
     window.addEventListener("gamepaddisconnected", (e) => {
        document.getElementById("status").innerText = "Disconnected";
        document.getElementById("status").classList.remove("active");
-       // V05 FIX: Keep the loop running to send Stop commands (zeros)
     });
 
     function sendData() {
@@ -68,10 +104,7 @@
       
       let lx=0, ly=0, rx=0, ry=0, l2=0, r2=0, mask=0;
 
-      // If Gamepad exists, read real values. 
-      // If NOT (disconnected), these variables stay 0 (Safety Stop).
       if (gp) {
-        // 1. Axes
         lx = gp.axes[0];
         ly = -gp.axes[1]; 
         rx = gp.axes[2];
@@ -85,13 +118,12 @@
         l2 = gp.buttons[6].value;
         r2 = gp.buttons[7].value;
 
-        // 2. Buttons
         for (let i = 0; i < gp.buttons.length; i++) {
             if (gp.buttons[i].pressed) mask += (1 << i);
         }
       }
 
-      // Update UI (Shows Real Data or Safe Zeros)
+      // Update UI
       document.getElementById("lx").innerText = lx.toFixed(1);
       document.getElementById("rx").innerText = rx.toFixed(1);
       document.getElementById("ly").innerText = ly.toFixed(1);
@@ -99,7 +131,6 @@
       document.getElementById("l2").innerText = l2.toFixed(1);
       document.getElementById("r2").innerText = r2.toFixed(1);
       
-      // Update Button UI
       const totalButtons = 17; 
       for (let i = 0; i < totalButtons; i++) {
           let btnEl = document.getElementById("btn" + i);
@@ -110,30 +141,22 @@
           }
       }
 
-      // 3. Bandwidth Throttling & Heartbeat
-      let currentQuery = `ax=${lx.toFixed(2)},${ly.toFixed(2)},${rx.toFixed(2)},${ry.toFixed(2)}&tr=${l2.toFixed(2)},${r2.toFixed(2)}&mk=${mask}`;
-      let now = Date.now();
+      // --- Binary Payload Transmission ---
+      if (wsConnected && ws.readyState === WebSocket.OPEN) {
+        // Create a 28-byte ArrayBuffer: 6 floats (24 bytes) + 1 uint32 (4 bytes)
+        const buffer = new ArrayBuffer(28);
+        const view = new DataView(buffer);
 
-      // Send if data changed OR 250ms heartbeat elapsed
-      if (currentQuery !== lastQuery || (now - lastTime) > 250) {
-        if (busy) return;
-        busy = true;
-        lastQuery = currentQuery;
-        lastTime = now;
+        // Little-endian format (true) to match Python's '<' struct packer
+        view.setFloat32(0, lx, true);
+        view.setFloat32(4, ly, true);
+        view.setFloat32(8, rx, true);
+        view.setFloat32(12, ry, true);
+        view.setFloat32(16, l2, true);
+        view.setFloat32(20, r2, true);
+        view.setUint32(24, mask, true);
 
-        // V05 FIX: Restore AbortController (50ms timeout)
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 50);
-
-        fetch(`/update?${currentQuery}&z=${now}`, { signal: controller.signal })
-          .then(response => {
-              clearTimeout(timeoutId);
-              busy = false;
-          })
-          .catch(e => {
-              // If it times out or fails, clear busy so we try again next loop
-              busy = false;
-          });
+        ws.send(buffer);
       }
     }
   </script>
