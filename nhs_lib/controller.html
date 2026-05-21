@@ -141,10 +141,18 @@
           }
       }
 
-      // --- Binary Payload Transmission ---
-      if (wsConnected && ws.readyState === WebSocket.OPEN) {
-        // Create a 28-byte ArrayBuffer: 6 floats (24 bytes) + 1 uint32 (4 bytes)
-        const buffer = new ArrayBuffer(28);
+      // --- Rate Limiting & Transmission ---
+      let currentQuery = `${lx.toFixed(2)},${ly.toFixed(2)},${rx.toFixed(2)},${ry.toFixed(2)},${l2.toFixed(2)},${r2.toFixed(2)},${mask}`;
+      let now = Date.now();
+
+      // Only send if state changed OR if 250ms passed (Heartbeat)
+      if (currentQuery !== window.lastQuery || (now - window.lastTime) > 250) {
+        window.lastQuery = currentQuery;
+        window.lastTime = now;
+
+        if (wsConnected && ws.readyState === WebSocket.OPEN) {
+          // Create a 28-byte ArrayBuffer: 6 floats (24 bytes) + 1 uint32 (4 bytes)
+          const buffer = new ArrayBuffer(28);
         const view = new DataView(buffer);
 
         // Little-endian format (true) to match Python's '<' struct packer
@@ -156,7 +164,8 @@
         view.setFloat32(20, r2, true);
         view.setUint32(24, mask, true);
 
-        ws.send(buffer);
+          ws.send(buffer);
+        }
       }
     }
   </script>

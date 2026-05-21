@@ -1,9 +1,9 @@
 # Library: Alvik Web Controller
 # Features: Graphical UI (File Based), Bitmasking, Analog Triggers, WebSockets
 #
-# Version: V11.1
-# FIX: Robust socket read logic for non-blocking WebSockets over Wi-Fi
-# FIX: Added bot/logger integration for debugging.
+# Version: V11.2
+# FIX: Buffer drain loop. Drains all stale WebSocket packets to eliminate queue latency.
+# FIX: Added performance instrumentation (packets dropped counter).
 
 import network
 import socket
@@ -52,7 +52,7 @@ class Controller:
         }
         
         # --- WIFI SETUP (AP MODE) ---
-        self._log(f"Starting AP: {self.ssid}")
+        if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info(f"Starting AP: {self.ssid}")
         self.ap = network.WLAN(network.AP_IF)
         self.ap.active(True)
         self.ap.config(essid=self.ssid, password=self.password, authmode=3)
@@ -61,7 +61,7 @@ class Controller:
             time.sleep(0.1)
             
         msg = f"AP Ready: {self.ap.ifconfig()[0]}"
-        self._log(msg)
+        if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info(msg)
         print("Controller:", msg)
 
         # --- SOCKET SETUP ---
@@ -93,20 +93,8 @@ class Controller:
                     self.html = f.read()
                     self.html = self.html.replace('{{ssid}}', self.ssid)
             except OSError:
-                self._log("Error: HTML missing!")
+                if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info("Error: HTML missing!")
                 self.html = "<h1>Error: controller.html missing. Check /lib folder!</h1>"
-
-    def _log(self, msg):
-        if self.bot and hasattr(self.bot, 'log_info'):
-            self.bot.log_info(msg)
-        elif self.bot and hasattr(self.bot, 'screen'):
-            try:
-                self.bot.screen.clear()
-                self.bot.screen.show_lines("CTRL LOG:", msg[:15], msg[15:30])
-            except:
-                pass
-        if self.verbose:
-            print("[Controller Log]", msg)
 
     def _reset_state(self):
         self.left_x, self.left_y = 0.0, 0.0
@@ -130,14 +118,13 @@ class Controller:
         if self.connected:
             self.connected = False
             self._reset_state()
-            self._log("WS Closed/Dropped")
+            if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info("WS Closed/Dropped")
 
     def _read_exact(self, sock, n):
-        """Robustly reads exactly n bytes from a non-blocking socket."""
         data = bytearray()
         timeout_start = time.ticks_ms()
         while len(data) < n:
-            if time.ticks_diff(time.ticks_ms(), timeout_start) > 200: # 200ms timeout for fragment
+            if time.ticks_diff(time.ticks_ms(), timeout_start) > 200:
                 raise OSError("WS Read Timeout")
             try:
                 r, _, _ = select.select([sock], [], [], 0.01)
@@ -147,7 +134,6 @@ class Controller:
                         raise OSError("WS Socket Closed")
                     data.extend(chunk)
             except OSError as e:
-                # 11 is EAGAIN
                 if e.args[0] != 11:
                     raise e
         return bytes(data)
@@ -159,7 +145,7 @@ class Controller:
             cl.send('HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n')
             cl.send(self.html)
             cl.close()
-            self._log("Served UI")
+            if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info("Served UI")
             return
             
         if req_line.startswith('GET /ws '):
@@ -189,7 +175,7 @@ class Controller:
                 self.ws_client = cl
                 self.last_packet_time = time.ticks_ms()
                 self.connected = True
-                self._log("WS Connected!")
+                if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info("WS Connected!")
             else:
                 cl.close()
             return
@@ -201,16 +187,21 @@ class Controller:
             self._reset_state()
 
         if self.ws_client:
-            r, _, _ = select.select([self.ws_client], [], [], 0)
-            if r:
+            packets_processed = 0
+            # Buffer Drain Loop: Read until socket is empty
+            while True:
+                r, _, _ = select.select([self.ws_client], [], [], 0)
+                if not r:
+                    break # No more data in buffer
+
                 try:
                     header = self._read_exact(self.ws_client, 2)
 
                     is_final = header[0] & 0x80
                     opcode = header[0] & 0x0f
 
-                    if opcode == 8: # Close frame
-                        self._log("WS Graceful Close")
+                    if opcode == 8:
+                        if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info("WS Graceful Close")
                         self._close_ws()
                         return
 
@@ -254,10 +245,20 @@ class Controller:
 
                         self.last_packet_time = time.ticks_ms()
                         self.connected = True
+                        packets_processed += 1
                 except OSError as e:
-                    self._log(f"WS Err: {e}")
+                    if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info(f"WS Err: {e}")
                     self._close_ws()
+                    break
 
+            # Instrumentation: Log if we had to drop stale packets
+            if packets_processed > 1:
+                # We processed more than 1 packet this cycle.
+                # Only the last one matters. The others were stale.
+                dropped = packets_processed - 1
+                if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info(f"Lag Drop: {dropped} pkts")
+
+        # Accept new connections
         r, _, _ = select.select([self.server_socket], [], [], 0)
         if r:
             try:
