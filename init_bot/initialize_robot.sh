@@ -83,10 +83,13 @@ except: pass
 fi
 
 # --- BUILD WHITELIST ---
+# --- BUILD WHITELIST ---
 WHITELIST=("/workspace") 
 if [ -f "${SOURCE_DIR}/${ROBOTIGNORE_FILENAME}" ]; then
     echo "Found .robotignore. Building whitelist..."
     while IFS= read -r line; do
+        # Strip invisible carriage returns from the file!
+        line=$(echo "$line" | tr -d '\r')
         if [[ -n "$line" && ! "$line" =~ ^\s*# ]]; then
             # Ensure leading slash for comparison
             [[ "$line" != /* ]] && line="/$line"
@@ -172,8 +175,37 @@ done <<< "$REMOTE_ITEMS"
 echo "✅ Cleanup complete."
 
 # --- COPY FILES ---
+# --- COPY FILES ---
 echo "------------------------------------------"
 echo "📂 Uploading local files..."
-mpremote "${CONNECT_ARGS[@]}" cp -r "${SOURCE_DIR}/"* :
+
+# Create a temporary staging directory
+STAGING_DIR=$(mktemp -d)
+
+# Copy everything to the staging directory first
+cp -r "${SOURCE_DIR}/"* "$STAGING_DIR/"
+
+# Remove ignored items from the staging directory before upload
+for ignore in "${WHITELIST[@]}"; do
+    # Skip /workspace as it's a remote-only system folder
+    if [ "$ignore" != "/workspace" ]; then
+        # Remove the leading slash to map to our local staging folder
+        REL_IGNORE="${ignore#/}"
+        if [ -e "${STAGING_DIR}/${REL_IGNORE}" ]; then
+            rm -rf "${STAGING_DIR}/${REL_IGNORE}"
+        fi
+    fi
+done
+
+# Bulk upload the filtered files
+if [ "$(ls -A "$STAGING_DIR")" ]; then
+    mpremote "${CONNECT_ARGS[@]}" cp -r "${STAGING_DIR}/"* :
+else
+    echo "   - No files to upload."
+fi
+
+# Clean up the temporary directory
+rm -rf "$STAGING_DIR"
 
 echo "✅ Synchronization complete."
+

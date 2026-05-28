@@ -13,6 +13,7 @@ print("Starting Wi-Fi Access Point...")
 ssid = "Alvik-"+ubinascii.hexlify(machine.unique_id()).decode('utf-8').upper()[-4:]
 ctl = Controller(ssid=ssid, password="password")
 MAX_SPEED = 100.0 # 100% speed multiplier
+print("ssid", ssid)
 
 print("Waiting for connection... Connect phone and press a button.")
 
