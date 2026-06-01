@@ -52,13 +52,14 @@ class Controller:
         }
         
         # --- WIFI SETUP (AP MODE) ---
-        if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info(f"Starting AP: {self.ssid}")
         self.ap = network.WLAN(network.AP_IF)
-        self.ap.active(True)
-        self.ap.config(essid=self.ssid, password=self.password, authmode=3)
+        if not self.ap.active():
+            if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info(f"Starting AP: {self.ssid}")
+            self.ap.active(True)
+            self.ap.config(essid=self.ssid, password=self.password, authmode=3)
 
-        while not self.ap.active():
-            time.sleep(0.1)
+            while not self.ap.active():
+                time.sleep(0.1)
             
         msg = f"AP Ready: {self.ap.ifconfig()[0]}"
         if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info(msg)
