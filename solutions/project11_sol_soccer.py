@@ -7,7 +7,11 @@ import machine
 # 1. Initialize Robot
 alvik = ArduinoAlvik()
 alvik.begin()
-
+alvik.set_servo_positions(90, 90) # Center servos (if applicable)
+for ii in range(0,180):
+    alvik.set_servo_positions(ii,ii)
+    time.sleep_ms(10)
+    
 # 2. Initialize Wi-Fi Controller
 print("Starting Wi-Fi Access Point...")
 ssid = "Alvik-"+ubinascii.hexlify(machine.unique_id()).decode('utf-8').upper()[-4:]
@@ -54,6 +58,7 @@ try:
 
         # Change colors based on face buttons
         if ctl.buttons['cross']: # X Button (Blue)
+
             l_r, l_g, l_b = 0, 0, 1
             r_r, r_g, r_b = 0, 0, 1
         elif ctl.buttons['circle']: # Circle Button (Red)
