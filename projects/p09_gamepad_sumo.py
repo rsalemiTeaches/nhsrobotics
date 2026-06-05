@@ -1,7 +1,7 @@
 # Project 09: Gamepad Sumo (Student Scaffold)
 # Target: Bare-Bones Tank Drive
 from arduino_alvik import ArduinoAlvik
-from wifi_controller import Controller
+from controller import Controller
 import ubinascii
 import machine
 import time

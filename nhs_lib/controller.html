@@ -99,8 +99,27 @@
        document.getElementById("status").classList.remove("active");
     });
 
-    function sendData() {
-      const gp = navigator.getGamepads()[0];
+function sendData() {
+      let gp = null;
+      const gamepads = navigator.getGamepads();
+      
+      // Loop through and find the first connected gamepad
+      for (let i = 0; i < gamepads.length; i++) {
+          if (gamepads[i] && gamepads[i].connected) {
+              gp = gamepads[i];
+              break;
+          }
+      }
+      
+      // If we still didn't find a connected gamepad, stop here
+      if (!gp) return;
+
+      // --- NEW CODE: Display the Slot Index ---
+      // Gamepad API is 0-indexed, so we add 1 for "Slot 1", "Slot 2", etc.
+      const statusDiv = document.getElementById("status");
+      statusDiv.innerText = "Active! (Slot " + (gp.index + 1) + ")";
+      statusDiv.classList.add("active");
+      // ----------------------------------------
       
       let lx=0, ly=0, rx=0, ry=0, l2=0, r2=0, mask=0;
 
