@@ -105,9 +105,11 @@ class Controller:
             self.buttons[key] = False
 
     def is_connected(self):
+        if not self.connected:
+            return False
         elapsed = time.ticks_diff(time.ticks_ms(), self.last_packet_time)
-        time_ok = elapsed < 1000 
-        return time_ok and self.connected
+        # Increase timeout to 5000ms. AP mode WiFi can be very laggy.
+        return elapsed < 5000
 
     def _close_ws(self):
         if self.ws_client:
@@ -120,22 +122,29 @@ class Controller:
             self.connected = False
             self._reset_state()
             if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info("WS Closed/Dropped")
+            print("Controller: WS Closed/Dropped")
 
     def _read_exact(self, sock, n):
         data = bytearray()
         timeout_start = time.ticks_ms()
         while len(data) < n:
-            if time.ticks_diff(time.ticks_ms(), timeout_start) > 200:
+            # Increased timeout to 500ms for slow networks
+            if time.ticks_diff(time.ticks_ms(), timeout_start) > 500:
                 raise OSError("WS Read Timeout")
             try:
-                r, _, _ = select.select([sock], [], [], 0.01)
+                # Use select to check for data without blocking forever
+                r, _, _ = select.select([sock], [], [], 0)
                 if r:
                     chunk = sock.recv(n - len(data))
                     if not chunk:
                         raise OSError("WS Socket Closed")
                     data.extend(chunk)
+                else:
+                    # Give some time to other tasks to prevent CPU hogging
+                    time.sleep_ms(1)
             except OSError as e:
-                if e.args[0] != 11:
+                # 11 is EAGAIN, 12 is EWOULDBLOCK on some ports
+                if e.args and e.args[0] not in (11, 12):
                     raise e
         return bytes(data)
 
@@ -184,8 +193,10 @@ class Controller:
         cl.close()
 
     def update(self):
-        if not self.is_connected():
-            self._reset_state()
+        # Only reset if we were previously connected and now we've timed out
+        if self.connected and not self.is_connected():
+            if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info("WS Timeout")
+            self._close_ws()
 
         if self.ws_client:
             packets_processed = 0
@@ -219,17 +230,24 @@ class Controller:
                     if is_masked:
                         mask = self._read_exact(self.ws_client, 4)
 
+                    payload = b''
                     if payload_len > 0:
                         payload = self._read_exact(self.ws_client, payload_len)
-                    else:
-                        payload = b''
+                        if is_masked:
+                            # Unmask payload
+                            payload = bytearray(payload)
+                            for i in range(len(payload)):
+                                payload[i] ^= mask[i % 4]
 
-                    if opcode == 2 and is_masked and payload_len == 28:
-                        unmasked = bytearray(payload_len)
-                        for i in range(payload_len):
-                            unmasked[i] = payload[i] ^ mask[i % 4]
+                    if opcode == 9: # Ping
+                        # Respond with Pong (opcode 10) keeping same payload
+                        pong_header = bytearray([0x8a, len(payload)])
+                        self.ws_client.send(pong_header + payload)
+                        self.last_packet_time = time.ticks_ms()
+                        continue
 
-                        lx, ly, rx, ry, l2, r2, btn_mask = struct.unpack('<ffffffI', unmasked)
+                    if opcode == 2 and payload_len == 28:
+                        lx, ly, rx, ry, l2, r2, btn_mask = struct.unpack('<ffffffI', payload)
 
                         self.left_x = lx
                         self.left_y = ly
@@ -248,9 +266,15 @@ class Controller:
                         self.connected = True
                         packets_processed += 1
                 except OSError as e:
-                    if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info(f"WS Err: {e}")
-                    self._close_ws()
-                    break
+                    # Check if the error is just EAGAIN / EWOULDBLOCK (Buffer is empty)
+                    if e.args and e.args[0] == 11:
+                        break  # Cleanly exit the loop; the buffer is drained!
+                    else:
+                        # A genuine connection drop or socket error occurred
+                        if self.bot and hasattr(self.bot, "log_info"):
+                            self.bot.log_info(f"WS Err: {e}")
+                        self._close_ws()
+                        break
 
             # Instrumentation: Log if we had to drop stale packets
             if packets_processed > 1:
@@ -264,7 +288,9 @@ class Controller:
         if r:
             try:
                 cl, _ = self.server_socket.accept()
-                cl.settimeout(0.5)
+                # Use a short timeout for the handshake to ensure it completes
+                # without hanging the robot forever.
+                cl.settimeout(0.2)
                 try:
                     req = cl.recv(1024)
                     if req:
