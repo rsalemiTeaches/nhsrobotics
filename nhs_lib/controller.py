@@ -135,7 +135,7 @@ class Controller:
                         raise OSError("WS Socket Closed")
                     data.extend(chunk)
             except OSError as e:
-                if e.args[0] != 11:
+                if e.args and e.args[0] != 11:
                     raise e
         return bytes(data)
 
@@ -248,9 +248,15 @@ class Controller:
                         self.connected = True
                         packets_processed += 1
                 except OSError as e:
-                    if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info(f"WS Err: {e}")
-                    self._close_ws()
-                    break
+                    # Check if the error is just EAGAIN / EWOULDBLOCK (Buffer is empty)
+                    if e.args and e.args[0] == 11:
+                        break  # Cleanly exit the loop; the buffer is drained!
+                    else:
+                        # A genuine connection drop or socket error occurred
+                        if self.bot and hasattr(self.bot, "log_info"):
+                            self.bot.log_info(f"WS Err: {e}")
+                        self._close_ws()
+                        break
 
             # Instrumentation: Log if we had to drop stale packets
             if packets_processed > 1:
