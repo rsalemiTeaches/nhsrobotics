@@ -12,7 +12,7 @@ sb = SuperBot(alvik)
 # --- CONFIGURATION CONSTANTS (Percentages) ---
 TARGET_STORAGE_CHARGE = 50      # Target storage capacity percentage (~3.85V equivalent)
 START_MAX_CHARGE = 100          # Maximum baseline percentage for color mapping scale
-DRAIN_MOTOR_SPEED = 100          # Controlled rotation speed (RPM) for spinning in place
+DRAIN_MOTOR_SPEED = 100         # Direct power percentage (using "%") for maximum velocity
 CHECK_INTERVAL_MS = 1000        # Interval for polling battery health (1 second)
 
 try:
@@ -49,14 +49,14 @@ try:
                 red_intensity = int((1.0 - progress) * 255)
                 green_intensity = int(progress * 255)
                 
-                # Apply the dynamic color mix to the controller NanoLED
+                # Apply the dynamic color mix directly via SuperBot's wrapper
                 sb.set_nano_rgb(red_intensity, green_intensity, 0)
                 
                 # Keep main headlights full white for extra power consumption
                 alvik.left_led.set_color(1, 1, 1)
                 alvik.right_led.set_color(1, 1, 1)
                 
-                # Spin in place on the foamboard to utilize motor coil draw
+                # Spin in place on the foamboard using direct power percentage for maximum velocity
                 alvik.set_wheels_speed(DRAIN_MOTOR_SPEED, -DRAIN_MOTOR_SPEED, "%")
                 
             else:
@@ -73,11 +73,14 @@ try:
                     alvik.left_led.set_color(1, 0, 1)
                     alvik.right_led.set_color(1, 0, 1)
                     
-                    # Turn off the dynamic NanoLED to signify the script stopped tracking progress
-                    sb.set_nano_rgb(0, 0, 0) 
+                    # Turn off the dynamic NanoLED using SuperBot's native command
+                    sb.nano_off() 
                     
                     print(f"--> Storage ready stabilized at: {resting_charge:.1f}%")
-                    sb.update_display("BATTERY READY", f"CHARGE: {resting_charge:.1f}%", "READY FOR STORAGE")
+                    sb.update_display("BATTERY READY", f"CHARGE: {resting_charge:.1f}%", "PULL BATTERY NOW")
+                    
+                    # Break out of loop to finish the script
+                    break
                 else:
                     print(f"--> Load dropped. Battery rebounded to {resting_charge:.1f}%. Re-draining...")
 
@@ -89,11 +92,9 @@ finally:
     print("Shutting down scripts and cleaning up robot environment...")
     alvik.brake()
     
-    if not storage_charge_reached:
-        alvik.left_led.set_color(0, 0, 0)
-        alvik.right_led.set_color(0, 0, 0)
-        sb.set_nano_rgb(0, 0, 0)
-        
+    # Clean up LEDs to default off states if program was cancelled/aborted
+    alvik.left_led.set_color(0, 0, 0)
+    alvik.right_led.set_color(0, 0, 0)
+    sb.nano_off()
     alvik.stop()
-    print("Robot safe.")
-    
+    print("Robot safe and script finished.")

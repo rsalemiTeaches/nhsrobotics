@@ -70,15 +70,13 @@ try:
         alvik.left_led.set_color(l_r, l_g, l_b)
         alvik.right_led.set_color(r_r, r_g, r_b)
 
-        # Tiny delay to keep loop stable
+        # Tiny de  lay to keep loop stable
         time.sleep(0.02) 
 
-except KeyboardInterrupt:
-    print("Program stopped by user.")
-except Exception as e:
-    print(f"Error occurred: {e}")
 finally:
     print("Program Ended. Motors Stopped, LEDs Off.")
     alvik.set_wheels_speed(0, 0)
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
+    alvik.stop()
+    

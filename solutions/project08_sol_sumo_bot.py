@@ -20,7 +20,7 @@ STATE_SEARCHING = 1
 STATE_PUSHING = 2
 STATE_TURNING = 3
 
-SEARCH_SPEED = 20     # Slow patrol speed
+SEARCH_SPEED = 50     # Slow patrol speed
 PUSH_SPEED = 80       # Attack speed
 ATTACK_DISTANCE = 3   # Distance in cm to trigger pushing
 EDGE_THRESHOLD = 500  # Threshold for white line detection (Tune as needed for your ring)
@@ -52,7 +52,7 @@ try:
         left_line, center_line, right_line = alvik.get_line_sensors()
         
         # Assume higher numbers mean white edge. 
-        edge_detected = max(left_line, center_line, right_line) > EDGE_THRESHOLD
+        edge_detected = max(left_line, center_line, right_line) < EDGE_THRESHOLD
         
         # Check distance using SuperBot helper
         distance_cm = sb.get_closest_distance()

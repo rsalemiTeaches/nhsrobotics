@@ -43,6 +43,7 @@ alvik.right_led.set_color(0, 1, 0)
 # --- MAIN CONTROL LOOP ---
 try:
     while True:
+        time.sleep_ms(50)
         # Update data from the web server
         ctl.update()
 

@@ -223,7 +223,6 @@ class Controller:
                         payload = self._read_exact(self.ws_client, payload_len)
                     else:
                         payload = b''
-
                     if opcode == 2 and is_masked and payload_len == 28:
                         unmasked = bytearray(payload_len)
                         for i in range(payload_len):
@@ -248,9 +247,15 @@ class Controller:
                         self.connected = True
                         packets_processed += 1
                 except OSError as e:
-                    if self.bot and hasattr(self.bot, "log_info"): self.bot.log_info(f"WS Err: {e}")
-                    self._close_ws()
-                    break
+                    # Check if the error is just EAGAIN / EWOULDBLOCK (Buffer is empty)
+                    if e.args and e.args[0] == 11: 
+                        break  # Cleanly exit the loop; the buffer is drained!
+                    else:
+                        # A genuine connection drop or socket error occurred
+                        if self.bot and hasattr(self.bot, "log_info"): 
+                            self.bot.log_info(f"WS Err: {e}")
+                        self._close_ws()
+                        break
 
             # Instrumentation: Log if we had to drop stale packets
             if packets_processed > 1:
