@@ -4,12 +4,16 @@ from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
 import sys
 
+
 if "/tests" not in sys.path:
     sys.path.append("/tests")
+
+
 from regression_utils import RegressionRunner
 import regression_logic
 import regression_hardware
 import regression_peripherals
+import regression_filesystem
 
 def main():
     print("Initializing Regression Suite...")
@@ -44,6 +48,9 @@ def main():
     runner.run_test("Peripheral: OLED", regression_peripherals.test_oled, bot)
     runner.run_test("Peripheral: Buzzer", regression_peripherals.test_buzzer, bot)
     runner.run_test("Peripheral: HuskyLens", regression_peripherals.test_huskylens, bot)
+
+    print("\n--- Running Filesystem Tests ---")
+    runner.run_test("Filesystem: File Operations", regression_filesystem.test_filesystem_unicode, bot)
 
     runner.print_summary()
 

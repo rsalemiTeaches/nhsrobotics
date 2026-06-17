@@ -148,6 +148,7 @@ class SuperBot:
                 # 4. Setup Buzzer
                 try:
                     self.buzzer = Buzzer(i2c_driver=self.qwiic_driver)
+
                     if self.buzzer._buzzer and self.buzzer._buzzer.is_connected():
                         self.buzzer.connected = True
                     else:
