@@ -112,3 +112,18 @@ def test_builtin_leds(bot):
         return 1, ""
     except Exception as e:
         return 0, str(e)
+
+def test_servo(bot):
+    try:
+        # Assuming the standard Alvik servo interface
+        # Adjust the range/angles based on your specific servo requirements
+        bot.alvik.set_servo_positions(0,0)
+        time.sleep(0.5)
+        bot.alvik.set_servo_positions(90,90)
+        time.sleep(0.5)
+        bot.alvik.set_servo_positions(180,180)
+        time.sleep(0.5)
+        bot.alvik.set_servo_positions(90,90)
+        return 1, "Servo sweep successful"
+    except Exception as e:
+        return 0, f"Servo test failed: {str(e)}"

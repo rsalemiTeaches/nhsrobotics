@@ -42,6 +42,7 @@ def main():
     runner.run_test("Hardware: Touch Buttons", regression_hardware.test_buttons, bot)
     runner.run_test("Hardware: Motor Drive", regression_hardware.test_motor_drive, bot)
     runner.run_test("Hardware: Motor Rotate", regression_hardware.test_motor_rotate, bot)
+    runner.run_test("Hardware: Servo Sweep", regression_hardware.test_servo, bot)
 
     print("\n--- Running Peripheral Tests ---")
     runner.run_test("Peripheral: Gamepad Controller Init", regression_peripherals.test_gamepad_init, bot)
