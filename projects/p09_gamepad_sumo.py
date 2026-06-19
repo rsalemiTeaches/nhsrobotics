@@ -1,7 +1,7 @@
 # Project 09: Gamepad Sumo (Student Scaffold)
 # Target: Bare-Bones Tank Drive
 from arduino_alvik import ArduinoAlvik
-from wifi_controller import Controller
+from controller import Controller
 import ubinascii
 import machine
 import time
@@ -43,6 +43,7 @@ alvik.right_led.set_color(0, 1, 0)
 # --- MAIN CONTROL LOOP ---
 try:
     while True:
+        time.sleep_ms(50)
         # Update data from the web server
         ctl.update()
 

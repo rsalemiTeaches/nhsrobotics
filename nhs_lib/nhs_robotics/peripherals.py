@@ -145,10 +145,7 @@ class Buzzer:
 
     def play_effect(self, effect_number):
         if self._buzzer:
-            try:
-                self._buzzer.play_sound_effect(effect_number, self._volume)
-            except Exception:
-                pass
+            self._buzzer.play_sound_effect(effect_number, self._volume)
 
 
 

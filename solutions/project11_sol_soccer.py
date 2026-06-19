@@ -8,13 +8,16 @@ import machine
 alvik = ArduinoAlvik()
 alvik.begin()
 
+alvik.set_servo_positions(180,180)
+
+
+    
 # 2. Initialize Wi-Fi Controller
 print("Starting Wi-Fi Access Point...")
 ssid = "Alvik-"+ubinascii.hexlify(machine.unique_id()).decode('utf-8').upper()[-4:]
 print("ssid: ", ssid)
 ctl = Controller(ssid=ssid, password="password")
 MAX_SPEED = 100.0 # 100% speed multiplier
-print("ssid", ssid)
 
 print("Waiting for connection... Connect phone and press a button.")
 
@@ -55,6 +58,8 @@ try:
 
         # Change colors based on face buttons
         if ctl.buttons['cross']: # X Button (Blue)
+            alvik.set_servo_positions(0,0)
+            time.sleep_ms(1000)
             l_r, l_g, l_b = 0, 0, 1
             r_r, r_g, r_b = 0, 0, 1
         elif ctl.buttons['circle']: # Circle Button (Red)
@@ -70,13 +75,15 @@ try:
         alvik.left_led.set_color(l_r, l_g, l_b)
         alvik.right_led.set_color(r_r, r_g, r_b)
 
-        # Tiny de  lay to keep loop stable
+        # Tiny delay to keep loop stable
         time.sleep(0.02) 
 
+except KeyboardInterrupt:
+    print("Program stopped by user.")
+except Exception as e:
+    print(f"Error occurred: {e}")
 finally:
     print("Program Ended. Motors Stopped, LEDs Off.")
     alvik.set_wheels_speed(0, 0)
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
-    alvik.stop()
-    

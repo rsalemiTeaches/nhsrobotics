@@ -42,8 +42,8 @@ class WebGamepad:
         self.ap = network.WLAN(network.AP_IF)
         if not self.ap.active():
             print(f"Creating WiFi: {self.ssid}...")
-            self.ap.config(essid=self.ssid, password=self.password)
             self.ap.active(True)
+            self.ap.config(essid=self.ssid, password=self.password)
             while not self.ap.active():
                 time.sleep(0.1)
         
