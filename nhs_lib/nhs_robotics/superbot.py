@@ -1,130 +1,27 @@
-# --- "SuperBot" Class ---
-# MicroPython Hardware
 from machine import Pin, I2C
-
-# Third-Party / Drivers
-import ssd1306
-import qwiic_buzzer
-import time
-import math
-from qwiic_huskylens import QwiicHuskylens
 from qwiic_i2c.micropython_i2c import MicroPythonI2C
-from .peripherals import Button, OLED, NanoLED, Buzzer
+import time
 
-
-
+from .peripherals import Button, NanoLED
+from .ui import RobotUI
+from .vision import RobotVision
+from .navigation import RobotNavigation
 
 class SuperBot:
-    # Mode Constants
-    MODE_IDLE = 0
-    MODE_DISTANCE = 1
-    MODE_APRIL_TAG = 2
-    MODE_DRIVE_TO_LINE = 3
-
     def __init__(self, alvik):
         self.alvik = alvik
-
-        # --- CONSTANTS ---
-        self.K_CONSTANT = 1624.0
-        self.DEGREES_PER_CM = 33.88
-
-        # --- LOGGING ---
-        self.__info_logging_enabled = False
-        self._ensure_log_directory()
-        self._rotate_logs()
-        self._first_error_logged = False
-
-        # --- PERIPHERALS ---
-        self.shared_i2c = None
-        self.screen = None
-        self.husky = None
-        self.qwiic_driver = None
-        self.buzzer = None
-
-        self._init_peripherals()
 
         # --- NANO LED SETUP ---
         self.nano_led = NanoLED()
 
         # --- BUTTON INITIALIZATION ---
-        self._btn_up = Button(self.alvik.get_touch_up)
-        self._btn_down = Button(self.alvik.get_touch_down)
-        self._btn_left = Button(self.alvik.get_touch_left)
-        self._btn_right = Button(self.alvik.get_touch_right)
-        self._btn_ok = Button(self.alvik.get_touch_ok)
-        self._btn_cancel = Button(self.alvik.get_touch_cancel)
+        self.btn_up = Button(self.alvik.get_touch_up)
+        self.btn_down = Button(self.alvik.get_touch_down)
+        self.btn_left = Button(self.alvik.get_touch_left)
+        self.btn_right = Button(self.alvik.get_touch_right)
+        self.btn_ok = Button(self.alvik.get_touch_ok)
+        self.btn_cancel = Button(self.alvik.get_touch_cancel)
 
-        # --- STATUS REPORT ---
-        print("SuperBot Init Complete.")
-        if self.husky:
-            print(" - HuskyLens: ACTIVE")
-        else:
-            print(" - HuskyLens: NONE")
-
-        if self.buzzer and self.buzzer.connected:
-            print(" - Buzzer: ACTIVE")
-        else:
-            print(" - Buzzer: NONE")
-
-        # --- STATE VARIABLES ---
-        self._current_mode = self.MODE_IDLE
-
-        # Distance Mode Variables
-        self._target_encoder_value = 0
-        self._drive_direction = 0
-        self._drive_start_time = 0
-        self._drive_timeout_ms = 0
-        self._is_moving_distance = False
-
-        # April Tag Mode Variables
-        self._vs_target_id = 1
-        self._vs_stop_distance = 0
-        self._vs_speed = 0
-        self._vs_lost_count = 0
-        self._vs_last_dist = 999.0
-
-        # Drive To Line Mode Variables
-        self._lf_speed = 0
-        self._lf_threshold = 500
-
-    # --- DEBOUNCED TOUCH ACCESSORS ---
-    def get_pressed_up(self):
-        return self._btn_up.is_pressed()
-
-    def get_pressed_down(self):
-        return self._btn_down.is_pressed()
-
-    def get_pressed_left(self):
-        return self._btn_left.is_pressed()
-
-    def get_pressed_right(self):
-        return self._btn_right.is_pressed()
-
-    def get_pressed_ok(self):
-        return self._btn_ok.is_pressed()
-
-    def get_pressed_cancel(self):
-        return self._btn_cancel.is_pressed()
-
-    # --- NANO LED METHODS ---
-    def set_nano_rgb(self, r, g, b):
-        """Sets the Nano LED color using 0-255 RGB values."""
-        self.nano_led.set_rgb(r, g, b)
-
-    def set_nano_color(self, r, g, b):
-        """Sets the Nano LED color using 0 or 1 (on/off) values."""
-        self.nano_led.set_color(r, g, b)
-
-    def set_nano_brightness(self, percentage):
-        """Sets the Nano LED brightness (0-100)."""
-        self.nano_led.set_brightness(percentage)
-
-    def nano_off(self):
-        """Turns the Nano LED off."""
-        self.nano_led.off()
-
-    # --- INITIALIZATION HELPER ---
-    def _init_peripherals(self):
         # 1. Setup Shared I2C Bus (Raw MicroPython object)
         try:
             self.shared_i2c = I2C(1, scl=Pin(12), sda=Pin(11), freq=400000)
@@ -132,182 +29,34 @@ class SuperBot:
             self.shared_i2c = None
             print(f"I2C Init Error: {e}")
 
-        # 2. Setup OLED (Uses raw I2C)
-        if self.shared_i2c:
-            try:
-                self.screen = OLED(i2c_driver=self.shared_i2c)
-                self.screen.show_lines("SuperBot", "Online", "V50")
-            except Exception:
-                pass
-
-        # 3. Setup Qwiic Driver (Wrapper for Qwiic libraries)
+        # 2. Setup Qwiic Driver
+        self.qwiic_driver = None
         if self.shared_i2c:
             try:
                 self.qwiic_driver = MicroPythonI2C(esp32_i2c=self.shared_i2c)
-
-                # 4. Setup Buzzer
-                try:
-                    self.buzzer = Buzzer(i2c_driver=self.qwiic_driver)
-
-                    if self.buzzer._buzzer and self.buzzer._buzzer.is_connected():
-                        self.buzzer.connected = True
-                    else:
-                        self.buzzer.connected = False
-                except Exception as e:
-                    print(f"Buzzer Init Error: {e}")
-                    self.buzzer = None
-
-                # 5. Setup HuskyLens
-                print("Init HuskyLens...")
-                self.update_display("Init HuskyLens...", "Please Wait")
-
-                attempts = 0
-                success = False
-                while attempts < 3 and not success:
-                    try:
-                        self.husky = QwiicHuskylens(i2c_driver=self.qwiic_driver)
-                        if self.husky.begin():
-                            success = True
-                            print("HuskyLens OK")
-                            try:
-                                self.update_display("HuskyLens OK")
-                            except Exception:
-                                pass
-                        else:
-                            print(f"HuskyLens Search {attempts + 1}")
-                    except Exception as e:
-                        print(f"Husky Search Error {attempts + 1} Error: {e}")
-
-                    if not success:
-                        attempts += 1
-                        time.sleep(0.5)
-
-                if not success:
-                    self.husky = None
-                    self.log_info("No HuskyLens")
-                    self.update_display("No HuskyLens")
-
             except Exception as e:
-                self.husky = None
-                self.buzzer = None
-                self.log_error(f"Qwiic Setup Error: {e}")
+                print(f"Qwiic Driver Init Error: {e}")
+
+        # --- INITIALIZE SUBMODULES ---
+        self.ui = RobotUI(self.shared_i2c, self.qwiic_driver)
+        self.nav = RobotNavigation(self.alvik, self.ui)
+        self.vision = RobotVision(self.qwiic_driver, self.ui, self.nav)
+        
+        print("SuperBot Init Complete.")
 
     @staticmethod
     def get_closest_distance_static(d1, d2, d3, d4, d5):
-        """Static helper for legacy bridge."""
         all_readings = [d1, d2, d3, d4, d5]
         valid_readings = [d for d in all_readings if d > 0]
         if not valid_readings:
             return 999
         return min(valid_readings)
 
-    # --- STUDENT-FRIENDLY METHODS ---
-
-    def align_to_tag(self, target_id=1, align_dist=25.0):
-        """
-        High-level method to align the robot with a tag.
-        Blocking call. Returns True/False.
-        """
-        self.log_info("Aligning...")
-        tag = None
-        for _ in range(5):
-            try:
-                self.husky.request()
-                blocks = [b for b in self.husky.blocks if b.id == target_id]
-                if blocks:
-                    tag = blocks[0]
-                    break
-            except Exception:
-                pass
-            time.sleep(0.1)
-
-        if not tag:
-            self.log_error("Align Fail: No Tag")
-            return False
-
-        vector = self.calculate_approach_vector(tag, align_dist)
-
-        self.alvik.rotate(vector.angle)
-        self.drive_distance(vector.distance)
-        self.alvik.rotate(-vector.angle)
-
-        return self.center_on_tag(target_id=target_id)
-
-    def approach_tag(self, target_id=1, stop_distance=8.0, speed=5, blocking=True):
-        """
-        Visual Servoing approach (AprilTag Mode).
-        Blocking=True: Runs until done, then brakes.
-        """
-        self.log_info(f"Approaching ID {target_id}...")
-
-        self._current_mode = self.MODE_APRIL_TAG
-        self._vs_target_id = target_id
-        self._vs_stop_distance = stop_distance
-        self._vs_speed = speed  # cm/s
-        self._vs_lost_count = 0
-        self._vs_last_dist = 999.0
-
-        self.alvik.drive(speed, 0)
-
-        if blocking:
-            while not self.move_complete():
-                time.sleep(0.05)
-            self.alvik.brake()
-            return True
-        return True
-
-    def drive_to_line(self, speed=15, threshold=500, blocking=True):
-        """
-        Drives until black line.
-        Blocking=True: Runs until line, then brakes.
-        """
-        self.log_info("Driving to Line...")
-
-        self._current_mode = self.MODE_DRIVE_TO_LINE
-        self._lf_speed = speed
-        self._lf_threshold = threshold
-
-        self.alvik.drive(speed, 0)
-
-        if blocking:
-            while not self.move_complete():
-                time.sleep(0.01)
-            self.alvik.brake()
-            return True
-        return True
-
-    # --- SENSOR METHODS ---
-
     def get_closest_distance(self):
         d_tuple = self.alvik.get_distance()
         return self.get_closest_distance_static(
             d_tuple[0], d_tuple[1], d_tuple[2], d_tuple[3], d_tuple[4]
         )
-
-    def get_camera_distance(self):
-        if not self.husky:
-            return None
-        try:
-            self.husky.request()
-            if len(self.husky.blocks) > 0:
-                width = self.husky.blocks[0].width
-                if width > 0:
-                    return self.K_CONSTANT / width
-        except Exception:
-            pass
-        return None
-
-    # --- CORE METHODS ---
-
-    def get_floor_status(self):
-        return "SAFE"
-
-    def servo_glide(self, servo, target_angle, duration_ms):
-        servo.write(target_angle)
-        time.sleep(duration_ms / 1000.0)
-
-    def rotate_precise(self, degrees):
-        self.alvik.rotate(degrees)
 
     def get_yaw(self):
         try:
@@ -316,310 +65,6 @@ class SuperBot:
             return 0.0
 
     def turn_to_heading(self, target_angle, tolerance=2.0, timeout=5):
-        self.log_info(f"Turn to {target_angle:.1f}")
-        start_time = time.ticks_ms()
+        self.nav.turn_to_heading(target_angle, self.get_yaw, tolerance, timeout)
 
-        while True:
-            if time.ticks_diff(time.ticks_ms(), start_time) > timeout * 1000:
-                self.alvik.brake()
-                self.log_info("Turn Timeout")
-                break
-
-            current_yaw = self.get_yaw()
-            error = target_angle - current_yaw
-
-            if error > 180:
-                error -= 360
-            if error < -180:
-                error += 360
-
-            if abs(error) <= tolerance:
-                self.alvik.brake()
-                break
-
-            rotation_speed = error * 2.0
-            MAX_SPEED = 50
-            MIN_SPEED = 15
-
-            if rotation_speed > MAX_SPEED:
-                rotation_speed = MAX_SPEED
-            if rotation_speed < -MAX_SPEED:
-                rotation_speed = -MAX_SPEED
-            if 0 < rotation_speed < MIN_SPEED:
-                rotation_speed = MIN_SPEED
-            if -MIN_SPEED < rotation_speed < 0:
-                rotation_speed = -MIN_SPEED
-
-            self.alvik.drive(0, rotation_speed)
-            time.sleep(0.01)
-
-    def center_on_tag(self, target_id=1, tolerance=5):
-        if not self.husky:
-            return False
-
-        self.husky.request()
-        blocks = [b for b in self.husky.blocks if b.id == target_id]
-
-        if not blocks:
-            return False
-
-        target = blocks[0]
-        error_pixels = 160 - target.xCenter
-
-        if abs(error_pixels) <= tolerance:
-            return True
-
-        pixels_per_degree = 320.0 / 60.0
-        angle_to_turn = error_pixels / pixels_per_degree
-
-        self.log_info(f"Center: {error_pixels}px -> {angle_to_turn:.1f}deg")
-        self.rotate_precise(angle_to_turn)
-        return True
-
-    def adjust_distance_to_tag(self, target_id=1, target_dist_cm=10, step_ratio=1.0):
-        if not self.husky:
-            return None
-
-        self.husky.request()
-        blocks = [b for b in self.husky.blocks if b.id == target_id]
-
-        if not blocks:
-            return None
-
-        target = blocks[0]
-        if target.width == 0:
-            return None
-        current_dist = self.K_CONSTANT / target.width
-        gap = current_dist - target_dist_cm
-
-        drive_amt = gap * step_ratio
-
-        if abs(gap) > 0.5:
-            if abs(drive_amt) < 2.0:
-                drive_amt = gap
-        else:
-            drive_amt = 0
-
-        if abs(drive_amt) > 0.1:
-            msg = f"Dist: {current_dist:.1f} Gap: {gap:.1f} -> Drive {drive_amt:.1f}"
-            self.log_info(msg)
-            self.drive_distance(drive_amt, blocking=True)
-
-        return current_dist
-
-    class ApproachVector:
-        def __init__(self, angle, distance):
-            self.angle = angle
-            self.distance = distance
-
-    def calculate_approach_vector(self, tag_block, target_dist_cm):
-        if tag_block.width == 0:
-            return self.ApproachVector(0, 0)
-        d_sight = self.K_CONSTANT / tag_block.width
-
-        x_val = tag_block.xCenter
-        pixel_offset = 160 - x_val
-        pixels_per_degree = 320.0 / 60.0
-        theta_deg = pixel_offset / pixels_per_degree
-        theta_rad = math.radians(theta_deg)
-
-        x_tag = d_sight * math.sin(theta_rad)
-        y_tag = d_sight * math.cos(theta_rad)
-
-        y_approach = y_tag - target_dist_cm
-        x_approach = x_tag
-
-        final_dist = math.sqrt(x_approach**2 + y_approach**2)
-        final_angle_rad = math.atan2(x_approach, y_approach)
-        final_angle_deg = math.degrees(final_angle_rad)
-
-        return self.ApproachVector(final_angle_deg, final_dist)
-
-    # --- MOTOR CONTROL METHODS ---
-
-    def drive_distance(self, distance_cm, speed_cm_s=20, blocking=True, timeout=10):
-        if distance_cm == 0:
-            return
-
-        self._current_mode = self.MODE_DISTANCE
-        enc_values = self.alvik.get_wheels_position()
-        start_avg = (enc_values[0] + enc_values[1]) / 2.0
-
-        delta_deg = distance_cm * self.DEGREES_PER_CM
-
-        self._target_encoder_value = start_avg + delta_deg
-        self._drive_direction = 1 if distance_cm > 0 else -1
-        self._is_moving_distance = True
-
-        self._drive_start_time = time.ticks_ms()
-        self._drive_timeout_ms = timeout * 1000
-
-        # Start moving
-        self.alvik.drive(speed_cm_s * self._drive_direction, 0)
-
-        if blocking:
-            while not self.move_complete():
-                time.sleep(0.01)
-            self.alvik.brake()
-
-    def move_complete(self):
-        """
-        Pure Query: Returns True if action is complete, False otherwise.
-        """
-        # --- MODE 1: DISTANCE ---
-        if self._current_mode == self.MODE_DISTANCE:
-            # Timeout Check
-            time_diff = time.ticks_diff(time.ticks_ms(), self._drive_start_time)
-            if time_diff > self._drive_timeout_ms:
-                self.alvik.brake()
-                self._is_moving_distance = False
-                self._current_mode = self.MODE_IDLE
-                self.log_info("Warn: Drive Timeout")
-                return True
-
-            enc_values = self.alvik.get_wheels_position()
-            current_avg = (enc_values[0] + enc_values[1]) / 2.0
-
-            finished = False
-            if self._drive_direction > 0:
-                if current_avg >= self._target_encoder_value:
-                    finished = True
-            else:
-                if current_avg <= self._target_encoder_value:
-                    finished = True
-
-            if finished:
-                self._is_moving_distance = False
-                self._current_mode = self.MODE_IDLE
-                return True
-
-            return False
-
-        # --- MODE 2: APRIL TAG ---
-        elif self._current_mode == self.MODE_APRIL_TAG:
-            try:
-                self.husky.request()
-            except Exception:
-                return False
-
-            blocks = [b for b in self.husky.blocks if b.id == self._vs_target_id]
-
-            if not blocks:
-                self._vs_lost_count += 1
-                if self._vs_lost_count > 10:
-                    # Blind Finish Logic
-                    if self._vs_last_dist < 15.0:
-                        self.log_info("Tag lost (Close). Blind finish.")
-                        remaining = self._vs_last_dist - self._vs_stop_distance
-                        if remaining > 0:
-                            self.drive_distance(
-                                remaining, speed_cm_s=self._vs_speed, blocking=True
-                            )
-                        self._current_mode = self.MODE_IDLE
-                        return True
-                    else:
-                        self.log_error("Lost Tag (Far)")
-                        self.alvik.brake()
-                        self._current_mode = self.MODE_IDLE
-                        return True
-                return False
-
-            self._vs_lost_count = 0
-            tag = blocks[0]
-
-            if tag.width == 0:
-                return False
-            dist = self.K_CONSTANT / tag.width
-            self._vs_last_dist = dist
-
-            if dist <= self._vs_stop_distance:
-                self._current_mode = self.MODE_IDLE
-                return True
-
-            # Steering Logic
-            error = 160 - tag.xCenter
-            turn_rate = error * 0.15
-            if turn_rate > 30:
-                turn_rate = 30
-            if turn_rate < -30:
-                turn_rate = -30
-
-            self.alvik.drive(self._vs_speed, turn_rate)
-
-            return False
-
-        # --- MODE 3: DRIVE TO LINE ---
-        elif self._current_mode == self.MODE_DRIVE_TO_LINE:
-            l, c, r = self.alvik.get_line_sensors()
-            threshold = self._lf_threshold
-            if l > threshold or c > threshold or r > threshold:
-                self._current_mode = self.MODE_IDLE
-                return True
-            return False
-
-        # --- MODE: IDLE ---
-        else:
-            return True
-
-    # --- LOGGING & IO METHODS ---
-
-    def enable_info_logging(self):
-        self.__info_logging_enabled = True
-        print("Logging set to ON")
-        self.update_display("Log: ON")
-
-    def disable_info_logging(self):
-        self.__info_logging_enabled = False
-        print("Logging set to OFF")
-        self.update_display("Log: OFF")
-
-    def log_info(self, *args, sep=' '):
-        # Convert all arguments to strings and join them with the separator
-        message = sep.join(str(arg) for arg in args)
-        
-        print(message)
-        self.update_display(message)
-        # DISABLED: self._append_to_file('/workspace/logs/messages.log', message)
-
-    def log_error(self, *args, sep=' '):
-        if not self._first_error_logged:
-            self._first_error_logged = True
-            
-        # Convert all arguments to strings and join them with the separator
-        base_message = sep.join(str(arg) for arg in args)
-        full_msg = f"ERROR: {base_message}"
-        
-        print(full_msg)
-        self.update_display(full_msg)
-        # DISABLED: self._append_to_file('/workspace/logs/errors.log', full_msg)
-
-    def _ensure_log_directory(self):
-        # TEMPORARILY DISABLED: Alvik filesystem corruption issue.
-        pass
-
-    def _rotate_logs(self):
-        # TEMPORARILY DISABLED: Alvik filesystem corruption issue.
-        pass
-
-    def _append_to_file(self, filename, text):
-        # TEMPORARILY DISABLED: Alvik filesystem corruption issue.
-        pass
-
-    # --- HARDWARE HELPERS ---
-
-    def update_display(self, line1, line2="", line3=""):
-        if self.screen:
-            try:
-                l1 = str(line1)
-                l2 = str(line2)
-                l3 = str(line3)
-                if l2 == "" and l3 == "" and len(l1) > 16:
-                    l2 = l1[16:32]
-                    l3 = l1[32:48]
-                    l1 = l1[0:16]
-                self.screen.show_lines(l1, l2, l3)
-            except Exception:
-                pass
-
-print("Loaded superbot.py V01")
-
+print("Loaded superbot.py V02")

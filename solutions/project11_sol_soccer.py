@@ -1,8 +1,6 @@
 from arduino_alvik import ArduinoAlvik
-from controller import Controller
+from nhs_robotics import RobotGamepad
 import time
-import ubinascii
-import machine
 
 # 1. Initialize Robot
 alvik = ArduinoAlvik()
@@ -10,45 +8,22 @@ alvik.begin()
 
 alvik.set_servo_positions(180,180)
 
-
-    
 # 2. Initialize Wi-Fi Controller
-print("Starting Wi-Fi Access Point...")
-ssid = "Alvik-"+ubinascii.hexlify(machine.unique_id()).decode('utf-8').upper()[-4:]
-print("ssid: ", ssid)
-ctl = Controller(ssid=ssid, password="password")
+gamepad = RobotGamepad(alvik)
 MAX_SPEED = 100.0 # 100% speed multiplier
 
-print("Waiting for connection... Connect phone and press a button.")
-
-# --- WAIT FOR HANDSHAKE ---
-led_toggle = False
-while not ctl.is_connected():
-    # Crucial: Keep processing background network sockets while waiting!
-    ctl.update()
-    
-    # Blink both LEDs Yellow (Red + Green) while waiting
-    if led_toggle:
-        alvik.left_led.set_color(1, 1, 0)
-        alvik.right_led.set_color(1, 1, 0)
-    else:
-        alvik.left_led.set_color(0, 0, 0)
-        alvik.right_led.set_color(0, 0, 0)
-        
-    led_toggle = not led_toggle
-    time.sleep(0.2) # Blink rate (200ms)
-
-print("Connected!")
+kick_start_time = 0
+is_kicking = False
 
 try:
     # --- MAIN LOOP ---
     while True:
         # Update Data from Wi-Fi
-        ctl.update()
+        gamepad.update()
 
         # Drive Logic (Tank Drive)
-        left_speed = ctl.left_y * MAX_SPEED
-        right_speed = ctl.right_y * MAX_SPEED
+        left_speed = gamepad.left_y * MAX_SPEED
+        right_speed = gamepad.right_y * MAX_SPEED
         alvik.set_wheels_speed(left_speed, right_speed)
 
         # 4. BUTTON LED MAPPING
@@ -57,20 +32,27 @@ try:
         r_r, r_g, r_b = 0, 1, 0
 
         # Change colors based on face buttons
-        if ctl.buttons['cross']: # X Button (Blue)
-            alvik.set_servo_positions(0,0)
-            time.sleep_ms(1000)
+        if gamepad.buttons['cross']: # X Button (Blue)
+            if not is_kicking:
+                alvik.set_servo_positions(0,0)
+                kick_start_time = time.ticks_ms()
+                is_kicking = True
             l_r, l_g, l_b = 0, 0, 1
             r_r, r_g, r_b = 0, 0, 1
-        elif ctl.buttons['circle']: # Circle Button (Red)
+        elif gamepad.buttons['circle']: # Circle Button (Red)
             l_r, l_g, l_b = 1, 0, 0
             r_r, r_g, r_b = 1, 0, 0
-        elif ctl.buttons['triangle']: # Triangle Button (Green)
+        elif gamepad.buttons['triangle']: # Triangle Button (Green)
             l_r, l_g, l_b = 0, 1, 0
             r_r, r_g, r_b = 0, 1, 0
-        elif ctl.buttons['square']: # Square Button (Pink/Purple)
+        elif gamepad.buttons['square']: # Square Button (Pink/Purple)
             l_r, l_g, l_b = 1, 0, 1
             r_r, r_g, r_b = 1, 0, 1
+
+        # Check kick timeout (1000ms) to return to rest position
+        if is_kicking and time.ticks_diff(time.ticks_ms(), kick_start_time) > 1000:
+            alvik.set_servo_positions(180, 180)
+            is_kicking = False
 
         alvik.left_led.set_color(l_r, l_g, l_b)
         alvik.right_led.set_color(r_r, r_g, r_b)

@@ -3,16 +3,16 @@ import time
 def test_nano_led(bot):
     try:
         # Test RGB
-        bot.set_nano_rgb(255, 0, 0)
+        bot.nano_led.set_rgb(255, 0, 0)
         time.sleep(0.1)
         # Test Color (on/off binary)
-        bot.set_nano_color(0, 1, 0)
+        bot.nano_led.set_color(0, 1, 0)
         time.sleep(0.1)
         # Test Brightness
-        bot.set_nano_brightness(50)
+        bot.nano_led.set_brightness(50)
         time.sleep(0.1)
         # Test Off
-        bot.nano_off()
+        bot.nano_led.off()
         return 1, ""
     except Exception as e:
         return 0, str(e)
@@ -20,8 +20,8 @@ def test_nano_led(bot):
 def test_motor_drive(bot):
     try:
         # Drive forward 2cm, then back 2cm
-        bot.drive_distance(2.0, speed_cm_s=15, blocking=True)
-        bot.drive_distance(-2.0, speed_cm_s=15, blocking=True)
+        bot.nav.drive_distance(2.0, speed_cm_s=15, blocking=True)
+        bot.nav.drive_distance(-2.0, speed_cm_s=15, blocking=True)
         return 1, ""
     except Exception as e:
         # Attempt to stop just in case
@@ -32,9 +32,9 @@ def test_motor_drive(bot):
 def test_motor_rotate(bot):
     try:
         # Rotate 45 deg, then -45 deg
-        bot.rotate_precise(45.0)
+        bot.nav.rotate_precise(45.0)
         time.sleep(0.1)
-        bot.rotate_precise(-45.0)
+        bot.nav.rotate_precise(-45.0)
         return 1, ""
     except Exception as e:
         try: bot.alvik.brake()
@@ -53,31 +53,38 @@ def test_sensor_yaw(bot):
 def test_buttons(bot):
     try:
         # Just ensure they don't crash when called
-        bot.get_pressed_up()
-        bot.get_pressed_down()
-        bot.get_pressed_left()
-        bot.get_pressed_right()
-        bot.get_pressed_ok()
-        bot.get_pressed_cancel()
+        bot.btn_up.is_pressed()
+        bot.btn_down.is_pressed()
+        bot.btn_left.is_pressed()
+        bot.btn_right.is_pressed()
+        bot.btn_ok.is_pressed()
+        bot.btn_cancel.is_pressed()
         return 1, ""
     except Exception as e:
         return 0, str(e)
 
 def test_api_integrity(bot):
+    # Updating required methods to reflect the new object hierarchy
+    if not hasattr(bot, 'nav'):
+        return 0, "Missing bot.nav"
+    if not hasattr(bot, 'vision'):
+        return 0, "Missing bot.vision"
+    if not hasattr(bot, 'ui'):
+        return 0, "Missing bot.ui"
+        
     required_methods = [
-        "drive_distance",
-        "approach_tag",
-        "turn_to_heading",
-        "get_closest_distance",
-        "get_pressed_ok",
-        "center_on_tag",
-        "set_nano_rgb"
+        ("nav", "drive_distance"),
+        ("nav", "approach_tag"),
+        ("nav", "turn_to_heading"),
+        (None, "get_closest_distance"),
+        ("vision", "center_on_tag"),
     ]
 
     missing = []
-    for method in required_methods:
-        if not hasattr(bot, method):
-            missing.append(method)
+    for attr, method in required_methods:
+        target = bot if attr is None else getattr(bot, attr)
+        if not hasattr(target, method):
+            missing.append(f"{attr if attr else 'bot'}.{method}")
 
     if missing:
         return 0, f"Missing: {', '.join(missing)}"
