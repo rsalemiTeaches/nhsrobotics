@@ -11,7 +11,7 @@ MAX_RPM = 45
 EDGE_THRESHOLD = 500   # WORK 3: tuned on the classroom ring
 
 try:
-    while True:
+    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
         # 1. SENSE
         gamepad.update()
         left_line, center_line, right_line = alvik.get_line_sensors()
@@ -24,7 +24,7 @@ try:
             left_speed = 0
             right_speed = 0
 
-        edge_detected = max(left_line, center_line, right_line) < EDGE_THRESHOLD
+        edge_detected = max(left_line, center_line, right_line) > EDGE_THRESHOLD
         if edge_detected:                              # WORK 2
             alvik.left_led.set_color(1, 0, 0)
             alvik.right_led.set_color(1, 0, 0)

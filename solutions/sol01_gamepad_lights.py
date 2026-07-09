@@ -8,7 +8,7 @@ alvik.begin()
 gamepad = RobotGamepad(alvik)
 
 try:
-    while True:
+    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
         gamepad.update()
 
         if gamepad.buttons['cross']:            # WORK 1

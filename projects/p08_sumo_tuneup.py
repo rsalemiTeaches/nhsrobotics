@@ -29,7 +29,8 @@ for _ in range(3):
 print("SELF-CHECK complete. Waiting for gamepad.")
 
 try:
-    while True:
+    # CANCEL on the robot or OPTIONS on the gamepad ends the run.
+    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
         # 1. SENSE
         gamepad.update()
         left_line, center_line, right_line = alvik.get_line_sensors()

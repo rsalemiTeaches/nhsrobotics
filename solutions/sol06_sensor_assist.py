@@ -12,7 +12,7 @@ MAX_RPM = 45
 STOP_DISTANCE = 15
 
 try:
-    while True:
+    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
         # 1. SENSE
         gamepad.update()
         distance_cm = bot.get_closest_distance()

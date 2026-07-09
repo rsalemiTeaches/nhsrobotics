@@ -36,7 +36,8 @@ def spin_move():
 
 
 try:
-    while True:
+    # CANCEL on the robot or OPTIONS on the gamepad ends the run.
+    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
         gamepad.update()
 
         # WORK 1: When CROSS is pressed, CALL spin_move().

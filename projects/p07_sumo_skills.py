@@ -16,13 +16,14 @@ gamepad = RobotGamepad(alvik)
 MAX_RPM = 45
 
 # The ring floor is dark; the boundary is a white edge. The three line
-# sensors read LOW numbers over the white edge.
+# sensors read HIGH numbers over the white edge.
 # WORK 3 (Goal 2): tune this on the real ring until edge detection is
 # reliable but doesn't trigger in the middle.
 EDGE_THRESHOLD = 500
 
 try:
-    while True:
+    # CANCEL on the robot or OPTIONS on the gamepad ends the run.
+    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
         # --- 1. SENSE ---
         gamepad.update()
         left_line, center_line, right_line = alvik.get_line_sensors()
@@ -37,7 +38,7 @@ try:
         # If it returns False: force both speeds to 0.
 
         # WORK 2: EDGE GUARD. Build a True/False variable:
-        #   edge_detected = max(left_line, center_line, right_line) < EDGE_THRESHOLD
+        #   edge_detected = max(left_line, center_line, right_line) > EDGE_THRESHOLD
         # When the edge is detected: block FORWARD driving (positive
         # speeds only, like P06) and turn the LEDs red. Reverse must
         # stay allowed — backing away from the edge is how you survive!

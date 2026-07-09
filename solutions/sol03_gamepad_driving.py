@@ -10,7 +10,7 @@ gamepad = RobotGamepad(alvik)
 MAX_RPM = 45   # WORK 3: 40-60 is competitive and controllable
 
 try:
-    while True:
+    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
         gamepad.update()
 
         left_speed = gamepad.left_y * MAX_RPM      # WORK 1

@@ -22,7 +22,8 @@ gamepad = RobotGamepad(alvik)
 
 try:
     # --- MAIN LOOP ---
-    while True:
+    # CANCEL on the robot or OPTIONS on the gamepad ends the run.
+    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
         # Ask the gamepad for fresh data. This must happen EVERY loop.
         gamepad.update()
 

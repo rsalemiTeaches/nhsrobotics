@@ -24,7 +24,7 @@ current_state = STATE_MANUAL
 run_start_time = 0
 
 try:
-    while not alvik.get_touch_cancel():
+    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
         time.sleep(0.015)
         gamepad.update()
 
