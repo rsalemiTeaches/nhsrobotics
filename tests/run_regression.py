@@ -14,6 +14,7 @@ import regression_logic
 import regression_hardware
 import regression_peripherals
 import regression_filesystem
+import regression_line_follower
 
 def main():
     print("Initializing Regression Suite...")
@@ -31,6 +32,7 @@ def main():
     runner.run_test("Logic: Closest Distance Static", regression_logic.test_closest_distance_static)
     runner.run_test("Logic: Calculate Approach Vector", regression_logic.test_calculate_approach_vector, bot)
     runner.run_test("Logic: Logging", regression_logic.test_logging, bot)
+    runner.run_test("Logic: LineFollower PID", regression_line_follower.test_line_follower_logic, bot)
 
     print("\n--- Running Hardware Tests ---")
     runner.run_test("Hardware: API Integrity", regression_hardware.test_api_integrity, bot)
@@ -39,6 +41,7 @@ def main():
     runner.run_test("Hardware: Sensor Yaw", regression_hardware.test_sensor_yaw, bot)
     runner.run_test("Hardware: ToF Sensors", regression_hardware.test_tof, bot)
     runner.run_test("Hardware: Line Sensors", regression_hardware.test_line_sensors, bot)
+    runner.run_test("Hardware: LineFollower Sensors", regression_line_follower.test_line_follower_sensors, bot)
     runner.run_test("Hardware: Touch Buttons", regression_hardware.test_buttons, bot)
     runner.run_test("Hardware: Motor Drive", regression_hardware.test_motor_drive, bot)
     runner.run_test("Hardware: Motor Rotate", regression_hardware.test_motor_rotate, bot)

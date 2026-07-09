@@ -54,7 +54,7 @@ try:
         elif current_state == STATE_SEARCHING:                     # WORK 4
             alvik.set_wheels_speed(SEARCH_SPEED, SEARCH_SPEED)
             left, center, right = alvik.get_line_sensors()
-            if min(left, center, right) < LINE_THRESHOLD:
+            if max(left, center, right) > LINE_THRESHOLD:
                 alvik.brake()
                 sb.nav.rotate_precise(-90)
                 sb.reset_line()

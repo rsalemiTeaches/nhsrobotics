@@ -28,7 +28,7 @@ try:
         alvik.set_wheels_speed(SEARCH_SPEED, SEARCH_SPEED)
         while time.ticks_diff(time.ticks_ms(), leg_start) < LEG_TIME_MS:
             left, center, right = alvik.get_line_sensors()
-            if min(left, center, right) < LINE_THRESHOLD:
+            if max(left, center, right) > LINE_THRESHOLD:
                 found = True
                 alvik.brake()
                 break

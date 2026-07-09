@@ -6,6 +6,7 @@ from .peripherals import Button, NanoLED
 from .ui import RobotUI
 from .vision import RobotVision
 from .navigation import RobotNavigation
+from .line_follower import LineFollower
 
 class SuperBot:
     def __init__(self, alvik):
@@ -41,7 +42,8 @@ class SuperBot:
         self.ui = RobotUI(self.shared_i2c, self.qwiic_driver)
         self.nav = RobotNavigation(self.alvik, self.ui)
         self.vision = RobotVision(self.qwiic_driver, self.ui, self.nav)
-        
+        self.line = LineFollower(self.alvik)
+
         print("SuperBot Init Complete.")
 
     @staticmethod
@@ -67,4 +69,14 @@ class SuperBot:
     def turn_to_heading(self, target_angle, tolerance=2.0, timeout=5):
         self.nav.turn_to_heading(target_angle, self.get_yaw, tolerance, timeout)
 
-print("Loaded superbot.py V02")
+    def follow_line(self, base_speed):
+        return self.line.follow(base_speed)
+
+    @property
+    def line_lost(self):
+        return self.line.line_lost
+
+    def reset_line(self):
+        self.line.reset()
+
+print("Loaded superbot.py V03")

@@ -47,7 +47,7 @@ try:
 
         elif current_state == STATE_FOLLOWING:
             left, center, right = alvik.get_line_sensors()
-            if max(left, center, right) < LINE_THRESHOLD:      # WORK 5
+            if min(left, center, right) > LINE_THRESHOLD:      # WORK 5
                 alvik.brake()
                 elapsed = time.ticks_diff(time.ticks_ms(), run_start_time) / 1000
                 print("FINISH! Time:", elapsed, "seconds")
@@ -79,7 +79,7 @@ try:
         elif current_state == STATE_SEARCHING:                   # WORK 7
             alvik.set_wheels_speed(SEARCH_SPEED, SEARCH_SPEED)
             left, center, right = alvik.get_line_sensors()
-            if min(left, center, right) < LINE_THRESHOLD:
+            if max(left, center, right) > LINE_THRESHOLD:
                 alvik.brake()
                 sb.nav.rotate_precise(-90)
                 sb.reset_line()

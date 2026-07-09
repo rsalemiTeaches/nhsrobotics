@@ -6,8 +6,8 @@
 #      press TRIANGLE to launch the autonomous run. (Term 2 stays
 #      blended: human for setup, robot for the race.)
 #   2. A FINISH detector: the finish line is a bar of tape ACROSS the
-#      course. Following the line, only the CENTER sensor reads low —
-#      but on a perpendicular bar, ALL THREE read low at once.
+#      course. Following the line, only the CENTER sensor reads high —
+#      but on a perpendicular bar, ALL THREE read high at once.
 #   3. A race timer: qualifying is about the clock.
 
 from arduino_alvik import ArduinoAlvik
@@ -56,7 +56,7 @@ try:
             # safety + obstacle check -> STATE_AVOIDING).
 
             # WORK 5: FINISH DETECTION — read the line sensors; if ALL
-            # THREE are below LINE_THRESHOLD at once, that's the finish
+            # THREE are above LINE_THRESHOLD at once, that's the finish
             # bar: brake, print the elapsed time in seconds
             #   time.ticks_diff(time.ticks_ms(), run_start_time) / 1000
             # and go to STATE_FINISHED.

@@ -56,7 +56,7 @@ try:
 
         elif current_state == STATE_SEARCHING:
             # WORK 4 (Goal 3): drive forward slowly; when
-            # min(line sensors) < LINE_THRESHOLD the line is back:
+            # max(line sensors) > LINE_THRESHOLD the line is back:
             #   brake
             #   rotate_precise(-90)   # turn down-course along the line
             #   sb.reset_line()       # IMPORTANT: clear old PID memory

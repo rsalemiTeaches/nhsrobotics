@@ -1,8 +1,4 @@
 # regression_line_follower.py
-# Add to run_regression.py:
-#   import regression_line_follower
-#   runner.run_test("Logic: LineFollower PID", regression_line_follower.test_line_follower_logic, bot)
-#   runner.run_test("Hardware: LineFollower Sensors", regression_line_follower.test_line_follower_sensors, bot)
 
 def test_line_follower_logic(bot):
     """Pure-logic test using a fake alvik. No wheels move."""

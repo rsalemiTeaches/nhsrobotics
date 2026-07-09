@@ -1,9 +1,9 @@
 # Project 12: Find the Line
 # GOAL: Before a robot can FOLLOW a line, it has to FIND one.
 #
-# The three line sensors read reflectance. Over the dark floor the
-# numbers are HIGH; over the white line they drop LOW (same trick as
-# your sumo edge guard, P07).
+# The three line sensors read reflectance. Over the bare floor the
+# numbers are LOW; over the tape they rise HIGH (same trick as your
+# sumo edge guard, P07).
 #
 #   sb.nav.drive_to_line(speed)   # drive straight until a line is seen
 
@@ -41,7 +41,7 @@ try:
     #       leg_start = time.ticks_ms()
     #       drive forward with alvik.set_wheels_speed(SEARCH_SPEED, SEARCH_SPEED)
     #       inner loop: while ticks_diff(now, leg_start) < LEG_TIME_MS:
-    #           read the sensors; if min(...) < LINE_THRESHOLD:
+    #           read the sensors; if max(...) > LINE_THRESHOLD:
     #               found = True, brake, break
     #       if not found: brake, then sb.nav.rotate_precise(45)
     #

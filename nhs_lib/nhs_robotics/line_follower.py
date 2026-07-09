@@ -1,18 +1,9 @@
 # line_follower.py
 # nhs_robotics V03 addition: PID line following for the Alvik's three line sensors.
 #
-# INSTALL: copy this file into the nhs_robotics folder on the robot, then use
-# the updated __init__.py (also provided) so students can do:
-#     from nhs_robotics import LineFollower
-#
-# OPTIONAL SuperBot integration (2 lines in superbot.py __init__):
-#     from .line_follower import LineFollower
-#     self.line = LineFollower(alvik)          # then: l, r = sb.line.follow(30)
-#
-# STUDENT-FACING CONTRACT (keep this stable):
-#     lf = LineFollower(alvik)
-#     left_rpm, right_rpm = lf.follow(base_speed)
-#     alvik.set_wheels_speed(left_rpm, right_rpm)
+# Reached through SuperBot: left_rpm, right_rpm = sb.follow_line(base_speed);
+# sb.line_lost / sb.reset_line() proxy to this class. Can also be used
+# standalone: lf = LineFollower(alvik); left_rpm, right_rpm = lf.follow(base_speed).
 # Call follow() every loop tick (~10-20 ms). It reads the sensors itself.
 
 import time
@@ -44,6 +35,8 @@ class LineFollower:
         """Weighted line position: -1.0 (far left) .. +1.0 (far right).
         Returns None when no line is under the sensors."""
         l, c, r = self.alvik.get_line_sensors()
+        if l is None or c is None or r is None:
+            return None
         total = l + c + r
         if total < self.LINE_MIN_SUM:
             return None
