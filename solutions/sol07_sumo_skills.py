@@ -24,7 +24,7 @@ try:
             left_speed = 0
             right_speed = 0
 
-        edge_detected = max(left_line, center_line, right_line) > EDGE_THRESHOLD
+        edge_detected = max(left_line, center_line, right_line) < EDGE_THRESHOLD
         if edge_detected:                              # WORK 2
             alvik.left_led.set_color(1, 0, 0)
             alvik.right_led.set_color(1, 0, 0)
