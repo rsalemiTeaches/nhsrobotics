@@ -12,6 +12,10 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
+# FLEX (the A+): a smart assist. Instead of a hard stop, scale the forward
+# speed down smoothly as the wall gets closer. Copy your code into the FLEX
+# box and explain your scaling math on the worksheet.
+
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot, RobotGamepad
 import time
@@ -35,10 +39,10 @@ try:
         right_speed = gamepad.right_y * MAX_RPM
 
         # --- 2. THINK ---
-        # WORK 1 (Goal 1): if distance_cm is closer than STOP_DISTANCE,
+        # WORK 1: if distance_cm is closer than STOP_DISTANCE,
         # force BOTH speeds to 0.
 
-        # WORK 2 (Goal 2): Goal 1 has a problem — once you're trapped
+        # WORK 2: WORK 1 has a problem — once you're trapped
         # near the wall, you can't back away! Fix it: only zero out a
         # speed if it is POSITIVE (driving forward). Backing up
         # (negative speed) should always be allowed.
@@ -52,7 +56,7 @@ try:
         time.sleep(0.02)
 
 finally:
-    alvik.set_wheels_speed(0, 0)
+    alvik.brake()
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
     alvik.stop()

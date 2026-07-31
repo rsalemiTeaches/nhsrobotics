@@ -79,4 +79,12 @@ class SuperBot:
     def reset_line(self):
         self.line.reset()
 
+    def update_display(self, line1, line2="", line3=""):
+        """Write up to three lines to the OLED.
+
+        Passthrough to self.ui.update_display(). The screen is 128x32,
+        three lines of about 16 characters each.
+        """
+        self.ui.update_display(line1, line2, line3)
+
 print("Loaded superbot.py V03")

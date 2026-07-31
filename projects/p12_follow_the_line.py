@@ -1,4 +1,4 @@
-# Project 13: Follow the Line
+# Project 12: Follow the Line
 # GOAL: Follow the taped course using SuperBot's PID line follower.
 #
 # REQUIRES nhs_robotics V03 on the robot (ask your teacher if you see
@@ -10,9 +10,13 @@
 # You do NOT write the PID math — your job is everything around it.
 #
 # SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
-# (MicroPython device), and save this file as /workspace/p13.py. From
+# (MicroPython device), and save this file as /workspace/p12.py. From
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
+
+# FLEX (the A+): speed zones. Go fast on straightaways and slow in curves.
+# Hint: when the two returned speeds are nearly equal, you are on a straight.
+# Copy your code into the FLEX box.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
@@ -22,7 +26,7 @@ alvik = ArduinoAlvik()
 alvik.begin()
 sb = SuperBot(alvik)
 
-# WORK 3 (Goal 2): raise this until laps get unreliable, then back off.
+# WORK 3: raise this until laps get unreliable, then back off.
 # Keep it 50 or below — the motors max out at 70 RPM, and the PID
 # needs headroom to speed up the outside wheel in curves.
 DRIVE_SPEED = 25

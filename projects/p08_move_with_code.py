@@ -1,5 +1,5 @@
-# Project 09: Move With Code
-# GOAL: Welcome to TERM 2 — AUTOMATION. No gamepad this time. The robot
+# Project 08: Move With Code
+# GOAL: Welcome to AUTOMATION. No gamepad this time. The robot
 # moves because your CODE says exactly where to go.
 #
 # SuperBot gives you two precision commands:
@@ -8,9 +8,12 @@
 # Each command FINISHES before the next line runs (it "blocks").
 #
 # SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
-# (MicroPython device), and save this file as /workspace/p09.py. From
+# (MicroPython device), and save this file as /workspace/p08.py. From
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
+
+# FLEX (the A+): drive your initials. Plan and code a route that traces a
+# letter. Copy your code into the FLEX box.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
@@ -25,7 +28,7 @@ while not alvik.get_touch_ok():
     time.sleep(0.05)
 
 try:
-    # --- GOAL 1: DRIVE A SQUARE ---
+    # --- WORK 1-2: DRIVE A SQUARE ---
     # WORK 1: drive one side of a square: forward 30 cm, then turn 90.
 
     # WORK 2: a square is that same pair of moves FOUR times.
@@ -33,7 +36,7 @@ try:
     #     for _ in range(4):
     # (Put your WORK 1 lines inside it, indented.)
 
-    # --- GOAL 2 (next class): DRIVE THE TAPED COURSE ---
+    # --- WORK 3: DRIVE THE TAPED COURSE ---
     # WORK 3: the classroom floor has a taped course with measured
     # sides and marked angles. Write the sequence of drive_distance
     # and rotate_precise calls that takes the robot from START to

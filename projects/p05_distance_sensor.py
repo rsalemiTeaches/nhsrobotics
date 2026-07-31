@@ -10,6 +10,10 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
+# FLEX (the A+): a parking assistant. The LEDs blink faster as the wall gets
+# closer -- slow far away, frantic up close. Hint: sleep for distance_cm / 100
+# seconds between toggles. Copy your code into the FLEX box.
+
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
 import time
@@ -24,7 +28,7 @@ CLOSE = 10
 MEDIUM = 25
 
 try:
-    # --- GOAL 1: LIVE READOUT ---
+    # --- WORK 1: LIVE READOUT ---
     while not alvik.get_touch_cancel():
 
         # WORK 1: get the closest distance from SuperBot and store it
@@ -35,7 +39,7 @@ try:
         # in Thonny. Move your hand toward the robot and watch what
         # happens.
 
-        # --- GOAL 2: PROXIMITY WARNING ---
+        # --- WORK 2-3: PROXIMITY WARNING ---
         # WORK 2: turn both LEDs
         #     RED    when distance_cm is closer than CLOSE
         #     YELLOW (red + green) when closer than MEDIUM

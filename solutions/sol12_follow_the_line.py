@@ -1,4 +1,4 @@
-# Project 13 SOLUTION: Follow the Line  (requires nhs_robotics V03)
+# Project 12 SOLUTION: Follow the Line  (requires nhs_robotics V03)
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
 import time

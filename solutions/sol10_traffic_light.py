@@ -1,4 +1,4 @@
-# Project 11 SOLUTION: Traffic Light (State Machine)
+# Project 10 SOLUTION: Traffic Light (State Machine)
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import NanoLED
 import time
@@ -23,6 +23,11 @@ WALK_MS = 4000
 current_state = STATE_NS_GREEN
 state_start_time = time.ticks_ms()
 walk_requested = False
+
+# Walk-sign blink, using P09's pattern (NOT a modulo trick).
+walk_led_on = False
+walk_last_toggle = time.ticks_ms()
+WALK_BLINK_MS = 250
 
 
 def set_lights(ns_color, ew_color):
@@ -89,11 +94,14 @@ try:
 
         elif current_state == STATE_WALK:
             set_lights(RED, RED)
-            # WORK 3 (continued): blink the walk sign (non-blocking, P10 style)
-            if (time_in_state // 250) % 2 == 0:
-                nano.set_rgb(255, 255, 255)
-            else:
-                nano.off()
+            # WORK 3 (continued): blink the walk sign, P09 style
+            if time.ticks_diff(now, walk_last_toggle) > WALK_BLINK_MS:
+                walk_led_on = not walk_led_on
+                if walk_led_on:
+                    nano.set_rgb(255, 255, 255)
+                else:
+                    nano.off()
+                walk_last_toggle = now
             if time_in_state > WALK_MS:
                 walk_requested = False
                 nano.off()

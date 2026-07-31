@@ -10,6 +10,9 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
+# FLEX (the A+): slow mode. While R1 is held (note the capital R1), halve both
+# speeds for precision driving. Copy your code into the FLEX box.
+
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import RobotGamepad
 import time
@@ -18,7 +21,7 @@ alvik = ArduinoAlvik()
 alvik.begin()
 gamepad = RobotGamepad(alvik)
 
-# WORK 2 (Goal 2): this speed limit is deliberately silly-slow.
+# WORK 2: this speed limit is deliberately silly-slow.
 # Find a value that is fast but still controllable.
 MAX_RPM = 1
 
@@ -37,6 +40,7 @@ try:
         time.sleep(0.02)
 
 finally:
-    # WORK 3 (Goal 2): a crashed program must NEVER leave motors running.
-    # Stop the wheels, turn LEDs off, and call alvik.stop() here.
+    # WORK 3: a crashed program must NEVER leave motors running.
+    # Stop the wheels with alvik.brake(), turn both LEDs off, and call
+    # alvik.stop() here. Every project that moves motors ends this way.
     pass

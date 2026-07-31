@@ -1,5 +1,5 @@
-# Project 15: Race Prep
-# GOAL: Turn your P14 dodge-bot into a RACE robot for Capstone 2.
+# Project 14: Line Racer
+# GOAL: Build the line racer -- the robot that runs Capstone 2 on its own.
 #
 # Three upgrades:
 #   1. A MANUAL state: drive to the start line with the gamepad, then
@@ -11,9 +11,13 @@
 #   3. A race timer: qualifying is about the clock.
 #
 # SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
-# (MicroPython device), and save this file as /workspace/p15.py. From
+# (MicroPython device), and save this file as /workspace/p14.py. From
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
+
+# FLEX (the A+): a gamepad override. SQUARE mid-run brakes and bails out to
+# STATE_MANUAL; TRIANGLE re-launches cleanly. In the race this counts as a
+# rescue -- but a rescued finish beats a stuck robot. Copy it into the FLEX box.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot, RobotGamepad
@@ -31,7 +35,7 @@ STATE_AVOIDING = 2
 STATE_SEARCHING = 3
 STATE_FINISHED = 4
 
-# --- TUNED VALUES (WORK 1: copy your best P13/P14 numbers) ---
+# --- TUNED VALUES (WORK 1: copy your best P12/P13 numbers) ---
 DRIVE_SPEED = 30
 OBSTACLE_CM = 12
 LINE_THRESHOLD = 500
@@ -49,8 +53,7 @@ try:
 
         if current_state == STATE_MANUAL:
             # WORK 1 (continued): tank drive (your P03 code) so you can
-            # place the robot on the start line. Include the link-loss
-            # guard.
+            # place the robot on the start line.
 
             # WORK 2: when TRIANGLE is pressed: record the start time
             #   run_start_time = time.ticks_ms()
@@ -59,7 +62,7 @@ try:
             pass
 
         elif current_state == STATE_FOLLOWING:
-            # WORK 2 (continued): your P14 FOLLOWING state (follow_line
+            # WORK 2 (continued): your P13 FOLLOWING state (follow_line
             # + line_lost safety + obstacle check -> STATE_AVOIDING).
 
             # WORK 2 (continued): FINISH DETECTION — read the line
@@ -71,18 +74,18 @@ try:
             pass
 
         elif current_state == STATE_AVOIDING:
-            # WORK 3: your P14 box-around maneuver -> STATE_SEARCHING.
+            # WORK 3: your P13 box-around maneuver -> STATE_SEARCHING.
             # RACE RULE: everyone must dodge to the LEFT, so two robots
             # meeting head-on pass each other safely.
             pass
 
         elif current_state == STATE_SEARCHING:
-            # WORK 3 (continued): your P14 search -> reset_line() -> STATE_FOLLOWING
+            # WORK 3 (continued): your P13 search -> reset_line() -> STATE_FOLLOWING
             pass
 
         elif current_state == STATE_FINISHED:
             # Victory lights! Alternate the LEDs green (non-blocking,
-            # P10 style). The run is over; only CANCEL exits.
+            # P09 style). The run is over; only CANCEL exits.
             pass
 
 finally:

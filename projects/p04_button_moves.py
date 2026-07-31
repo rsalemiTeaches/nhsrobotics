@@ -9,6 +9,10 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
+# FLEX (the A+): a combo move. Write ONE more function that CALLS your other
+# move functions in sequence, changing the LED colors between them, and map it
+# to TRIANGLE. Copy your code into the FLEX box.
+
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import RobotGamepad
 import time
@@ -55,5 +59,5 @@ try:
         time.sleep(0.02)
 
 finally:
-    alvik.set_wheels_speed(0, 0)
+    alvik.brake()
     alvik.stop()

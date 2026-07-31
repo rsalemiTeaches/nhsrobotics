@@ -1,11 +1,16 @@
-# Project 10 SOLUTION: Robot Timers
+# Project 09 SOLUTION: Robot Timers
 from arduino_alvik import ArduinoAlvik
-from nhs_robotics import NanoLED
+from nhs_robotics import NanoLED, Button
 import time
 
 alvik = ArduinoAlvik()
 alvik.begin()
 nano = NanoLED()
+
+# Button() reports a press only on the tick the touch STARTS (a "rising
+# edge"), so one press is one step -- and it never sleeps.
+btn_up = Button(alvik.get_touch_up)
+btn_down = Button(alvik.get_touch_down)
 
 blink_delay = 500
 led_is_on = False
@@ -15,7 +20,7 @@ try:
     while not alvik.get_touch_cancel():
         now = time.ticks_ms()
 
-        # GOAL 1 (WORK 1)
+        # WORK 1
         if time.ticks_diff(now, last_toggle_time) > blink_delay:
             led_is_on = not led_is_on
             if led_is_on:
@@ -24,15 +29,13 @@ try:
                 nano.off()
             last_toggle_time = now
 
-        # GOAL 2
-        if alvik.get_touch_up():                       # WORK 2
+        # WORK 2-3
+        if btn_up.is_pressed():                         # WORK 2
             blink_delay = max(100, blink_delay - 100)
             print("blink_delay =", blink_delay)         # WORK 2 (continued)
-            time.sleep(0.25)   # crude de-bounce: one press = one step
-        if alvik.get_touch_down():                      # WORK 3
+        if btn_down.is_pressed():                       # WORK 3
             blink_delay = min(2000, blink_delay + 100)
             print("blink_delay =", blink_delay)         # WORK 3 (continued)
-            time.sleep(0.25)
 
         # FLEX: color follows speed — map blink_delay (100..2000) to a
         # red/blue mix so fast = red, slow = blue:

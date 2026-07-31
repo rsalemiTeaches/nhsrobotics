@@ -1,4 +1,4 @@
-# Project 15 SOLUTION: Race Prep  (requires nhs_robotics V03)
+# Project 14 SOLUTION: Line Racer  (requires nhs_robotics V03)
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot, RobotGamepad
 import time
@@ -14,7 +14,7 @@ STATE_AVOIDING = 2
 STATE_SEARCHING = 3
 STATE_FINISHED = 4
 
-DRIVE_SPEED = 40       # WORK 1: race-tuned from P13
+DRIVE_SPEED = 40       # WORK 1: race-tuned from P12
 OBSTACLE_CM = 12
 LINE_THRESHOLD = 500
 SEARCH_SPEED = 20
@@ -22,6 +22,11 @@ MAX_RPM = 45
 
 current_state = STATE_MANUAL
 run_start_time = 0
+
+# Victory blink, using P09's pattern (NOT a modulo trick).
+victory_left_on = False
+victory_last_toggle = time.ticks_ms()
+VICTORY_BLINK_MS = 250
 
 try:
     while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
@@ -31,9 +36,6 @@ try:
         if current_state == STATE_MANUAL:
             left_speed = gamepad.left_y * MAX_RPM        # WORK 1 (continued)
             right_speed = gamepad.right_y * MAX_RPM
-            if not gamepad.controller.is_connected():
-                left_speed = 0
-                right_speed = 0
             alvik.set_wheels_speed(left_speed, right_speed)
             alvik.left_led.set_color(0, 0, 1)            # blue = manual
             alvik.right_led.set_color(0, 0, 1)
@@ -86,14 +88,16 @@ try:
                 current_state = STATE_FOLLOWING
 
         elif current_state == STATE_FINISHED:
-            # non-blocking green victory alternation
-            phase = (time.ticks_ms() // 250) % 2
-            if phase == 0:
-                alvik.left_led.set_color(0, 1, 0)
-                alvik.right_led.set_color(0, 0, 0)
-            else:
-                alvik.left_led.set_color(0, 0, 0)
-                alvik.right_led.set_color(0, 1, 0)
+            # Non-blocking green alternation, P09 style.
+            if time.ticks_diff(time.ticks_ms(), victory_last_toggle) > VICTORY_BLINK_MS:
+                victory_left_on = not victory_left_on
+                if victory_left_on:
+                    alvik.left_led.set_color(0, 1, 0)
+                    alvik.right_led.set_color(0, 0, 0)
+                else:
+                    alvik.left_led.set_color(0, 0, 0)
+                    alvik.right_led.set_color(0, 1, 0)
+                victory_last_toggle = time.ticks_ms()
 
         # FLEX (gamepad override): in any autonomous state, pressing
         # SQUARE bails out to STATE_MANUAL (brake first). From MANUAL,

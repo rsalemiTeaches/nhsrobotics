@@ -21,12 +21,12 @@ try:
         right_speed = gamepad.right_y * MAX_RPM
 
         # 2. THINK
-        # GOAL 1 version (WORK 1) — simple but traps you at the wall:
+        # WORK 1 version — simple but traps you at the wall:
         # if distance_cm < STOP_DISTANCE:
         #     left_speed = 0
         #     right_speed = 0
 
-        # GOAL 2 version (WORK 2) — block forward only, allow escape.
+        # WORK 2 version — block forward only, allow escape.
         # The LED lines are WORK 3 (red while blocking, green when clear):
         if distance_cm < STOP_DISTANCE:
             alvik.left_led.set_color(1, 0, 0)
@@ -43,7 +43,7 @@ try:
         alvik.set_wheels_speed(left_speed, right_speed)
         time.sleep(0.02)
 finally:
-    alvik.set_wheels_speed(0, 0)
+    alvik.brake()
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
     alvik.stop()

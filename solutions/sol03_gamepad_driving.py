@@ -19,13 +19,13 @@ try:
         alvik.set_wheels_speed(left_speed, right_speed)  # WORK 1 (continued)
 
         # FLEX (slow-mode toggle): hold R1 to halve the speed:
-        # if gamepad.buttons['r1']:
+        # if gamepad.buttons['R1']:      # NOTE: 'R1' is capitalized
         #     left_speed = left_speed * 0.5
         #     right_speed = right_speed * 0.5
 
         time.sleep(0.02)
 finally:
-    alvik.set_wheels_speed(0, 0)                   # WORK 3
+    alvik.brake()                                  # WORK 3
     alvik.left_led.set_color(0, 0, 0)
     alvik.right_led.set_color(0, 0, 0)
     alvik.stop()

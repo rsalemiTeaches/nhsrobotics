@@ -1,16 +1,20 @@
-# Project 14: Dodge the Wall
-# GOAL: The full Capstone-2 skill — a STATE MACHINE (P11) that follows
-# the line (P13), detects an obstacle (P05), drives around it (P09),
-# finds the line again (P12), and keeps going.
+# Project 13: Dodge the Wall
+# GOAL: The full Capstone-2 skill — a STATE MACHINE (P10) that follows
+# the line (P12), detects an obstacle (P05), drives around it (P08),
+# finds the line again (P11), and keeps going.
 #
 #   FOLLOWING --obstacle close--> AVOIDING --maneuver done--> SEARCHING
 #       ^                                                        |
 #       +----------------- line found again ---------------------+
 #
 # SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
-# (MicroPython device), and save this file as /workspace/p14.py. From
+# (MicroPython device), and save this file as /workspace/p13.py. From
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
+
+# FLEX (the A+): a smart dodge. Compare the left-side and right-side distance
+# readings (alvik.get_distance() gives all five) and dodge toward the open
+# side. Copy your code into the FLEX box. In the race, dodge LEFT regardless.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
@@ -40,7 +44,7 @@ try:
         time.sleep(0.015)
 
         if current_state == STATE_FOLLOWING:
-            # WORK 1 (Goal 1): your P13 code — follow_line, drive,
+            # WORK 1: your P12 code — follow_line, drive,
             # handle line_lost. Then the obstacle check: read
             # sb.get_closest_distance(); when it is closer than
             # OBSTACLE_CM: brake, LEDs red, and change current_state
@@ -48,7 +52,7 @@ try:
             pass
 
         elif current_state == STATE_AVOIDING:
-            # WORK 2 (Goal 2): the box-around maneuver. Blocking moves
+            # WORK 2: the box-around maneuver. Blocking moves
             # are FINE here — nothing else needs attention mid-dodge:
             #   rotate_precise(-90)      # face left, away from the line
             #   drive_distance(20)       # step out of the obstacle's lane
@@ -60,7 +64,7 @@ try:
             pass
 
         elif current_state == STATE_SEARCHING:
-            # WORK 3 (Goal 3): drive forward slowly; when
+            # WORK 3: drive forward slowly; when
             # max(line sensors) > LINE_THRESHOLD the line is back:
             #   brake
             #   rotate_precise(-90)   # turn down-course along the line

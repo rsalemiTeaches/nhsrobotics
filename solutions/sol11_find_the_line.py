@@ -1,4 +1,4 @@
-# Project 12 SOLUTION: Find the Line
+# Project 11 SOLUTION: Find the Line
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
 import time
@@ -16,12 +16,23 @@ while not alvik.get_touch_ok():
     time.sleep(0.05)
 
 try:
-    # GOAL 1 (WORK 1) — line straight ahead:
-    # sb.nav.drive_to_line(15)
-    # alvik.left_led.set_color(0, 1, 0)
-    # alvik.right_led.set_color(0, 1, 0)
+    # WORK 1 — line straight ahead:
+    print("Driving to the line.")
+    sb.nav.drive_to_line(15)
+    alvik.left_led.set_color(0, 1, 0)
+    alvik.right_led.set_color(0, 1, 0)
 
-    # GOAL 2 (WORK 2-3) — search from anywhere:
+    # HANDOFF: WORK 1 leaves the robot ON the line, so WORK 2's search
+    # would succeed instantly. Move the robot first — then one run of
+    # this file demos both goals and nothing has to be commented out.
+    print("Line found. Move the robot anywhere, then press OK.")
+    while not alvik.get_touch_ok():
+        time.sleep(0.05)
+    alvik.left_led.set_color(0, 0, 0)
+    alvik.right_led.set_color(0, 0, 0)
+
+    # WORK 2-3 — search from anywhere:
+    print("Searching.")
     found = False
     while not found and not alvik.get_touch_cancel():
         leg_start = time.ticks_ms()

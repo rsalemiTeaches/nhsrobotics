@@ -1,19 +1,26 @@
 # Project 01: Gamepad Lights
-# GOAL: Connect a PS5 gamepad to your robot and use buttons to control LEDs.
+# Version: V01
+#
+# GOAL: Build a robot whose headlights change color when you press
+# buttons on a PS5 controller.
+#
 # You do NOT need to understand every line yet. Find the # WORK comments.
 #
-# SETUP ORDER (see the Pairing Checklist poster):
+# SETUP ORDER (see the guide for the full version):
 #   0. In Thonny, File > Save As -> the Alvik (MicroPython device) -> save
-#      this file as /workspace/p01.py. Do every step below, and all your
-#      work, on that copy -- files outside /workspace get overwritten
-#      whenever the projects are updated.
+#      this file as /workspace/p01.py. Do all your work on that copy.
+#      Files outside /workspace get overwritten when projects update.
 #   1. Run this program. Watch Thonny print your robot's WiFi name.
 #   2. Connect the Mac to that WiFi network (password: password).
-#   3. Open http://192.168.4.1 in Chrome, and KEEP THAT CHROME WINDOW OPEN
-#      AND IN FRONT for the rest of the project. The browser blocks gamepad
-#      input to any tab that isn't visible and focused, so switching to
-#      another window (even Thonny) will make your buttons stop working.
+#   3. Open http://192.168.4.1 in Chrome, and KEEP THAT CHROME WINDOW IN
+#      FRONT. Chrome blocks gamepad input to any window that is not
+#      focused, so clicking over to Thonny stops your buttons working.
 #   4. Pair the PS5 controller to the Mac over Bluetooth.
+#
+# FLEX (the A+): make the SQUARE button run a light show. Add it as one
+# more elif. Left LED magenta and right LED cyan is one idea. Flipping
+# between two colors with time.ticks_ms() is another. Copy your code
+# into the FLEX box on the worksheet.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import RobotGamepad
@@ -42,23 +49,31 @@ try:
         if gamepad.buttons['cross']:
             pass  # <-- replace with two set_color lines (left and right)
 
-        # WORK 3: Add two elif branches HERE, above the else below: when
-        # CIRCLE is held, make both LEDs red; when TRIANGLE is held, make
-        # both LEDs green.
+        # WORK 2: Add two elif branches right here, between the if above
+        # and the else below.
+        #   Hold CIRCLE   -> both LEDs red
+        #   Hold TRIANGLE -> both LEDs green
+        # Do WORK 1 first. Without the else below, the LEDs stay stuck on
+        # after your first press and you cannot tell what is happening.
 
-        # WORK 2: When NO button is held, turn both LEDs WHITE (1, 1, 1),
-        # not off -- that way you can SEE the program is running and just
-        # waiting for a button, instead of wondering if it froze.
-        # HINT: do this right after WORK 1, before WORK 3 -- otherwise the
-        # LEDs will get stuck on once you press a button, since there's no
-        # "idle" case yet.
+        # WORK 1 (continued): When NO button is held, turn both LEDs
+        # WHITE (1, 1, 1), not off. White means "running, waiting for a
+        # button", so you can tell a waiting robot from a frozen one.
         else:
             pass  # <-- replace with two set_color(1, 1, 1) lines
 
         time.sleep(0.02)  # small pause keeps the loop stable
 
 finally:
-    # This block ALWAYS runs when the program stops. Leave the robot clean.
-    alvik.left_led.set_color(0, 0, 0)
-    alvik.right_led.set_color(0, 0, 0)
-    alvik.stop()
+    # This block ALWAYS runs when the program stops, even on a crash.
+    #
+    # WORK 3: clean up, in this order.
+    #   1. Turn both LEDs red.
+    #   2. time.sleep(0.5)
+    #   3. Turn both LEDs off.
+    #
+    # The red flash proves the shutdown ran. A silent stop looks exactly
+    # like a crash, and you want to tell them apart.
+    alvik.stop() # You must always call this function 
+                 # to stop the robot software
+                 # and free the WiFi network.

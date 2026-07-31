@@ -13,15 +13,15 @@ green = 0
 blue = 0
 
 try:
-    # GOAL 1 solution: basic blink, a fixed number of times, then GOAL 2
-    # takes over below -- both goals run every time, nothing overwritten.
+    # WORK 1-2: basic blink, a fixed number of times, then WORK 3's pattern
+    # takes over below -- both run every time, nothing overwritten.
     for _ in range(6):
         nano.set_rgb(red, green, blue)   # WORK 1
         time.sleep(blink_time)           # WORK 1
         nano.off()                       # WORK 2
         time.sleep(blink_time)           # WORK 2
 
-    # GOAL 2 solution: two fast red blinks, one slow blue blink,
+    # WORK 3: two fast red blinks, one slow blue blink,
     # until CANCEL is touched  (WORK 3)
     fast = 0.1
     slow = 0.6
@@ -35,8 +35,9 @@ try:
         time.sleep(slow)
         nano.off()
         time.sleep(slow)
+        time.sleep(0.01)  # tiny pause every lap -- keeps Cancel responsive
 
-    # FLEX solution sketch (heartbeat that speeds up):
+    # FLEX (heartbeat that speeds up):
     # start blink_time at 0.6; subtract 0.02 each cycle; reset at 0.1.
 finally:
     nano.off()

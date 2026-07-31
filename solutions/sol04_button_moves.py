@@ -60,5 +60,5 @@ try:
 
         time.sleep(0.02)
 finally:
-    alvik.set_wheels_speed(0, 0)
+    alvik.brake()
     alvik.stop()
