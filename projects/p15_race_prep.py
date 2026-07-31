@@ -43,20 +43,22 @@ try:
         gamepad.update()
 
         if current_state == STATE_MANUAL:
-            # WORK 2: tank drive (your P03 code) so you can place the
-            # robot on the start line. Include the link-loss guard.
+            # WORK 1 (continued): tank drive (your P03 code) so you can
+            # place the robot on the start line. Include the link-loss
+            # guard.
 
-            # WORK 3: when TRIANGLE is pressed: record the start time
+            # WORK 2: when TRIANGLE is pressed: record the start time
             #   run_start_time = time.ticks_ms()
             # call sb.reset_line(), and launch:
             #   current_state = STATE_FOLLOWING
             pass
 
         elif current_state == STATE_FOLLOWING:
-            # WORK 4: your P14 FOLLOWING state (follow_line + line_lost
-            # safety + obstacle check -> STATE_AVOIDING).
+            # WORK 2 (continued): your P14 FOLLOWING state (follow_line
+            # + line_lost safety + obstacle check -> STATE_AVOIDING).
 
-            # WORK 5: FINISH DETECTION — read the line sensors; if ALL
+            # WORK 2 (continued): FINISH DETECTION — read the line
+            # sensors; if ALL
             # THREE are above LINE_THRESHOLD at once, that's the finish
             # bar: brake, print the elapsed time in seconds
             #   time.ticks_diff(time.ticks_ms(), run_start_time) / 1000
@@ -64,13 +66,13 @@ try:
             pass
 
         elif current_state == STATE_AVOIDING:
-            # WORK 6: your P14 box-around maneuver -> STATE_SEARCHING.
+            # WORK 3: your P14 box-around maneuver -> STATE_SEARCHING.
             # RACE RULE: everyone must dodge to the LEFT, so two robots
             # meeting head-on pass each other safely.
             pass
 
         elif current_state == STATE_SEARCHING:
-            # WORK 7: your P14 search -> reset_line() -> STATE_FOLLOWING
+            # WORK 3 (continued): your P14 search -> reset_line() -> STATE_FOLLOWING
             pass
 
         elif current_state == STATE_FINISHED:

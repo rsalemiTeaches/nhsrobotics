@@ -14,9 +14,9 @@ try:
     while not alvik.get_touch_cancel():
 
         distance_cm = bot.get_closest_distance()   # WORK 1
-        print(distance_cm)                          # WORK 2
+        print(distance_cm)                          # WORK 1 (continued)
 
-        if distance_cm < CLOSE:                     # WORK 4
+        if distance_cm < CLOSE:                     # WORK 2
             alvik.left_led.set_color(1, 0, 0)       # red
             alvik.right_led.set_color(1, 0, 0)
         elif distance_cm < MEDIUM:

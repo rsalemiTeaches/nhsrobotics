@@ -35,10 +35,11 @@ try:
         # --- GOAL 2 (next class): LIVE SPEED CONTROL ---
         # Because the loop never sleeps, buttons work DURING the blink!
         # WORK 2: UP arrow  (alvik.get_touch_up())   -> blink faster:
-        #             subtract 100 from blink_delay (minimum 100)
+        #             subtract 100 from blink_delay (minimum 100),
+        #             then print the new blink_delay.
         # WORK 3: DOWN arrow (alvik.get_touch_down()) -> blink slower:
-        #             add 100 to blink_delay (maximum 2000)
-        # WORK 4: print blink_delay whenever it changes.
+        #             add 100 to blink_delay (maximum 2000),
+        #             then print the new blink_delay.
 
         time.sleep(0.01)   # tiny pause; NOT the blink timing!
 

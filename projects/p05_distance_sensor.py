@@ -26,11 +26,12 @@ try:
         # in a variable named  distance_cm
         distance_cm = 999  # <-- replace 999 with the SuperBot call
 
-        # WORK 2: print it, so you can watch the numbers in Thonny.
-        # Move your hand toward the robot and watch what happens.
+        # WORK 1 (continued): print it, so you can watch the numbers
+        # in Thonny. Move your hand toward the robot and watch what
+        # happens.
 
         # --- GOAL 2: PROXIMITY WARNING ---
-        # WORK 4: turn both LEDs
+        # WORK 2: turn both LEDs
         #     RED    when distance_cm is closer than CLOSE
         #     YELLOW (red + green) when closer than MEDIUM
         #     GREEN  otherwise

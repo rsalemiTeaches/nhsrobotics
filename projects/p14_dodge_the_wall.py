@@ -21,7 +21,7 @@ STATE_AVOIDING = 1
 STATE_SEARCHING = 2
 
 DRIVE_SPEED = 30
-OBSTACLE_CM = 12       # WORK 2: tune — far enough to stop cleanly
+OBSTACLE_CM = 12       # WORK 1: tune — far enough to stop cleanly
 LINE_THRESHOLD = 500
 
 current_state = STATE_FOLLOWING
@@ -36,14 +36,14 @@ try:
 
         if current_state == STATE_FOLLOWING:
             # WORK 1 (Goal 1): your P13 code — follow_line, drive,
-            # handle line_lost.
-            # WORK 2 (Goal 1): read sb.get_closest_distance(); when it
-            # is closer than OBSTACLE_CM: brake, LEDs red, and change
-            # current_state to STATE_AVOIDING.
+            # handle line_lost. Then the obstacle check: read
+            # sb.get_closest_distance(); when it is closer than
+            # OBSTACLE_CM: brake, LEDs red, and change current_state
+            # to STATE_AVOIDING.
             pass
 
         elif current_state == STATE_AVOIDING:
-            # WORK 3 (Goal 2): the box-around maneuver. Blocking moves
+            # WORK 2 (Goal 2): the box-around maneuver. Blocking moves
             # are FINE here — nothing else needs attention mid-dodge:
             #   rotate_precise(-90)      # face left, away from the line
             #   drive_distance(20)       # step out of the obstacle's lane
@@ -55,7 +55,7 @@ try:
             pass
 
         elif current_state == STATE_SEARCHING:
-            # WORK 4 (Goal 3): drive forward slowly; when
+            # WORK 3 (Goal 3): drive forward slowly; when
             # max(line sensors) > LINE_THRESHOLD the line is back:
             #   brake
             #   rotate_precise(-90)   # turn down-course along the line

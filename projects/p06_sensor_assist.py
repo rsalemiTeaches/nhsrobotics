@@ -31,14 +31,16 @@ try:
 
         # --- 2. THINK ---
         # WORK 1 (Goal 1): if distance_cm is closer than STOP_DISTANCE,
-        # force BOTH speeds to 0 and turn the LEDs red.
-        # Otherwise, turn the LEDs green.
+        # force BOTH speeds to 0.
 
         # WORK 2 (Goal 2): Goal 1 has a problem — once you're trapped
         # near the wall, you can't back away! Fix it: only zero out a
         # speed if it is POSITIVE (driving forward). Backing up
         # (negative speed) should always be allowed.
         # HINT: test each speed separately:  if left_speed > 0: ...
+
+        # WORK 3: LED feedback — turn the LEDs red while the assist is
+        # blocking (closer than STOP_DISTANCE), green otherwise.
 
         # --- 3. ACT ---
         alvik.set_wheels_speed(left_speed, right_speed)

@@ -24,7 +24,10 @@ try:
             left_speed = 0
             right_speed = 0
 
-        edge_detected = max(left_line, center_line, right_line) < EDGE_THRESHOLD
+        # 2-of-3 rule: the MIDDLE (median) reading below the threshold
+        # means at least two sensors see the white boundary.
+        sorted_sensors = sorted((left_line, center_line, right_line))
+        edge_detected = sorted_sensors[1] < EDGE_THRESHOLD
         if edge_detected:                              # WORK 2
             alvik.left_led.set_color(1, 0, 0)
             alvik.right_led.set_color(1, 0, 0)

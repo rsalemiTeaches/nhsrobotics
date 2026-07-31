@@ -54,7 +54,7 @@ try:
         time_in_state = time.ticks_diff(now, state_start_time)
 
         # --- EVENTS ---
-        # WORK 5 (Goal 3): if the CENTER button is touched, set
+        # WORK 3 (Goal 3): if the CENTER button is touched, set
         # walk_requested = True (and light the Nano LED white so the
         # pedestrian knows the press registered).
 
@@ -67,17 +67,17 @@ try:
 
         elif current_state == STATE_NS_YELLOW:
             set_lights(YELLOW, RED)
-            # WORK 2 (Goal 1): after YELLOW_MS -> STATE_ALL_RED_1
+            # WORK 1 (continued): after YELLOW_MS -> STATE_ALL_RED_1
 
         elif current_state == STATE_ALL_RED_1:
             set_lights(RED, RED)
-            # WORK 6 (Goal 3): if walk_requested, go to STATE_WALK
+            # WORK 3 (continued): if walk_requested, go to STATE_WALK
             # instead of STATE_EW_GREEN. Otherwise:
-            # WORK 3 (Goal 2): after ALL_RED_MS -> STATE_EW_GREEN
+            # WORK 2 (Goal 2): after ALL_RED_MS -> STATE_EW_GREEN
 
         elif current_state == STATE_EW_GREEN:
             set_lights(RED, GREEN)
-            # WORK 4 (Goal 2): after GREEN_MS -> STATE_EW_YELLOW.
+            # WORK 2 (continued): after GREEN_MS -> STATE_EW_YELLOW.
             # Then write the EW_YELLOW and ALL_RED_2 states below,
             # mirroring the NS side, so the cycle repeats forever.
 
@@ -89,7 +89,7 @@ try:
 
         elif current_state == STATE_WALK:
             set_lights(RED, RED)
-            # WORK 7 (Goal 3): blink the Nano LED white while walking.
+            # WORK 3 (continued): blink the Nano LED white while walking.
             # After WALK_MS: clear walk_requested, turn the Nano LED
             # off, and continue to STATE_EW_GREEN.
 

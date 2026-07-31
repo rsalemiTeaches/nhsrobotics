@@ -35,14 +35,14 @@ try:
                 alvik.right_led.set_color(0, 1, 0)
                 alvik.set_wheels_speed(left_speed, right_speed)
 
-            if sb.get_closest_distance() < OBSTACLE_CM:            # WORK 2
+            if sb.get_closest_distance() < OBSTACLE_CM:            # WORK 1 (continued)
                 alvik.brake()
                 alvik.left_led.set_color(1, 0, 0)
                 alvik.right_led.set_color(1, 0, 0)
                 print("Obstacle! Avoiding.")
                 current_state = STATE_AVOIDING
 
-        elif current_state == STATE_AVOIDING:                      # WORK 3
+        elif current_state == STATE_AVOIDING:                      # WORK 2
             sb.nav.rotate_precise(-90)
             sb.nav.drive_distance(20)
             sb.nav.rotate_precise(90)
@@ -51,7 +51,7 @@ try:
             print("Maneuver done. Searching for the line.")
             current_state = STATE_SEARCHING
 
-        elif current_state == STATE_SEARCHING:                     # WORK 4
+        elif current_state == STATE_SEARCHING:                     # WORK 3
             alvik.set_wheels_speed(SEARCH_SPEED, SEARCH_SPEED)
             left, center, right = alvik.get_line_sensors()
             if max(left, center, right) > LINE_THRESHOLD:

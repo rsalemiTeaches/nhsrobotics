@@ -42,9 +42,9 @@ try:
 
         if gamepad.buttons['cross']:         # WORK 1
             spin_move()
-        elif gamepad.buttons['circle']:      # WORK 4
+        elif gamepad.buttons['circle']:      # WORK 2 (continued)
             wiggle_move()
-        elif gamepad.buttons['square']:
+        elif gamepad.buttons['square']:      # WORK 3 (continued)
             escape_move()
 
         # FLEX: combo move — a new function that CALLS the other

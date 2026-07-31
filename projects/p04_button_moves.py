@@ -43,8 +43,9 @@ try:
         # WORK 1: When CROSS is pressed, CALL spin_move().
         # Calling a function is its name with parentheses:  spin_move()
 
-        # WORK 4: Map CIRCLE to wiggle_move() and SQUARE to your
-        # invented move. Use elif so only one move runs at a time.
+        # WORK 2 (continued): map CIRCLE to wiggle_move() with elif.
+        # WORK 3 (continued): map SQUARE to your invented move with
+        # elif — elif means only one move runs at a time.
 
         time.sleep(0.02)
 

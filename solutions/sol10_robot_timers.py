@@ -24,14 +24,14 @@ try:
                 nano.off()
             last_toggle_time = now
 
-        # GOAL 2 (WORK 2-4)
-        if alvik.get_touch_up():
+        # GOAL 2
+        if alvik.get_touch_up():                       # WORK 2
             blink_delay = max(100, blink_delay - 100)
-            print("blink_delay =", blink_delay)
+            print("blink_delay =", blink_delay)         # WORK 2 (continued)
             time.sleep(0.25)   # crude de-bounce: one press = one step
-        if alvik.get_touch_down():
+        if alvik.get_touch_down():                      # WORK 3
             blink_delay = min(2000, blink_delay + 100)
-            print("blink_delay =", blink_delay)
+            print("blink_delay =", blink_delay)         # WORK 3 (continued)
             time.sleep(0.25)
 
         # FLEX: color follows speed — map blink_delay (100..2000) to a

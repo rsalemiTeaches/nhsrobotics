@@ -25,21 +25,21 @@ try:
     # Press the X (cancel) button on the robot to stop.
     while not alvik.get_touch_cancel():
 
-        # WORK 1: Turn the LED on using the color variables.
-        # The command is:  nano.set_rgb(red, green, blue)
+        # WORK 1: Turn the LED on using the color variables, then wait
+        # blink_time seconds. The commands are:
+        #     nano.set_rgb(red, green, blue)
+        #     time.sleep(blink_time)
 
-        # WORK 2: Wait for blink_time seconds.
-        # The command is:  time.sleep(blink_time)
-
-        # WORK 3: Turn the LED off.  The command is:  nano.off()
-
-        # WORK 4: Wait again, so the off-time matches the on-time.
+        # WORK 2: Turn the LED off, then wait again so the off-time
+        # matches the on-time. The commands are:
+        #     nano.off()
+        #     time.sleep(blink_time)
         pass  # delete this line once you've added your code
 
     # --- GOAL 2 (next class): PATTERNS WITH VARIABLES ---
     # Change blink_time to 0.1  -> what happens?
     # Change the color variables to make purple (red + blue).
-    # WORK 5: Make a pattern: two fast red blinks, then one slow blue blink,
+    # WORK 3: Make a pattern: two fast red blinks, then one slow blue blink,
     # repeating. HINT: you will need more sleep and set_rgb lines inside
     # the loop, or a second set of color variables.
 

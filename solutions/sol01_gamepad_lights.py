@@ -14,13 +14,13 @@ try:
         if gamepad.buttons['cross']:            # WORK 1
             alvik.left_led.set_color(0, 0, 1)
             alvik.right_led.set_color(0, 0, 1)
-        elif gamepad.buttons['circle']:          # WORK 2
+        elif gamepad.buttons['circle']:          # WORK 3
             alvik.left_led.set_color(1, 0, 0)
             alvik.right_led.set_color(1, 0, 0)
-        elif gamepad.buttons['triangle']:        # WORK 3
+        elif gamepad.buttons['triangle']:        # WORK 3 (continued)
             alvik.left_led.set_color(0, 1, 0)
             alvik.right_led.set_color(0, 1, 0)
-        else:                                    # WORK 4
+        else:                                    # WORK 2
             alvik.left_led.set_color(0, 0, 0)
             alvik.right_led.set_color(0, 0, 0)
 

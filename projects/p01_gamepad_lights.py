@@ -5,7 +5,10 @@
 # SETUP ORDER (see the Pairing Checklist poster):
 #   1. Run this program. Watch Thonny print your robot's WiFi name.
 #   2. Connect the Mac to that WiFi network (password: password).
-#   3. Open http://192.168.4.1 in the browser.
+#   3. Open http://192.168.4.1 in Chrome, and KEEP THAT CHROME WINDOW OPEN
+#      AND IN FRONT for the rest of the project. The browser blocks gamepad
+#      input to any tab that isn't visible and focused, so switching to
+#      another window (even Thonny) will make your buttons stop working.
 #   4. Pair the PS5 controller to the Mac over Bluetooth.
 
 from arduino_alvik import ArduinoAlvik
@@ -35,12 +38,16 @@ try:
         if gamepad.buttons['cross']:
             pass  # <-- replace with two set_color lines (left and right)
 
-        # WORK 2: When CIRCLE is held, make both LEDs red.
+        # WORK 3: Add two elif branches HERE, above the else below: when
+        # CIRCLE is held, make both LEDs red; when TRIANGLE is held, make
+        # both LEDs green.
 
-        # WORK 3: When TRIANGLE is held, make both LEDs green.
-
-        # WORK 4: When NO button is held, turn both LEDs off.
-        # HINT: use else after your if/elif chain.
+        # WORK 2: When NO button is held, turn both LEDs off.
+        # HINT: do this right after WORK 1, before WORK 3 -- otherwise the
+        # LEDs will get stuck on once you press a button, since there's no
+        # "off" case yet.
+        else:
+            pass  # <-- replace with two set_color(0, 0, 0) lines
 
         time.sleep(0.02)  # small pause keeps the loop stable
 

@@ -29,7 +29,7 @@ try:
         gamepad.update()
 
         if current_state == STATE_MANUAL:
-            left_speed = gamepad.left_y * MAX_RPM        # WORK 2
+            left_speed = gamepad.left_y * MAX_RPM        # WORK 1 (continued)
             right_speed = gamepad.right_y * MAX_RPM
             if not gamepad.controller.is_connected():
                 left_speed = 0
@@ -38,7 +38,7 @@ try:
             alvik.left_led.set_color(0, 0, 1)            # blue = manual
             alvik.right_led.set_color(0, 0, 1)
 
-            if gamepad.buttons['triangle']:              # WORK 3
+            if gamepad.buttons['triangle']:              # WORK 2 (launch)
                 alvik.brake()
                 run_start_time = time.ticks_ms()
                 sb.reset_line()
@@ -47,14 +47,14 @@ try:
 
         elif current_state == STATE_FOLLOWING:
             left, center, right = alvik.get_line_sensors()
-            if min(left, center, right) > LINE_THRESHOLD:      # WORK 5
+            if min(left, center, right) > LINE_THRESHOLD:      # WORK 2 (finish detection)
                 alvik.brake()
                 elapsed = time.ticks_diff(time.ticks_ms(), run_start_time) / 1000
                 print("FINISH! Time:", elapsed, "seconds")
                 current_state = STATE_FINISHED
                 continue
 
-            left_speed, right_speed = sb.follow_line(DRIVE_SPEED)  # WORK 4
+            left_speed, right_speed = sb.follow_line(DRIVE_SPEED)  # WORK 2 (following)
             if sb.line_lost:
                 alvik.brake()
             else:
@@ -68,7 +68,7 @@ try:
                 alvik.right_led.set_color(1, 0, 0)
                 current_state = STATE_AVOIDING
 
-        elif current_state == STATE_AVOIDING:                    # WORK 6
+        elif current_state == STATE_AVOIDING:                    # WORK 3
             sb.nav.rotate_precise(-90)   # LEFT dodge — race rule!
             sb.nav.drive_distance(20)
             sb.nav.rotate_precise(90)
@@ -76,7 +76,7 @@ try:
             sb.nav.rotate_precise(90)
             current_state = STATE_SEARCHING
 
-        elif current_state == STATE_SEARCHING:                   # WORK 7
+        elif current_state == STATE_SEARCHING:                   # WORK 3 (continued)
             alvik.set_wheels_speed(SEARCH_SPEED, SEARCH_SPEED)
             left, center, right = alvik.get_line_sensors()
             if max(left, center, right) > LINE_THRESHOLD:

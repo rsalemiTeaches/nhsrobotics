@@ -47,7 +47,7 @@ try:
         now = time.ticks_ms()
         time_in_state = time.ticks_diff(now, state_start_time)
 
-        # EVENTS (WORK 5)
+        # EVENTS (WORK 3)
         if alvik.get_touch_center() and not walk_requested:
             walk_requested = True
             nano.set_rgb(255, 255, 255)
@@ -61,20 +61,20 @@ try:
 
         elif current_state == STATE_NS_YELLOW:
             set_lights(YELLOW, RED)
-            if time_in_state > YELLOW_MS:             # WORK 2
+            if time_in_state > YELLOW_MS:             # WORK 1 (continued)
                 go_to(STATE_ALL_RED_1, now)
 
         elif current_state == STATE_ALL_RED_1:
             set_lights(RED, RED)
             if time_in_state > ALL_RED_MS:
-                if walk_requested:                    # WORK 6
+                if walk_requested:                    # WORK 3 (continued)
                     go_to(STATE_WALK, now)
-                else:                                 # WORK 3
+                else:                                 # WORK 2
                     go_to(STATE_EW_GREEN, now)
 
         elif current_state == STATE_EW_GREEN:
             set_lights(RED, GREEN)
-            if time_in_state > GREEN_MS:              # WORK 4
+            if time_in_state > GREEN_MS:              # WORK 2 (continued)
                 go_to(STATE_EW_YELLOW, now)
 
         elif current_state == STATE_EW_YELLOW:
@@ -89,7 +89,7 @@ try:
 
         elif current_state == STATE_WALK:
             set_lights(RED, RED)
-            # WORK 7: blink the walk sign (non-blocking, P10 style)
+            # WORK 3 (continued): blink the walk sign (non-blocking, P10 style)
             if (time_in_state // 250) % 2 == 0:
                 nano.set_rgb(255, 255, 255)
             else:

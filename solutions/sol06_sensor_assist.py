@@ -25,13 +25,9 @@ try:
         # if distance_cm < STOP_DISTANCE:
         #     left_speed = 0
         #     right_speed = 0
-        #     alvik.left_led.set_color(1, 0, 0)
-        #     alvik.right_led.set_color(1, 0, 0)
-        # else:
-        #     alvik.left_led.set_color(0, 1, 0)
-        #     alvik.right_led.set_color(0, 1, 0)
 
-        # GOAL 2 version (WORK 2) — block forward only, allow escape:
+        # GOAL 2 version (WORK 2) — block forward only, allow escape.
+        # The LED lines are WORK 3 (red while blocking, green when clear):
         if distance_cm < STOP_DISTANCE:
             alvik.left_led.set_color(1, 0, 0)
             alvik.right_led.set_color(1, 0, 0)

@@ -45,8 +45,7 @@ try:
 
         # FLEX (the battle macro): pressing R1 triggers a spin attack —
         # a short pre-programmed move like your P04 functions.
-        # WORK 4 (flex only): define a macro function above the loop
-        # and call it here:
+        # Define a macro function above the loop and call it here:
         # if gamepad.buttons['R1']:
         #     spin_attack()
 
