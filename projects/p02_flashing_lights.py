@@ -27,8 +27,11 @@ blue = 0
 
 try:
     # --- GOAL 1: THE BLINK LOOP ---
-    # Press the X (cancel) button on the robot to stop.
-    while not alvik.get_touch_cancel():
+    # Runs a FIXED number of times, then moves on to GOAL 2 below on its
+    # own -- that way Goal 1's blink and Goal 2's pattern BOTH run every
+    # time you press play, and you never have to erase Goal 1 to build
+    # Goal 2.
+    for _ in range(6):
 
         # WORK 1: Turn the LED on using the color variables, then wait
         # blink_time seconds. The commands are:
@@ -42,11 +45,14 @@ try:
         pass  # delete this line once you've added your code
 
     # --- GOAL 2 (next class): PATTERNS WITH VARIABLES ---
-    # Change blink_time to 0.1  -> what happens?
-    # Change the color variables to make purple (red + blue).
-    # WORK 3: Make a pattern: two fast red blinks, then one slow blue blink,
-    # repeating. HINT: you will need more sleep and set_rgb lines inside
-    # the loop, or a second set of color variables.
+    # Change blink_time to 0.1 above and rerun -- what happens to GOAL 1?
+    # Change the color variables to make purple (red + blue) and rerun.
+    # WORK 3: Make a pattern: two fast red blinks, then one slow blue
+    # blink, repeating -- until the X (cancel) button is touched. HINT:
+    # you will need more sleep and set_rgb lines inside the loop, or a
+    # second set of color variables.
+    while not alvik.get_touch_cancel():
+        pass  # delete this line once your pattern code is in
 
 finally:
     nano.off()

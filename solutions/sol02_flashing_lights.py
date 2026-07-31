@@ -13,14 +13,16 @@ green = 0
 blue = 0
 
 try:
-    # GOAL 1 solution: basic blink
-    # while not alvik.get_touch_cancel():
-    #     nano.set_rgb(red, green, blue)   # WORK 1
-    #     time.sleep(blink_time)           # WORK 1
-    #     nano.off()                       # WORK 2
-    #     time.sleep(blink_time)           # WORK 2
+    # GOAL 1 solution: basic blink, a fixed number of times, then GOAL 2
+    # takes over below -- both goals run every time, nothing overwritten.
+    for _ in range(6):
+        nano.set_rgb(red, green, blue)   # WORK 1
+        time.sleep(blink_time)           # WORK 1
+        nano.off()                       # WORK 2
+        time.sleep(blink_time)           # WORK 2
 
-    # GOAL 2 solution: two fast red blinks, one slow blue blink  (WORK 3)
+    # GOAL 2 solution: two fast red blinks, one slow blue blink,
+    # until CANCEL is touched  (WORK 3)
     fast = 0.1
     slow = 0.6
     while not alvik.get_touch_cancel():
