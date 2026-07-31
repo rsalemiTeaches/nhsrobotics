@@ -1,56 +1,78 @@
 # Guide Builder
 
-Generates the printed lab guides in `Class Development/Robotics/Project Guides/`.
+Generates the printed lab guides in `Class Development/Robotics/Project Guides/`
+from markdown.
 
-*V01*
+*V02*
 
 ## Why this exists
 
-The guides are not hand-edited Word files. They are generated from these scripts
-so that all fourteen stay consistent. Edit the script, rebuild, redeploy. If you
-edit the `.docx` directly, fold your change back into the script or the next
-rebuild will wipe it.
+The guides are not hand-edited Word files. Each one is a markdown file here, and
+`build-all.sh` turns them into `.docx`. That keeps all fourteen consistent: the
+grading rule, the worksheet instructions and the print layout live in one place,
+so they cannot drift apart.
 
-## Run it
+If you edit a `.docx` directly, fold your change back into the markdown or the
+next build will wipe it.
+
+## Build
 
 ```bash
 npm install docx          # once
-node p01.js               # writes P01_Gamepad_Lights_Guide.docx
+./build-all.sh            # build every guide
+./build-all.sh p02.md     # build just one
+./build-all.sh -d         # build all and copy into Project Guides
 ```
 
-Then check the page count and pad to an even number for duplex printing:
+The script counts pages and rebuilds with a blank page when the count is odd, so
+every guide is even for duplex printing. It reports what it did.
 
-```bash
-soffice --headless --convert-to pdf P01_Gamepad_Lights_Guide.docx
-pdftoppm -jpeg -r 40 P01_Gamepad_Lights_Guide.pdf x
-# if the page count is odd:
-PAD_EVEN=1 node p01.js
+## Writing a guide
+
+Copy `p02.md`. Frontmatter first:
+
+```yaml
+---
+out: P03_Gamepad_Driving_Guide.docx
+version: V01
+title: "Project 03: Gamepad Driving"
+number: "03"
+scaffold: p03_gamepad_driving.py
+---
 ```
 
-Copy the finished `.docx` to `Class Development/Robotics/Project Guides/`.
+Then plain markdown:
 
-## Writing a guide script
+| You write | You get |
+|---|---|
+| `**bold line**` alone | the "In this project you…" lead line |
+| `> text` | grey italic note |
+| `# Heading` | Part heading |
+| `## Heading` | section heading |
+| `- item` | bullet list |
+| `1. item` | numbered list |
+| ` ``` ` fence | bordered code block |
+| anything else | paragraph |
 
-`build(outPath, version, blocks)`. Each block is `[kind, payload]`:
+Three placeholders pull in the shared text, so grading and worksheet rules are
+identical in every guide:
 
-| kind | payload | renders as |
-|---|---|---|
-| `title` | string | document title |
-| `lead` | string | the bold "In this project you build…" line |
-| `note` | string | grey italic note, used for the save-your-copy text |
-| `h1` | string | Part heading |
-| `h2` | string | numbered section heading |
-| `p` | string | paragraph |
-| `b` | array of strings | bullet list |
-| `n` | array of strings | numbered list |
-| `code` | string, `\n` separated | bordered monospace block |
+- `{{SAVE}}` — the save-your-copy note, built from `number` and `scaffold`
+- `{{PARTA}}` — how the worksheet's WORK and FLEX boxes work
+- `{{GRADING}}` — one checkoff, 19/20, late ×0.9, self-paced, Lego unlock
 
-**Backticks become monospace.** Write ``"Call `alvik.stop()` at the end."`` and the
-code part renders in Consolas. That is the Word equivalent of markdown backticks,
-which is Ray's house style for any variable name or keyword.
+Edit those three in `build.js`, not in a guide.
 
-`SAVE(n, filename)`, `PARTA` and `GRADING` are shared strings — every guide uses
-the same three, so grading and worksheet rules can never drift between guides.
+**Inline backticks become monospace.** Write ``Call `alvik.stop()` at the end.``
+and the code part renders in Consolas. That is the Word equivalent of markdown
+backticks, which is Ray's house style for any variable name or keyword.
+
+## Files
+
+- `p01.md`, `p02.md`, … — one per guide, the only thing you normally edit
+- `build.js` — docx rendering, shared strings, print rules
+- `parse.js` — markdown to block list
+- `make.js` — builds one guide; `build-all.sh` wraps it
 
 ## Print rules baked in
 
@@ -61,15 +83,20 @@ Guides are printed on paper, not read on screen. The builder handles:
 - black headings, not blue, to save toner
 - `keepNext` on every heading so none strand at a page bottom
 - `cantSplit` on code blocks
-- even page count via `PAD_EVEN=1`
+- even page count
 
 ## House rules for the content
 
+- **Headings use sentence case**, from the Siemens style guide. "A loop that
+  counts", not "A Loop That Counts". Proper nouns keep their capitals — Alvik,
+  Python, Thonny, Chrome, WiFi, PS5 — as do WORK and FLEX. The first word after
+  a colon is capitalized: "Variables: Name it once".
 - 8th-grade reading level. Short sentences, plain words, no jargon.
 - Keep the voice and the analogies. They are the point.
 - WORK 1 / WORK 2 / WORK 3 / FLEX is the only nomenclature. No "Goal N", no
   "Day N" — the class is self-paced.
 - Part 1 teaches everything the project needs. Students read it when stuck.
 - The guide is the only place the flex is described. Scaffolds must not spoil it.
+- Every concept the solution uses must be taught in the guide.
 
-P01 is the approved reference. Match it.
+P01 and P02 are the approved references. Match them.

@@ -1,7 +1,7 @@
 # Project 01: Gamepad Lights
-# Version: V01
+# Version: V02
 #
-# GOAL: Build a robot whose headlights change color when you press
+# GOAL: Build a robot whose two colored lights change when you press
 # buttons on a PS5 controller.
 #
 # You do NOT need to understand every line yet. Find the # WORK comments.

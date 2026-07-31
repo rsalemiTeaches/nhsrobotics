@@ -1,58 +1,88 @@
 # Project 02: Flashing Lights
-# GOAL: Learn variables and loops by blinking the NanoLED (the small color
-# LED on the top board).
+# Version: V03
 #
-# WORK 1-2: make the LED blink using a loop.
-# WORK 3: use VARIABLES to build a pattern.
+# GOAL: Make the robot's two lights blink, then take control of the blink
+# with variables you write yourself.
 #
 # SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
 # (MicroPython device), and save this file as /workspace/p02.py. From
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
-
+#
 # FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
-from nhs_robotics import NanoLED
 import time
 
 alvik = ArduinoAlvik()
 alvik.begin()
-nano = NanoLED()
 
-# --- VARIABLES ---
-# A variable is a named value you can change in ONE place.
-blink_time = 0.5     # seconds the LED stays on (and off)
-red = 255            # color parts, each 0-255
-green = 0
-blue = 0
+
+def both_leds(r, g, b):
+    """Set the left and right lights to the same color.
+
+    Given to you. One call instead of two.
+    """
+    alvik.left_led.set_color(r, g, b)
+    alvik.right_led.set_color(r, g, b)
+
+
+def blink(blinks, on_time, off_time, r, g, b):
+    """Blink both lights a set number of times.
+
+    Given to you. This is the whole four-step blink, wrapped up so you can
+    run it with one line. It stops early if you touch Cancel.
+    """
+    for _ in range(blinks):
+        if alvik.get_touch_cancel():
+            return
+        both_leds(r, g, b)
+        time.sleep(on_time)
+        both_leds(0, 0, 0)
+        time.sleep(off_time)
+
 
 try:
-    # --- WORK 1-2: THE BLINK LOOP ---
-    # Runs a FIXED number of times, then moves on to the pattern loop below on its
-    # own -- that way the blink and the pattern BOTH run every time you
-    # press play, and you never have to erase one to build the other.
-    for _ in range(6):
-
-        # WORK 1: Turn the LED on using the color variables, then pause
-        # for blink_time seconds so it stays on that long. Check Part 1,
-        # section 3 of the guide (The NanoLED) if you forget the command.
-
-        # WORK 2: Turn the LED back off, then pause again -- the SAME
-        # length as WORK 1, so on-time and off-time match.
-        pass  # delete this line once you've added your code
-
-    # --- WORK 3: PATTERNS WITH VARIABLES ---
-    # Change blink_time to 0.1 above and rerun -- what happens to the blink?
-    # Change the color variables to make purple (red + blue) and rerun.
-    # WORK 3: Make a pattern: two fast red blinks, then one slow blue
-    # blink, repeating -- until the X (cancel) button is touched. HINT:
-    # you will need more sleep and set_rgb lines inside the loop, or a
-    # second set of color variables.
+    # The whole light show repeats until you touch the X (cancel) button.
     while not alvik.get_touch_cancel():
-        pass  # delete this line once your pattern code is in
-        time.sleep(0.01)  # tiny pause every lap -- keeps Cancel responsive
+
+        # --- WORK 1: BLINK IT BY HAND ---
+        # Inside this loop, write the four steps of a blink. Use red, and
+        # half a second for each wait:
+        #   1. both_leds(1, 0, 0)   turn them red
+        #   2. time.sleep(0.5)      wait
+        #   3. both_leds(0, 0, 0)   turn them off
+        #   4. time.sleep(0.5)      wait again, the SAME amount
+        for _ in range(3):
+            pass  # delete this line once your four lines are in
+
+        # --- WORK 2: YOUR OWN VARIABLES ---
+        # A variable is a name for a value. Make five of them right here.
+        # Pick your own numbers:
+        #
+        #   on_time  = 0.5     how long the lights stay on
+        #   off_time = 0.5     how long they stay off
+        #   r = 1              red   part, 0 or 1
+        #   g = 0              green part, 0 or 1
+        #   b = 0              blue  part, 0 or 1
+        #
+        # Then blink three times using the NAMES, not numbers:
+        #
+        #   blink(3, on_time, off_time, r, g, b)
+
+        # --- WORK 3: CHANGE ONLY THE VARIABLES ---
+        # Give those same five variables new values. Pick a different
+        # color and a faster or slower blink.
+        #
+        # Then call blink again with EXACTLY the same line as WORK 2:
+        #
+        #   blink(3, on_time, off_time, r, g, b)
+        #
+        # Same call, different result, because the variables changed.
+        # That is the whole point of a variable.
 
 finally:
-    nano.off()
-    alvik.stop()
+    both_leds(0, 0, 0)
+    alvik.stop()  # Always call this. It stops the robot software and
+                  # frees the WiFi network. Without it the robot can
+                  # hang and need a restart.
