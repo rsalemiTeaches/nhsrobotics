@@ -12,9 +12,7 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
-# FLEX (the A+): a smart dodge. Compare the left-side and right-side distance
-# readings (alvik.get_distance() gives all five) and dodge toward the open
-# side. Copy your code into the FLEX box. In the race, dodge LEFT regardless.
+# FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot

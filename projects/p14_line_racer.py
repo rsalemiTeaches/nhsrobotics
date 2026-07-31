@@ -15,9 +15,7 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
-# FLEX (the A+): a gamepad override. SQUARE mid-run brakes and bails out to
-# STATE_MANUAL; TRIANGLE re-launches cleanly. In the race this counts as a
-# rescue -- but a rescued finish beats a stuck robot. Copy it into the FLEX box.
+# FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot, RobotGamepad

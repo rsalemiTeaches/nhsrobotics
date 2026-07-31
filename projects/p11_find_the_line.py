@@ -14,9 +14,7 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
-# FLEX (the A+): a spiral search. Make each leg a little longer than the last
-# so the robot sweeps outward instead of circling one spot. Copy your code
-# into the FLEX box.
+# FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot

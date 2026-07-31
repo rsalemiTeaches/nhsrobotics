@@ -17,10 +17,7 @@
 #      focused, so clicking over to Thonny stops your buttons working.
 #   4. Pair the PS5 controller to the Mac over Bluetooth.
 #
-# FLEX (the A+): make the SQUARE button run a light show. Add it as one
-# more elif. Left LED magenta and right LED cyan is one idea. Flipping
-# between two colors with time.ticks_ms() is another. Copy your code
-# into the FLEX box on the worksheet.
+# FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import RobotGamepad

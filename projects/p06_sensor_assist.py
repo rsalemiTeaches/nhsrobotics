@@ -12,9 +12,7 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
-# FLEX (the A+): a smart assist. Instead of a hard stop, scale the forward
-# speed down smoothly as the wall gets closer. Copy your code into the FLEX
-# box and explain your scaling math on the worksheet.
+# FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot, RobotGamepad

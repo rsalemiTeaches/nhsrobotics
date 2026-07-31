@@ -55,12 +55,7 @@ for _ in range(3):
 print("SELF-CHECK complete. Waiting for gamepad.")
 
 
-# FLEX (the battle macro): define a short pre-programmed attack or
-# escape move here, the same way you wrote functions in P04, then call
-# it from the loop when R1 is pressed. Note the capital R1.
-#
-# def spin_attack():
-#     ...
+# FLEX (the A+): there is one. The guide tells you what it is.
 
 
 try:
@@ -85,10 +80,6 @@ try:
         # driving (positive speeds only, exactly like P06) and turn the
         # LEDs red. When it is False, LEDs green. Reverse must ALWAYS
         # stay allowed -- backing away from the edge is how you survive.
-
-        # FLEX (continued): call your battle macro here.
-        # if gamepad.buttons['R1']:
-        #     spin_attack()
 
         # --- 3. ACT ---
         alvik.set_wheels_speed(left_speed, right_speed)

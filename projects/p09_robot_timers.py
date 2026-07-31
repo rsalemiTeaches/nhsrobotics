@@ -15,9 +15,7 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
-# FLEX (the A+): color follows speed. Map blink_delay (100 to 2000) onto a
-# red/blue mix so fast blinking is red and slow blinking is blue, instead of
-# plain red. Copy your code into the FLEX box.
+# FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import NanoLED, Button

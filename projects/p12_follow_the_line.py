@@ -14,9 +14,7 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
-# FLEX (the A+): speed zones. Go fast on straightaways and slow in curves.
-# Hint: when the two returned speeds are nearly equal, you are on a straight.
-# Copy your code into the FLEX box.
+# FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot

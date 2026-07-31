@@ -9,9 +9,7 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
-# FLEX (the A+): a combo move. Write ONE more function that CALLS your other
-# move functions in sequence, changing the LED colors between them, and map it
-# to TRIANGLE. Copy your code into the FLEX box.
+# FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import RobotGamepad

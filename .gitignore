@@ -179,3 +179,4 @@ init_bot/.DS_Store
 
 
 .claude/settings.local.json
+node_modules/

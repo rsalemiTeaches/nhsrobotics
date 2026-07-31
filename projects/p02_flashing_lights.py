@@ -10,9 +10,7 @@
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
 
-# FLEX (the A+): a heartbeat. The blink starts slow and speeds up each cycle,
-# then resets. Hint: subtract a little from blink_time every lap of the loop,
-# and reset it when it reaches 0.1. Copy your code into the FLEX box.
+# FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import NanoLED
