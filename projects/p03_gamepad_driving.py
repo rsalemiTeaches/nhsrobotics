@@ -4,6 +4,11 @@
 #
 # THE MATH: each stick reports -1.0 (full back) to +1.0 (full forward).
 # The motors want RPM. So:   target_rpm = stick_value * MAX_RPM
+#
+# SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
+# (MicroPython device), and save this file as /workspace/p03.py. From
+# now on, open and edit THAT copy -- files outside /workspace get
+# overwritten whenever the projects are updated.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import RobotGamepad

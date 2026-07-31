@@ -3,6 +3,11 @@
 #
 # A function is a named block of code you write ONCE and run whenever
 # you want, just by calling its name.
+#
+# SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
+# (MicroPython device), and save this file as /workspace/p04.py. From
+# now on, open and edit THAT copy -- files outside /workspace get
+# overwritten whenever the projects are updated.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import RobotGamepad

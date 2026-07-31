@@ -2,6 +2,11 @@
 # GOAL: Turn your P07 survivor into a TOURNAMENT-READY fighter.
 # This file is your competition program. Goal 1 is passing inspection.
 # Goal 2 is being battle-ready (and adding a battle macro if you flex).
+#
+# SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
+# (MicroPython device), and save this file as /workspace/p08.py. From
+# now on, open and edit THAT copy -- files outside /workspace get
+# overwritten whenever the projects are updated.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import RobotGamepad

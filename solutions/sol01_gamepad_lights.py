@@ -20,9 +20,9 @@ try:
         elif gamepad.buttons['triangle']:        # WORK 3 (continued)
             alvik.left_led.set_color(0, 1, 0)
             alvik.right_led.set_color(0, 1, 0)
-        else:                                    # WORK 2
-            alvik.left_led.set_color(0, 0, 0)
-            alvik.right_led.set_color(0, 0, 0)
+        else:                                    # WORK 2 (idle = white, so you can see it's alive)
+            alvik.left_led.set_color(1, 1, 1)
+            alvik.right_led.set_color(1, 1, 1)
 
         # FLEX: SQUARE makes a two-color light show (left magenta, right cyan,
         # or an alternating pattern using time.ticks_ms()).

@@ -9,6 +9,11 @@
 #   RIGHT LED = the East-West traffic light
 #   CENTER touch button = the pedestrian WALK button
 #   Nano LED  = the WALK sign
+#
+# SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
+# (MicroPython device), and save this file as /workspace/p11.py. From
+# now on, open and edit THAT copy -- files outside /workspace get
+# overwritten whenever the projects are updated.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import NanoLED

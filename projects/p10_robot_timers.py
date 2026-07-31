@@ -9,6 +9,11 @@
 #   "has enough time passed yet?"
 #     time.ticks_ms()          -> the clock, in milliseconds
 #     time.ticks_diff(now, before) -> milliseconds between two readings
+#
+# SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
+# (MicroPython device), and save this file as /workspace/p10.py. From
+# now on, open and edit THAT copy -- files outside /workspace get
+# overwritten whenever the projects are updated.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import NanoLED

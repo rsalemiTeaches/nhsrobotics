@@ -6,6 +6,11 @@
 #   sb.nav.drive_distance(30)     # drive forward 30 cm, then stop
 #   sb.nav.rotate_precise(90)     # turn 90 degrees in place
 # Each command FINISHES before the next line runs (it "blocks").
+#
+# SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
+# (MicroPython device), and save this file as /workspace/p09.py. From
+# now on, open and edit THAT copy -- files outside /workspace get
+# overwritten whenever the projects are updated.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot

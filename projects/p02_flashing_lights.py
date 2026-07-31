@@ -4,6 +4,11 @@
 #
 # Daily Goal 1 (today): make the LED blink using a loop.
 # Daily Goal 2 (next class): use VARIABLES to control speed and color.
+#
+# SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
+# (MicroPython device), and save this file as /workspace/p02.py. From
+# now on, open and edit THAT copy -- files outside /workspace get
+# overwritten whenever the projects are updated.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import NanoLED

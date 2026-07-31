@@ -9,6 +9,11 @@
 #      course. Following the line, only the CENTER sensor reads high —
 #      but on a perpendicular bar, ALL THREE read high at once.
 #   3. A race timer: qualifying is about the clock.
+#
+# SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
+# (MicroPython device), and save this file as /workspace/p15.py. From
+# now on, open and edit THAT copy -- files outside /workspace get
+# overwritten whenever the projects are updated.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot, RobotGamepad

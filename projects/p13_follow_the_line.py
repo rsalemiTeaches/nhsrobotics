@@ -8,6 +8,11 @@
 # wheel speeds that keep you on the line:
 #     left_speed, right_speed = sb.follow_line(DRIVE_SPEED)
 # You do NOT write the PID math — your job is everything around it.
+#
+# SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
+# (MicroPython device), and save this file as /workspace/p13.py. From
+# now on, open and edit THAT copy -- files outside /workspace get
+# overwritten whenever the projects are updated.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot

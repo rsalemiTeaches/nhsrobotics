@@ -3,6 +3,10 @@
 # You do NOT need to understand every line yet. Find the # WORK comments.
 #
 # SETUP ORDER (see the Pairing Checklist poster):
+#   0. In Thonny, File > Save As -> the Alvik (MicroPython device) -> save
+#      this file as /workspace/p01.py. Do every step below, and all your
+#      work, on that copy -- files outside /workspace get overwritten
+#      whenever the projects are updated.
 #   1. Run this program. Watch Thonny print your robot's WiFi name.
 #   2. Connect the Mac to that WiFi network (password: password).
 #   3. Open http://192.168.4.1 in Chrome, and KEEP THAT CHROME WINDOW OPEN
@@ -42,12 +46,14 @@ try:
         # CIRCLE is held, make both LEDs red; when TRIANGLE is held, make
         # both LEDs green.
 
-        # WORK 2: When NO button is held, turn both LEDs off.
+        # WORK 2: When NO button is held, turn both LEDs WHITE (1, 1, 1),
+        # not off -- that way you can SEE the program is running and just
+        # waiting for a button, instead of wondering if it froze.
         # HINT: do this right after WORK 1, before WORK 3 -- otherwise the
         # LEDs will get stuck on once you press a button, since there's no
-        # "off" case yet.
+        # "idle" case yet.
         else:
-            pass  # <-- replace with two set_color(0, 0, 0) lines
+            pass  # <-- replace with two set_color(1, 1, 1) lines
 
         time.sleep(0.02)  # small pause keeps the loop stable
 
