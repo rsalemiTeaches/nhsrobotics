@@ -1,27 +1,28 @@
 # Project 01 SOLUTION: Gamepad Lights
-# Version: V01
+# Version: V02
 from arduino_alvik import ArduinoAlvik
-from nhs_robotics import RobotGamepad
+from nhs_robotics import SuperBot, RobotGamepad
 import time
 
 alvik = ArduinoAlvik()
 alvik.begin()
+sb = SuperBot(alvik)
 gamepad = RobotGamepad(alvik)
 
 try:
-    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
+    while not (sb.held('cancel') or gamepad.held('options')):
         gamepad.update()
 
-        if gamepad.buttons['cross']:              # WORK 1
+        if gamepad.held('cross'):                 # WORK 1
             alvik.left_led.set_color(0, 0, 1)
             alvik.right_led.set_color(0, 0, 1)
-        elif gamepad.buttons['circle']:           # WORK 2
+        elif gamepad.held('circle'):              # WORK 2
             alvik.left_led.set_color(1, 0, 0)
             alvik.right_led.set_color(1, 0, 0)
-        elif gamepad.buttons['triangle']:         # WORK 2 (continued)
+        elif gamepad.held('triangle'):            # WORK 2 (continued)
             alvik.left_led.set_color(0, 1, 0)
             alvik.right_led.set_color(0, 1, 0)
-        elif gamepad.buttons['square']:           # FLEX
+        elif gamepad.held('square'):              # FLEX
             alvik.left_led.set_color(1, 0, 1)     # magenta
             alvik.right_led.set_color(0, 1, 1)    # cyan
         else:                                     # WORK 1 (continued)

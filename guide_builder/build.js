@@ -1,5 +1,5 @@
-// Guide generator V02.
-// Backticks in any text become monospace runs, the Word version of `code`.
+// Guide generator V03.
+// Inline markup in any text: `code`, **bold**, *italic*.
 const d = require('docx');
 const fs = require('fs');
 const {Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow,
@@ -9,16 +9,40 @@ const {Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow,
 const CODE_BORDER = "9A9A9A";
 const PAGE_W = 9360;
 
-// "Use `x` now" -> [normal "Use ", mono "x", normal " now"]
+// The monospace face used for code blocks and inline backticks. Guides are read
+// and printed through Google Drive, so this must be a font Drive's viewer has.
+// Override for a one-off test with CODE_FONT="Courier New" ./build-all.sh ...
+const CODE_FONT = process.env.CODE_FONT || "Roboto Mono";
+
+// Inline markup, matched in one pass so order is preserved:
+//   `code`     -> monospace      **bold** -> bold      *italic* -> italic
+// "Use `x` **now**" -> [normal "Use ", mono "x", normal " ", bold "now"]
+// Code spans are matched first, so asterisks inside backticks stay literal.
+// `base` supplies the paragraph's own styling (a lead line is bold, a note is
+// grey italic); the inline flag is applied after it so it always wins.
+const INLINE = /`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+
 function runs(text, base = {}) {
   const out = [];
-  text.split("`").forEach((chunk, i) => {
-    if (chunk === "") return;
-    out.push(new TextRun(
-      i % 2
-        ? {text: chunk, font: "Consolas", size: 20, ...base}
-        : {text: chunk, size: 22, ...base}));
-  });
+  const plain = (s) => {
+    if (s) out.push(new TextRun({text: s, size: 22, ...base}));
+  };
+
+  INLINE.lastIndex = 0;
+  let last = 0;
+  let m;
+  while ((m = INLINE.exec(text)) !== null) {
+    plain(text.slice(last, m.index));
+    if (m[1] !== undefined) {
+      out.push(new TextRun({text: m[1], size: 19, ...base, font: CODE_FONT}));
+    } else if (m[2] !== undefined) {
+      out.push(new TextRun({text: m[2], size: 22, ...base, bold: true}));
+    } else {
+      out.push(new TextRun({text: m[3], size: 22, ...base, italics: true}));
+    }
+    last = INLINE.lastIndex;
+  }
+  plain(text.slice(last));
   return out;
 }
 
@@ -38,7 +62,7 @@ function numP(text) {
 }
 function codeBlock(src) {
   const lines = src.split("\n").map(l => new Paragraph({
-    children: [new TextRun({text: l === "" ? " " : l, font: "Consolas", size: 19})],
+    children: [new TextRun({text: l === "" ? " " : l, font: CODE_FONT, size: 19})],
     spacing: {after: 0, line: 240},
   }));
   return new Table({
@@ -89,7 +113,11 @@ function render(blocks) {
       out.push(new Paragraph({children: [], spacing: {after: 60}}));
     } else if (kind === "code") {
       out.push(codeBlock(payload));
-      out.push(new Paragraph({children: [], spacing: {after: 140}}));
+      // Word butts text straight against a table, so a spacer is needed. Keep
+      // it short: a full-height empty paragraph reads as two blank lines and
+      // costs real pages across fourteen printed guides.
+      out.push(new Paragraph({children: [new TextRun({text: "", size: 8})],
+                              spacing: {after: 60, line: 120}}));
     }
   }
   return out;

@@ -9,6 +9,11 @@ from .navigation import RobotNavigation
 from .line_follower import LineFollower
 
 class SuperBot:
+
+    # The robot's own touch pads. Same names, same two methods, as
+    # RobotGamepad.held() and RobotGamepad.pressed().
+    TOUCH_NAMES = ('up', 'down', 'left', 'right', 'ok', 'cancel')
+
     def __init__(self, alvik):
         self.alvik = alvik
 
@@ -22,6 +27,24 @@ class SuperBot:
         self.btn_right = Button(self.alvik.get_touch_right)
         self.btn_ok = Button(self.alvik.get_touch_ok)
         self.btn_cancel = Button(self.alvik.get_touch_cancel)
+
+        # Same six, reachable by name so students write sb.pressed('ok').
+        self._touch = {
+            'up': self.btn_up,
+            'down': self.btn_down,
+            'left': self.btn_left,
+            'right': self.btn_right,
+            'ok': self.btn_ok,
+            'cancel': self.btn_cancel,
+        }
+        self._touch_state = {
+            'up': self.alvik.get_touch_up,
+            'down': self.alvik.get_touch_down,
+            'left': self.alvik.get_touch_left,
+            'right': self.alvik.get_touch_right,
+            'ok': self.alvik.get_touch_ok,
+            'cancel': self.alvik.get_touch_cancel,
+        }
 
         # 1. Setup Shared I2C Bus (Raw MicroPython object)
         try:
@@ -78,6 +101,34 @@ class SuperBot:
 
     def reset_line(self):
         self.line.reset()
+
+    def _check(self, name):
+        if name not in self._touch:
+            raise ValueError(
+                "No touch button named '%s'. Valid names: %s"
+                % (name, ", ".join(self.TOUCH_NAMES)))
+
+    def held(self, name):
+        """True the whole time the touch pad is being touched."""
+        self._check(name)
+        return bool(self._touch_state[name]())
+
+    def pressed(self, name):
+        """True only at the instant the touch pad is first touched.
+
+        One touch gives one True, however long you hold it.
+        """
+        self._check(name)
+        return self._touch[name].is_pressed()
+
+    def log_info(self, *args, sep=' '):
+        """Print a message and show it on the OLED.
+
+        Passthrough to self.ui.log_info(). PROVISIONAL: added for P03 so
+        students write sb.log_info(...) instead of sb.ui.log_info(...).
+        Revisit when SuperBot gets reworked.
+        """
+        self.ui.log_info(*args, sep=sep)
 
     def update_display(self, line1, line2="", line3=""):
         """Write up to three lines to the OLED.

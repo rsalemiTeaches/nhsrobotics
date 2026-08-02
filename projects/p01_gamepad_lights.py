@@ -1,10 +1,12 @@
 # Project 01: Gamepad Lights
-# Version: V02
+# Version: V04
 #
 # GOAL: Build a robot whose two colored lights change when you press
 # buttons on a PS5 controller.
 #
-# You do NOT need to understand every line yet. Find the # WORK comments.
+# THIS FILE IS MOSTLY EMPTY ON PURPOSE. You type the code yourself, from
+# the guide. Copying it by hand is how you learn the shape of Python.
+# Count your spaces -- four per level, never a tab.
 #
 # SETUP ORDER (see the guide for the full version):
 #   0. In Thonny, File > Save As -> the Alvik (MicroPython device) -> save
@@ -20,57 +22,41 @@
 # FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
-from nhs_robotics import RobotGamepad
+from nhs_robotics import SuperBot, RobotGamepad
 import time
 
-# --- SETUP ---
-alvik = ArduinoAlvik()
-alvik.begin()
+# --- WORK 1: SET UP THE ROBOT ---
+# Copy the four setup lines from the guide and put them right here.
+# They start at the left edge, no spaces in front.
+#
+# Nothing below this will run until you do. Until then Python stops at
+# the "while" line and says sb is not defined, which is correct -- you
+# have not made it yet.
 
-# RobotGamepad creates the WiFi network and WAITS here (blinking yellow)
-# until the browser connects. Then the LEDs turn green.
-gamepad = RobotGamepad(alvik)
 
 try:
     # --- MAIN LOOP ---
     # CANCEL on the robot or OPTIONS on the gamepad ends the run.
-    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
+    while not (sb.held('cancel') or gamepad.held('options')):
         # Ask the gamepad for fresh data. This must happen EVERY loop.
         gamepad.update()
 
-        # WORK 1: When the CROSS (X) button is held, make BOTH LEDs blue.
-        # The buttons dictionary works like this:
-        #     gamepad.buttons['cross']  -> True while held, False otherwise
-        # An LED is set like this:
-        #     alvik.left_led.set_color(red, green, blue)   # each 0 or 1
-        if gamepad.buttons['cross']:
-            pass  # <-- replace with two set_color lines (left and right)
-
-        # WORK 2: Add two elif branches right here, between the if above
-        # and the else below.
-        #   Hold CIRCLE   -> both LEDs red
-        #   Hold TRIANGLE -> both LEDs green
-        # Do WORK 1 first. Without the else below, the LEDs stay stuck on
-        # after your first press and you cannot tell what is happening.
-
-        # WORK 1 (continued): When NO button is held, turn both LEDs
-        # WHITE (1, 1, 1), not off. White means "running, waiting for a
-        # button", so you can tell a waiting robot from a frozen one.
-        else:
-            pass  # <-- replace with two set_color(1, 1, 1) lines
+        # --- WORK 2: THE BUTTON CHAIN ---
+        # Copy the whole if / elif / elif / else chain from the guide and
+        # put it right here. Its first line lines up exactly under the
+        # "gamepad.update()" line above.
 
         time.sleep(0.02)  # small pause keeps the loop stable
 
 finally:
+    # --- WORK 3: CLEAN UP ---
     # This block ALWAYS runs when the program stops, even on a crash.
-    #
-    # WORK 3: clean up, in this order.
-    #   1. Turn both LEDs red.
-    #   2. time.sleep(0.5)
-    #   3. Turn both LEDs off.
+    # Copy the five shutdown lines from the guide and put them right
+    # here, ABOVE the alvik.stop() line.
     #
     # The red flash proves the shutdown ran. A silent stop looks exactly
     # like a crash, and you want to tell them apart.
-    alvik.stop() # You must always call this function 
-                 # to stop the robot software
-                 # and free the WiFi network.
+
+    alvik.stop()  # GIVEN. You must always call this function to stop the
+                  # robot software and free the WiFi network. Without it
+                  # the robot can hang and need a restart.

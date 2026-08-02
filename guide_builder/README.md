@@ -63,9 +63,20 @@ identical in every guide:
 
 Edit those three in `build.js`, not in a guide.
 
-**Inline backticks become monospace.** Write ``Call `alvik.stop()` at the end.``
-and the code part renders in Consolas. That is the Word equivalent of markdown
-backticks, which is Ray's house style for any variable name or keyword.
+**Inline markup works inside any paragraph, bullet or heading text:**
+
+| You write | You get |
+|---|---|
+| `` `alvik.stop()` `` | monospace, for any variable name or keyword |
+| `**text**` | bold |
+| `*text*` | italic |
+
+So ``Call `alvik.stop()` at the end.`` renders the code part in Roboto Mono.
+Backticks are Ray's house style for any variable name or keyword.
+
+Code spans are matched first, so asterisks inside backticks stay literal. A
+paragraph that is bold *end to end* is still the lead line, not a bold
+paragraph — that rule is unchanged.
 
 ## Files
 
