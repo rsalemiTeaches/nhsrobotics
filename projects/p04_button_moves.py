@@ -1,61 +1,76 @@
 # Project 04: Button Moves
-# GOAL: Learn FUNCTIONS by turning gamepad buttons into pre-programmed moves.
+# Version: V01
 #
-# A function is a named block of code you write ONCE and run whenever
-# you want, just by calling its name.
+# GOAL: Write your own functions. Each one is a move, and each move gets
+# a button on the gamepad.
+#
+# You type the code yourself, from the guide. Thonny does the indenting.
 #
 # SAVE YOUR COPY FIRST: In Thonny, use File > Save As, pick the Alvik
 # (MicroPython device), and save this file as /workspace/p04.py. From
 # now on, open and edit THAT copy -- files outside /workspace get
 # overwritten whenever the projects are updated.
-
+#
 # FLEX (the A+): there is one. The guide tells you what it is.
 
 from arduino_alvik import ArduinoAlvik
-from nhs_robotics import RobotGamepad
+from nhs_robotics import SuperBot, RobotGamepad
 import time
 
+# GIVEN: the robot, the suit and the gamepad. You typed these yourself in
+# P01. From here on they come with the file.
 alvik = ArduinoAlvik()
 alvik.begin()
+sb = SuperBot(alvik)
 gamepad = RobotGamepad(alvik)
 
-SPIN_SPEED = 45
+
+# --- WORK 1: YOUR FIRST FUNCTION ---
+# The guide prints a speed variable and a function named spin_move().
+# Copy both of them here. Function definitions live above the loop --
+# writing one does not run it.
+#
+# No move in this project stops the wheels. The else down in the loop
+# does that, and it is the only thing that does.
 
 
-# --- FUNCTION DEFINITIONS ---
-# Definitions go BEFORE the main loop. Defining a function does not
-# run it. It runs when you CALL it, like:  spin_move()
-
-def spin_move():
-    """Spin in place to the right for half a second."""
-    alvik.set_wheels_speed(SPIN_SPEED, -SPIN_SPEED)
-    time.sleep(0.5)
-    alvik.set_wheels_speed(0, 0)
+# --- WORK 2: A MOVE YOU WRITE YOURSELF ---
+# The guide describes wiggle_move() but does not print it. Write it here,
+# with its own speed variable, under spin_move(). Then put it on a
+# button down in the loop.
 
 
-# WORK 2: Write a function called  wiggle_move()  that:
-#   - drives left wheel only for 0.2 s, then right wheel only for 0.2 s,
-#   - repeats that once more (four moves total), then stops the wheels.
-
-
-# WORK 3: Invent your own third move. Name the function yourself.
-# Ideas: reverse escape, victory shimmy, slow creep forward.
+# --- WORK 3: A MOVE THAT TAKES AN ARGUMENT ---
+# Your own move, and this one takes a value from whoever calls it. The
+# guide shows you how a def line takes an argument. Write it here.
 
 
 try:
-    # CANCEL on the robot or OPTIONS on the gamepad ends the run.
-    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
+    # Cancel on the robot or Options on the gamepad ends the run.
+    while not (sb.held('cancel') or gamepad.held('options')):
         gamepad.update()
 
-        # WORK 1: When CROSS is pressed, CALL spin_move().
-        # Calling a function is its name with parentheses:  spin_move()
+        # --- WORK 1 (continued): PUT IT ON A BUTTON ---
+        # The guide gives you an "if" that calls spin_move() while you
+        # hold X, and an "else" that brakes when you are not holding
+        # anything. Copy both here.
 
-        # WORK 2 (continued): map CIRCLE to wiggle_move() with elif.
-        # WORK 3 (continued): map SQUARE to your invented move with
-        # elif — elif means only one move runs at a time.
+        # --- WORK 2 (continued) ---
+        # Add wiggle_move() to the chain with an elif, on CIRCLE. It goes
+        # ABOVE the else -- the else stays on the bottom.
+
+        # --- WORK 3 (continued) ---
+        # Add your own move with one more elif, on SQUARE, above the else.
+        # Hand it a real number when you call it.
 
         time.sleep(0.02)
 
 finally:
+    # GIVEN. You wrote this cleanup yourself in P03. brake() stops the
+    # wheels, and the lights are still green from when the gamepad
+    # connected.
     alvik.brake()
-    alvik.stop()
+    sb.light_both_leds(0, 0, 0)
+    alvik.stop()  # GIVEN. Always call this. It stops the robot software
+                  # and frees the WiFi network. Without it the robot can
+                  # hang and need a restart.

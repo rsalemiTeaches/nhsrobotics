@@ -1,64 +1,79 @@
 # Project 04 SOLUTION: Button Moves
+# Version: V01
 from arduino_alvik import ArduinoAlvik
-from nhs_robotics import RobotGamepad
+from nhs_robotics import SuperBot, RobotGamepad
 import time
 
 alvik = ArduinoAlvik()
 alvik.begin()
+sb = SuperBot(alvik)
 gamepad = RobotGamepad(alvik)
 
-SPIN_SPEED = 45
+# WORK 1: the student picks this number. 45 is what the guide prints.
+spin_speed = 45
+
+# WORK 2: their own name and their own number.
+wiggle_speed = 40
 
 
-def spin_move():
-    """Spin in place to the right for half a second."""
-    alvik.set_wheels_speed(SPIN_SPEED, -SPIN_SPEED)
+def spin_move():                        # WORK 1, printed in the guide
+    """Spin in place, then stop."""
+    alvik.set_wheels_speed(spin_speed, -spin_speed)
     time.sleep(0.5)
-    alvik.set_wheels_speed(0, 0)
 
 
-def wiggle_move():                       # WORK 2
-    """Rock side to side."""
+
+def wiggle_move():                      # WORK 2, described but not printed
+    """Rock side to side twice."""
     for _ in range(2):
-        alvik.set_wheels_speed(SPIN_SPEED, 0)
+        alvik.set_wheels_speed(wiggle_speed, 0)
         time.sleep(0.2)
-        alvik.set_wheels_speed(0, SPIN_SPEED)
+        alvik.set_wheels_speed(0, wiggle_speed)
         time.sleep(0.2)
-    alvik.set_wheels_speed(0, 0)
 
 
-def escape_move():                       # WORK 3 (example invented move)
-    """Back up fast, then spin to face a new direction."""
-    alvik.set_wheels_speed(-60, -60)
+
+def back_up_move(speed):                # WORK 3, one example. Takes an argument.
+    """Drive straight back at whatever speed the caller asks for."""
+    alvik.set_wheels_speed(-speed, -speed)
     time.sleep(0.4)
-    alvik.set_wheels_speed(SPIN_SPEED, -SPIN_SPEED)
-    time.sleep(0.3)
-    alvik.set_wheels_speed(0, 0)
+
+
+
+# FLEX: one move built entirely out of the other three -- no
+# set_wheels_speed of its own -- and it calls the WORK 3 move twice with
+# different numbers. Like every other def, it belongs up here.
+#
+# def combo_move():
+#     spin_move()
+#     wiggle_move()
+#     back_up_move(30)
+#     back_up_move(70)
 
 
 try:
-    while not (alvik.get_touch_cancel() or gamepad.buttons['options']):
+    while not (sb.held('cancel') or gamepad.held('options')):
         gamepad.update()
 
-        if gamepad.buttons['cross']:         # WORK 1
+        # held(), not pressed(): holding the button repeats the move.
+        if gamepad.held('cross'):           # WORK 1
             spin_move()
-        elif gamepad.buttons['circle']:      # WORK 2 (continued)
+        elif gamepad.held('circle'):        # WORK 2
             wiggle_move()
-        elif gamepad.buttons['square']:      # WORK 3 (continued)
-            escape_move()
+        elif gamepad.held('square'):        # WORK 3
+            back_up_move(60)
+        else:
+            alvik.brake()
 
-        # FLEX: combo move — a new function that CALLS the other
-        # functions in sequence and flashes the LEDs between them:
-        # def combo_move():
-        #     alvik.left_led.set_color(1, 0, 1)
-        #     spin_move()
-        #     alvik.right_led.set_color(0, 1, 1)
-        #     wiggle_move()
-        #     alvik.left_led.set_color(0, 0, 0)
-        #     alvik.right_led.set_color(0, 0, 0)
-        # ...mapped to triangle.
+        # FLEX: combo_move() is defined above the try. It hangs off one
+        # more elif here.
+        #
+        # elif gamepad.held('triangle'):
+        #     combo_move()
 
         time.sleep(0.02)
+
 finally:
     alvik.brake()
-    alvik.stop()
+    sb.light_both_leds(0, 0, 0)
+    alvik.stop()  # GIVEN, never a WORK item.
