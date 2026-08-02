@@ -1,19 +1,7 @@
 import math
 
-def test_closest_distance_static():
-    from nhs_robotics import SuperBot
-
-    # Test valid readings
-    result = SuperBot.get_closest_distance_static(10, 20, -1, 5, 0)
-    if result != 5:
-        return 0, f"Expected 5, got {result}"
-
-    # Test all invalid/zero readings
-    result = SuperBot.get_closest_distance_static(-1, 0, -5, 0, 0)
-    if result != 999:
-        return 0, f"Expected 999, got {result}"
-
-    return 1, ""
+# closest_valid() lives in regression_host.py now -- it needs no robot,
+# so it belongs in the suite that runs without one.
 
 class MockBlock:
     def __init__(self, width, xCenter):

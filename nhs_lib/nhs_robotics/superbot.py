@@ -8,6 +8,12 @@ from .vision import RobotVision
 from .navigation import RobotNavigation
 from .line_follower import LineFollower
 
+# What get_closest_distance() reports when no sensor gives a usable
+# reading. Deliberately larger than any real measurement, so code that
+# asks "is something close?" says no.
+NO_READING_CM = 999
+
+
 class SuperBot:
 
     # The robot's own touch pads. Same names, same two methods, as
@@ -70,18 +76,27 @@ class SuperBot:
         print("SuperBot Init Complete.")
 
     @staticmethod
-    def get_closest_distance_static(d1, d2, d3, d4, d5):
-        all_readings = [d1, d2, d3, d4, d5]
-        valid_readings = [d for d in all_readings if d > 0]
-        if not valid_readings:
-            return 999
-        return min(valid_readings)
+    def closest_valid(readings):
+        """The smallest usable number out of however many you hand in.
+
+        A sensor reads None before its first packet arrives, and 0 or a
+        negative number when nothing echoed back. Both mean "no answer,"
+        not "something is touching me," so both get dropped. If nothing
+        usable is left, the answer is NO_READING_CM -- far away, which is
+        the safe thing to believe.
+
+        Separate from get_closest_distance() so it can be tested with no
+        robot attached.
+        """
+        valid = [reading for reading in readings
+                 if reading is not None and reading > 0]
+        if not valid:
+            return NO_READING_CM
+        return min(valid)
 
     def get_closest_distance(self):
-        d_tuple = self.alvik.get_distance()
-        return self.get_closest_distance_static(
-            d_tuple[0], d_tuple[1], d_tuple[2], d_tuple[3], d_tuple[4]
-        )
+        """Distance in cm to the nearest thing in front of the robot."""
+        return self.closest_valid(self.alvik.get_distance())
 
     def get_yaw(self):
         try:

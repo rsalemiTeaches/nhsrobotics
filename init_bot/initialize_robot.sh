@@ -1,4 +1,8 @@
 #!/bin/bash
+# v29 - main.py now belongs to the student. From P04 on, main.py holds
+#       their own "import workspace.pNN" line, so a plain sync leaves it
+#       alone. Pass -c to reset it back to the shipped version. A robot
+#       with no main.py at all still gets one, flag or not.
 # v28 - FIXED: Added explicit removal of legacy /workspace/logs directory.
 # v27 - FIXED: Added carriage return stripping (tr -d '\r') to remote output.
 #       This fixes the bug where files were falsely identified as "extraneous"
@@ -21,12 +25,13 @@ while [[ $# -gt 0 ]]; do
     case $key in
         -d|--dir) SOURCE_DIR="$2"; shift 2 ;;
         -p|--port) PORT="$2"; shift 2 ;;
+        # -c wipes the student's own files: /workspace and main.py.
         -c|--clean-workspace) CLEAN_WORKSPACE=true; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
 
-echo "Running initialize_robot.sh - v28 (Remove Workspace Logs)"
+echo "Running initialize_robot.sh - v29 (main.py is the student's)"
 
 # --- VALIDATION ---
 if [ -z "$SOURCE_DIR" ]; then echo "❌ ERROR: Source directory not specified. Use -d <path>."; exit 1; fi
@@ -196,6 +201,20 @@ for ignore in "${WHITELIST[@]}"; do
         fi
     fi
 done
+
+# --- PROTECT THE STUDENT'S main.py ---
+# From P04 on, main.py is the student's: it holds their own
+# "import workspace.pNN" line. Overwriting it on every sync silently
+# undoes their work. So leave it alone unless -c was passed, or unless
+# the robot has no main.py at all.
+if [ "$CLEAN_WORKSPACE" = true ]; then
+    echo "   - Resetting main.py (-c was passed)"
+elif echo "$REMOTE_ITEMS" | grep -q '^F|main\.py$'; then
+    rm -f "${STAGING_DIR}/main.py"
+    echo "   - Keeping the robot's existing main.py (use -c to reset it)"
+else
+    echo "   - Robot has no main.py; installing the shipped one"
+fi
 
 # Bulk upload the filtered files
 if [ "$(ls -A "$STAGING_DIR")" ]; then

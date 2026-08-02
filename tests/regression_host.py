@@ -192,4 +192,26 @@ def test_unknown_button_name_raises():
     return 1, ""
 
 
-print("Loaded regression_host.py V01")
+def test_closest_valid():
+    """Junk readings, silent sensors and empty tuples all behave."""
+    from nhs_robotics.superbot import SuperBot, NO_READING_CM
+
+    cases = (
+        ((10, 20, -1, 5, 0), 5, "picks the smallest usable reading"),
+        ((-1, 0, -5, 0, 0), NO_READING_CM, "no usable reading"),
+        ((None, None, 30, None, None), 30, "ignores sensors that never reported"),
+        ((None, None, None, None, None), NO_READING_CM, "every sensor silent"),
+        ((None, 0, -2, 12, None), 12, "None and junk mixed together"),
+        ((7,), 7, "a shorter tuple"),
+        ((), NO_READING_CM, "an empty tuple"),
+    )
+
+    for readings, expected, why in cases:
+        result = SuperBot.closest_valid(readings)
+        if result != expected:
+            return 0, "%s: expected %s from %s, got %s" % (
+                why, expected, readings, result)
+    return 1, ""
+
+
+print("Loaded regression_host.py V02")
