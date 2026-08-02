@@ -121,6 +121,14 @@ class SuperBot:
         self._check(name)
         return self._touch[name].is_pressed()
 
+    def light_both_leds(self, red, green, blue):
+        """Set the left and right lights to the same color.
+
+        One call instead of two. Each of red, green, blue is 0 or 1.
+        """
+        self.alvik.left_led.set_color(red, green, blue)
+        self.alvik.right_led.set_color(red, green, blue)
+
     def log_info(self, *args, sep=' '):
         """Print a message and show it on the OLED.
 

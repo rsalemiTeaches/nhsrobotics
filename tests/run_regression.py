@@ -15,6 +15,7 @@ import regression_hardware
 import regression_peripherals
 import regression_filesystem
 import regression_line_follower
+import regression_host
 
 def main():
     print("Initializing Regression Suite...")
@@ -27,6 +28,15 @@ def main():
     bot = SuperBot(alvik)
 
     runner = RegressionRunner()
+
+    # Same tests run_host_regression.py runs on a laptop. They need no
+    # hardware, so a robot run covers them too.
+    print("\n--- Running Host Tests ---")
+    runner.run_test("Host: light_both_leds", regression_host.test_light_both_leds)
+    runner.run_test("Host: Stick Deadzone", regression_host.test_stick_deadzone)
+    runner.run_test("Host: Gamepad held/pressed", regression_host.test_gamepad_held_and_pressed)
+    runner.run_test("Host: Touch held/pressed", regression_host.test_touch_held_and_pressed)
+    runner.run_test("Host: Unknown Button Name", regression_host.test_unknown_button_name_raises)
 
     print("\n--- Running Logic Tests ---")
     runner.run_test("Logic: Closest Distance Static", regression_logic.test_closest_distance_static)

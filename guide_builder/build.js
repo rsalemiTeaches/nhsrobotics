@@ -123,13 +123,9 @@ function render(blocks) {
   return out;
 }
 
-function version(v) {
-  return new Paragraph({
-    children: [new TextRun({text: v, italics: true, size: 18, color: "808080"})],
-    spacing: {before: 400},
-  });
-}
-
+// The version is not printed in the body. It rides in the footer of every page,
+// so a trailing stamp is a duplicate -- and a lone paragraph at the end of a
+// full page pushes the guide onto a whole extra sheet.
 
 function makeFooter(label) {
   const half = PAGE_W / 2;
@@ -186,7 +182,7 @@ async function build(outPath, ver, blocks) {
       properties: {page: {size: {width: 12240, height: 15840},
                           margin: {top: 1440, bottom: 1440, left: 1440, right: 1440}}},
       footers: {default: makeFooter(label + "  ·  " + ver)},
-      children: [...render(blocks), version(ver), ...pad],
+      children: [...render(blocks), ...pad],
     }],
   });
   fs.writeFileSync(outPath, await Packer.toBuffer(doc));
@@ -206,11 +202,10 @@ const PARTA =
   "from each one into its box. If you skipped the flex, leave the FLEX box empty.";
 
 const GRADING =
-  "There is one checkoff. You run your finished file once and it shows everything " +
-  "you built. Nothing gets erased or commented out along the way. You get 19 points " +
-  "for doing the work, or 20 if you did the flex. Late work is your points times 0.9. " +
-  "A missing robot or a missing worksheet is a 0 and a redo. This class is self-paced, " +
-  "so work as fast as you want, but watch the due dates. Finish all fourteen projects " +
-  "and you unlock the Lego and servo bin.";
+  "One checkoff. Run the finished file once and it shows everything you built, so " +
+  "nothing gets commented out along the way. The work is 19 points, the flex is 20, " +
+  "undone is 0. Late is your points × 0.9. No robot or no worksheet is a 0 and a " +
+  "redo. Work at your own speed and watch the due dates. Finish all fourteen and the " +
+  "Lego and servo bin unlocks.";
 
 module.exports = {build, SAVE, PARTA, GRADING};
