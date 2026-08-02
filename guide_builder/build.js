@@ -2,9 +2,10 @@
 // Inline markup in any text: `code`, **bold**, *italic*.
 const d = require('docx');
 const fs = require('fs');
+const path = require('path');
 const {Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow,
        TableCell, WidthType, ShadingType, LevelFormat, AlignmentType,
-       Footer, PageNumber, BorderStyle, PageBreak} = d;
+       Footer, PageNumber, BorderStyle, PageBreak, ImageRun} = d;
 
 const CODE_BORDER = "9A9A9A";
 const PAGE_W = 9360;
@@ -85,6 +86,47 @@ function codeBlock(src) {
   });
 }
 
+// Pictures are placed by markdown: ![alt](images/thing.png), on its own line.
+// The file is read relative to this folder. Width is capped at the text column
+// and the height follows the picture's own proportions, so nothing is squashed.
+const TEXT_COLUMN_PX = 624;          // 6.5in of usable width at 96 dpi
+
+function pngSize(buf) {
+  // PNG: 8-byte signature, then the IHDR chunk with width and height.
+  if (buf.length > 24 && buf.readUInt32BE(12) === 0x49484452) {
+    return {width: buf.readUInt32BE(16), height: buf.readUInt32BE(20)};
+  }
+  return null;
+}
+
+function imageBlock(spec) {
+  const file = path.resolve(__dirname, spec.src);
+  if (!fs.existsSync(file)) {
+    throw new Error("image not found: " + spec.src + "\n  looked in " + file);
+  }
+  const data = fs.readFileSync(file);
+  const size = pngSize(data);
+  if (!size) {
+    throw new Error("not a readable PNG: " + spec.src);
+  }
+  const scale = Math.min(1, TEXT_COLUMN_PX / size.width);
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    keepNext: true,
+    spacing: {before: 80, after: 160},
+    children: [new ImageRun({
+      data: data,
+      type: "png",
+      altText: spec.alt ? {name: spec.alt, description: spec.alt, title: spec.alt}
+                        : undefined,
+      transformation: {
+        width: Math.round(size.width * scale),
+        height: Math.round(size.height * scale),
+      },
+    })],
+  });
+}
+
 function render(blocks) {
   const out = [];
   for (const [kind, payload] of blocks) {
@@ -111,6 +153,8 @@ function render(blocks) {
     } else if (kind === "n") {
       payload.forEach(t => out.push(numP(t)));
       out.push(new Paragraph({children: [], spacing: {after: 60}}));
+    } else if (kind === "image") {
+      out.push(imageBlock(payload));
     } else if (kind === "code") {
       out.push(codeBlock(payload));
       // Word butts text straight against a table, so a spacer is needed. Keep

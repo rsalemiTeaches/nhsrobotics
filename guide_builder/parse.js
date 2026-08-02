@@ -10,6 +10,7 @@
 //   - item         bullet list       -> b
 //   1. item        numbered list     -> n
 //   ```            fenced code block -> code
+//   ![alt](file)   image, own line   -> image
 //   text           paragraph         -> p
 //
 // Placeholders {{SAVE}}, {{PARTA}}, {{GRADING}} are substituted before parsing.
@@ -62,6 +63,10 @@ function parse(src, vars = {}) {
     if (/^>\s?/.test(line))  { blocks.push(["note", line.replace(/^>\s?/, "").trim()]); i++; continue; }
     if (/^-\s+/.test(line))  { flushList(/^-\s+/, "b"); continue; }
     if (/^\d+\.\s+/.test(line)) { flushList(/^\d+\.\s+/, "n"); continue; }
+
+    // An image on a line of its own: ![alt text](images/thing.png)
+    const img = line.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (img) { blocks.push(["image", {alt: img[1], src: img[2]}]); i++; continue; }
 
     // A paragraph that is entirely bold is the lead line.
     const bold = line.trim().match(/^\*\*(.+)\*\*$/);

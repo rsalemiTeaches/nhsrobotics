@@ -52,7 +52,15 @@ Then plain markdown:
 | `- item` | bullet list |
 | `1. item` | numbered list |
 | ` ``` ` fence | bordered code block |
+| `![alt](images/x.png)` alone | centered picture |
 | anything else | paragraph |
+
+**Pictures** live in `guide_builder/images/` and are referenced by path from this
+folder. PNG only. The builder reads the file's real dimensions, scales it down to
+the 6.5-inch text column if it is wider, and keeps its proportions — you never
+give a size. A missing file or a non-PNG stops the build with the path it tried.
+The picture is set `keepNext`, so it will not strand at the bottom of a page away
+from the text that follows it.
 
 Three placeholders pull in the shared text, so grading and worksheet rules are
 identical in every guide:
@@ -81,6 +89,7 @@ paragraph — that rule is unchanged.
 ## Files
 
 - `p01.md`, `p02.md`, … — one per guide, the only thing you normally edit
+- `images/` — PNGs used by the guides
 - `build.js` — docx rendering, shared strings, print rules
 - `parse.js` — markdown to block list
 - `make.js` — builds one guide; `build-all.sh` wraps it
