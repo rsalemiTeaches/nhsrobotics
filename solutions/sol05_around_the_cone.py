@@ -32,10 +32,10 @@ sb = SuperBot(alvik)
 
 MY_SPEED_CMS = 6.0          # GIVEN, different for every student
 
-STRAIGHT_1_SECONDS = 3.6    # tuned: out of the box, level with the cone
+TIME_TO_CONE = 3.6          # tuned: out of the box, level with the cone
 TURN_RATE_DEG_S = -30.0     # tuned: negative because the course turns right
-ARC_SECONDS = 6.5           # tuned: half a circle, pointing at the box
-STRAIGHT_2_SECONDS = 3.6    # tuned: into the parking space
+TIME_TURNING = 6.5          # tuned: half a circle, pointing at the box
+TIME_BACK = 3.6             # tuned: into the parking space
 
 try:
     # GIVEN in the scaffold this time. Students typed this loop in P04.
@@ -56,7 +56,7 @@ try:
             # second spot -- the same call they wrote in P04, and the
             # first time anyone has told them what that zero was for.
             alvik.drive(MY_SPEED_CMS, 0)
-            time.sleep(STRAIGHT_1_SECONDS)
+            time.sleep(TIME_TO_CONE)
 
             # FLEX: the A+ reads the distance here, at the end of the
             # straight leg and before the curve moves things around.
@@ -69,11 +69,11 @@ try:
             # whole point of the project. No brake first -- calling
             # drive() again just changes what the wheels are doing.
             alvik.drive(MY_SPEED_CMS, TURN_RATE_DEG_S)
-            time.sleep(ARC_SECONDS)
+            time.sleep(TIME_TURNING)
 
             # WORK 3: into the box. Straight again.
             alvik.drive(MY_SPEED_CMS, 0)
-            time.sleep(STRAIGHT_2_SECONDS)
+            time.sleep(TIME_BACK)
 
             # FLEX: the A+ replaces those two lines with one call that
             # measures itself instead of being tuned. move() blocks, so
