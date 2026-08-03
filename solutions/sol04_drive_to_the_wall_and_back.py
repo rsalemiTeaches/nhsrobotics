@@ -14,7 +14,7 @@ alvik = ArduinoAlvik()
 alvik.begin()
 sb = SuperBot(alvik)
 
-WALL_THRESHOLD_CM = 15.0    # GIVEN, stop this far from the wall
+WALL_THRESHOLD_CM = 5.0     # GIVEN, stop this far from the wall
 DRIVE_SPEED_CMS = 10.0      # GIVEN, forward speed
 
 try:
@@ -42,7 +42,7 @@ try:
             # Measured 2026-08-02 at 10 cm/s: 5 laps drifted ~6 cm without
             # it; 0.5 s settles it to near zero. 0.3 s was not enough.
             alvik.brake()
-            time.sleep(0.5)
+            time.sleep(0.5)      # roll to a stop
 
             # WORK 3: how far did we come, turn, drive it back, turn
             # again. The second rotate is what leaves the robot facing

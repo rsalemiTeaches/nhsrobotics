@@ -29,7 +29,7 @@ alvik.begin()
 sb = SuperBot(alvik)
 
 # GIVEN: how close to the wall you stop, and how fast you get there.
-WALL_THRESHOLD_CM = 15.0
+WALL_THRESHOLD_CM = 5.0
 DRIVE_SPEED_CMS = 10.0
 
 try:

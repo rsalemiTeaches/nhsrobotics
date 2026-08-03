@@ -108,7 +108,34 @@ the footer.
    `drive_distance` / `rotate_precise` half of this is moot now — P04 uses
    `alvik.move()` and `alvik.rotate()` directly.
 
-## P05, designed 2026-08-02, not built
+## P05/P06 brainstorm, 2026-08-02 evening — start here tomorrow
+
+Ray's epiphany: two or three projects should teach **all** of `drive()` and
+**all** of `get_pose()`. P04 uses `drive(speed, 0)` and reads only x, so the
+angular-velocity argument and the y and theta values are never taught.
+
+Key link: Ray's line-alignment P05 (below) already needs both of these — "turn
+until the other sensor sees the line, read the angle, halve it" is
+`drive(0, rate)` plus polling theta. So these come first and the line project
+follows with the skill in hand.
+
+Proposed:
+
+- **Turning without rotate().** WORK 1 `drive(0, 45)` and print theta while it
+  spins. WORK 2 poll theta, brake at 90 — they build their own `rotate()`.
+  WORK 3 `drive(10, 30)`, a circle, stopped when theta passes 360. FLEX figure
+  eight by flipping the sign of the turn rate.
+- **Knowing where you are.** WORK 1 drive a curve, print all three pose numbers,
+  find out y is not zero. WORK 2 two-leg path to a taped spot, checking x and y
+  at each corner. WORK 3 a square turned with WORK 2's skill, proved closed by
+  x, y and theta all near zero. FLEX live position on the OLED.
+- **Optional third:** split the second one — reading the map, then planning a
+  route in pose coordinates (taped course, or driving a letter).
+
+Considered and rejected: parking by curving into a spot (thin on new concepts);
+driving to an arbitrary coordinate (needs `atan2`, too heavy this early).
+
+## P05 line alignment, designed 2026-08-02, not built
 
 Ray's design. **"A pretty tough P05."** The robot finds a taped line and squares
 itself up on it:
