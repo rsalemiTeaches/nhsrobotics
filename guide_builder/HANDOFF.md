@@ -1,9 +1,11 @@
 # Handoff: NHS Robotics guide rebuild
 
-*V02 — written 2026-08-02*
+*V03 — written 2026-08-03*
 
 Read this plus `README.md` in this folder. The memory files carry the class
 rules and Ray's teaching voice; this file carries where the work stopped.
+Read the `guide-teaching-voice` memory before writing a word of a guide — it
+came from Ray's own hand edits.
 
 ## The job
 
@@ -20,182 +22,216 @@ his change back into the `.md` before rebuilding or the next build reverts him.
 | P02 Flashing Lights | V15 | V06 | V06 | yes |
 | P03 Gamepad Driving | V08 | V04 | V03 | yes |
 | P04 Drive to the Wall and Back | V02 | V02 | V03 | not yet |
-| P05–P14 | old | old | old | no |
+| **P05 Around the Cone** | **V03** | **V01** | **V01** | **yes** |
+| P06–P14 | old | old | old | no |
 
-**P04 changed identity twice on 2026-08-02.** It was "Button Moves" — three
-pre-programmed wheel-speed moves on gamepad buttons. Ray killed it as contrived:
-with `held()`, spin and back-up are `set_wheels_speed` with extra steps, and only
-the wiggle earned a function. The old P08 "Move With Code" moved into the slot
-next, because drive-a-square landed right after the sumo tournament and read as a
-Term 1 skill at the top of Term 2. Ray then rejected that too as a hodge podge —
-it merged three sources and had no spine. **P08 is an empty placeholder either
-way**; see `projects/p08_placeholder.py`.
-
-What P04 is now: the robot runs itself from `main.py`, waits for OK, drives to a
-wall on the distance sensor, reads its own pose, turns around and drives back.
-WORK 1 is `import workspace.p04` plus the flash-and-wait gate, WORK 2 is the
-drive-and-stop, WORK 3 is pose-turn-return, FLEX is the OLED with units.
-
-P04 uses `alvik.move()`, `alvik.rotate()` and `alvik.drive()`, not the
-`RobotNavigation` wrappers. They are firmware-native, need no library change, and
-Ray's own `init_bot/` demos use them everywhere. `rotate_precise()` is a one-line
-wrapper around `alvik.rotate()` and adds nothing.
-
-**Nobody writes a function in P04, and that is fine.** P02 V14 ended its function
-section with "In P04 you write your own." Ray scrapped that line on 2026-08-02 —
-*"why limit ourselves"* — so P02 V15 says "Before long you will be writing your
-own" and no project is on the hook for it.
-
-**Stale downstream framing this created:** `p05_distance_sensor.py` still claims
-to introduce `get_closest_distance()`; `p08_move_with_code.py` still teaches
-blocking moves via `sb.nav.*`; P05 and P06 still call the SuperBot `bot`, not
-`sb`.
-
-**P01, P02 and P03 are the reference set. Match them.** Everything below P03 is
+**P01–P03 and now P05 are the reference set.** Everything from P06 down is
 still in the old voice and calls a library API that no longer exists.
 
-## What changed on 2026-08-02
+## What P05 became, and why
 
-This was a big day. The rules that came out of it are in memory —
-`guide-teaching-voice` is the most important one, and it was learned from Ray's
-own hand edits to P02 and P03. Read it before writing a word.
+P05 is a **port of Ray's PRIZM "Turning the Robot" project**, which his
+students enjoyed. Physical course on a foamboard: start box, drive out, curve
+180° around a cone, drive back, park in a box **level with the start box**.
+Randomized per-student numbers so nobody can copy. Tune by trial, not by
+calculation.
 
-**Teaching shape.** Guides now show the pain before the fix, give the tool
-before the theory, enumerate instead of summarizing, and never introduce a word
-the reader has not been given. Headings are unnumbered and say what you can do.
+- WORK 1 straight out, WORK 2 the arc (`drive()` with both arguments — the
+  new idea), WORK 3 straight into the box. One tuned number per leg.
+- **FLEX:** the two boxes are level, so leg 3 is the same length as leg 1.
+  Read the pose after leg 1 and use `alvik.move(distance_out)` instead of a
+  tuned time. Guide points at P04 rather than printing the code.
+- **No pose anywhere in the WORK.** Ray's call: P05 is pure tuning, and the
+  pose is P06's reveal. Pain before the fix, at the project level.
+- Per-student speed comes from a **formula, not a list**: multiply your
+  student number by 5, subtract 41 until under 41, divide by 10, add 4.
+  24 distinct values, 4.3–8.0 cm/s, no two adjacent numbers closer than 0.5.
+- Board geometry: boxes 24 cm apart centre to centre, so the arc radius is
+  12 cm and the board fixes it. That is what makes the random speed do work —
+  each student must find their own turn rate.
+- `p05_distance_sensor.py` and `sol05_distance_sensor.py` were deleted.
 
-**Students transcribe.** New code is printed in the guide and typed in by hand;
-scaffolds are skeletons with `# WORK` markers, not fill-in-the-blank. Part 2 is
-one step per WORK block, each with the exact code and a run-it checkpoint. The
-FLEX is never printed — they work it out.
+## What to teach, and why — the thread through the movement API
 
-**Library API.** `alvik.get_touch_cancel()` and `gamepad.buttons['x']` are gone
-from student code. Both classes now answer `held(name)` and `pressed(name)`.
-`RobotGamepad` applies `STICK_DEADZONE` inside all four stick properties, so a
-resting stick reads exactly 0.0. `SuperBot` gained `log_info()` and
-`light_both_leds()`. Every project builds a `SuperBot` now, including P01.
+Ray's own words: *"I have a tendency to want to teach them a bunch of cool
+things the robot can do, but then lose the thread in terms of why."* This is
+the thread we landed on.
 
-**Builder.** `build.js` V03 does inline `` `code` ``, `**bold**` and `*italic*`;
-places PNGs with `![alt](images/x.png)`; uses Roboto Mono at 9.5pt because Ray
-prints through Google Drive; and no longer stamps the version in the body, only
-the footer.
+There are only two ideas, at two levels:
 
-## Next actions, in order
+|  | Per wheel | Per robot |
+|---|---|---|
+| **Set a speed** (runs forever) | `set_wheels_speed()` | `drive()` |
+| **Set a destination** (stops itself) | `set_wheels_position()` | `move()`, `rotate()` |
 
-1. **Ray reads P04 Drive to the Wall and Back.** Hardware checks only he can run:
-   - Does `import workspace.p04` in `main.py` actually run at power-up? The
-     pattern is proven (`init_bot/nhs_robot/main.py` does `import demo.demo` with
-     no `__init__.py`), but nobody has run it against `/workspace`.
-   - Does `alvik.move(distance_out)` travel that distance and stop with the
-     wheels at rest?
-   - `get_closest_distance()` crashes on `None > 0` if any of the five TOF
-     values is still `None`. That happens before the first packet, and *forever*
-     if the firmware sends the 3-sensor `'d'` packet instead of the 7-value `'f'`
-     matrix. P04 is safe by luck — the OK gate plus `reset_pose()`'s internal
-     1 s sleep buy the time. Needs a `nhs_lib` guard and a host test either way.
-   - `initialize_robot.sh` v29 leaves `main.py` alone unless `-c` is passed, so
-     re-initializing no longer wipes a student's WORK 1. A robot with no
-     `main.py` at all still gets the shipped one. Ray verified the
-     modified-main.py case on hardware 2026-08-02: untouched after a plain
-     init. The `-c` reset and the no-main.py cases are still logic-tested only.
-2. **P05–P14**, one at a time, until Ray says to batch the rest.
-3. **Fill the P08 slot.** Empty on purpose; it sits between Capstone 1 and P09,
-   so it has to be a step up from a competition robot. Candidate in
-   `projects/p08_placeholder.py`.
-4. **Before P11 is printed**, add `sb.drive_to_line()` as a passthrough. P11
-   currently makes students type `sb.nav.drive_to_line(...)`, which breaks Ray's
-   rule that students never write `sb.<subthing>.method()`. The
-   `drive_distance` / `rotate_precise` half of this is moot now — P04 uses
-   `alvik.move()` and `alvik.rotate()` directly.
+**The question that picks the method: does the robot need to pay attention
+while it moves?** `move()` and `rotate()` block — the robot is deaf and blind
+until it arrives. `drive()` returns instantly, so your code stays free to
+watch something. That is a real engineering idea, not robot trivia.
 
-## P05/P06 brainstorm, 2026-08-02 evening — start here tomorrow
+Reach for each one because:
 
-Ray's epiphany: two or three projects should teach **all** of `drive()` and
-**all** of `get_pose()`. P04 uses `drive(speed, 0)` and reads only x, so the
-angular-velocity argument and the y and theta values are never taught.
+- **`move()` / `rotate()`** — you know where you are going and nothing on the
+  way can change your mind. Accurate, self-correcting, one line. For a
+  beginner these are usually the right answer.
+- **`drive()`** — the robot has to keep its eyes open (stop at a wall, follow
+  a line, turn until a sensor fires, respond to a controller), or you need a
+  **curve**, which nothing else can do.
+- **`set_wheels_speed()`** — conceptual value only. Two motors, two numbers,
+  no abstraction; it is how a student *feels* what a differential drive is.
+  P03's gamepad mapping is perfect for it. Teach it once, never return.
+- **`set_wheels_position()`** — no classroom use anyone could construct. Cut.
 
-Key link: Ray's line-alignment P05 (below) already needs both of these — "turn
-until the other sensor sees the line, read the angle, halve it" is
-`drive(0, rate)` plus polling theta. So these come first and the line project
-follows with the skill in hand.
+Also cut: the `'%'` angular unit (the constant behind it was broken, and
+percent-of-max teaches nothing cm/s does not).
 
-Proposed:
+Where this puts the sequence:
 
-- **Turning without rotate().** WORK 1 `drive(0, 45)` and print theta while it
-  spins. WORK 2 poll theta, brake at 90 — they build their own `rotate()`.
-  WORK 3 `drive(10, 30)`, a circle, stopped when theta passes 360. FLEX figure
-  eight by flipping the sign of the turn rate.
-- **Knowing where you are.** WORK 1 drive a curve, print all three pose numbers,
-  find out y is not zero. WORK 2 two-leg path to a taped spot, checking x and y
-  at each corner. WORK 3 a square turned with WORK 2's skill, proved closed by
-  x, y and theta all near zero. FLEX live position on the OLED.
-- **Optional third:** split the second one — reading the map, then planning a
-  route in pose coordinates (taped course, or driving a letter).
+| | What it adds |
+|---|---|
+| P03 | Two motors, two numbers. Feel the hardware. |
+| P04 | Watch a sensor while moving vs. go somewhere blind — both families, contrasted in one project |
+| P05 | The second argument. Curves. Tune by trial. |
+| **P06** | The pose. Let the robot measure itself instead of tuning. |
+| later | Line alignment — watch a line sensor *while* turning |
 
-Considered and rejected: parking by curving into a spot (thin on new concepts);
-driving to an arbitrary coordinate (needs `atan2`, too heavy this early).
+Each is "here is a new thing worth watching," not "here is another command."
+P04 already does this right, using `drive()` to approach the wall because it
+must watch the sensor, then `move()` and `rotate()` for the blind trip home.
+The guide could name that out loud.
 
-## P05 line alignment, designed 2026-08-02, not built
+## P06: the pose project — next up
 
-Ray's design. **"A pretty tough P05."** The robot finds a taped line and squares
-itself up on it:
+Ray's original brainstorm (2026-08-02) plus what P05 now sets up. Sketch, not
+settled:
 
-1. Drive until the left or right line sensor sees the line.
-2. Reset the pose.
-3. Turn until the *other* sensor sees the line.
-4. Read the angle off the pose.
-5. Turn back half that angle.
-6. Drive until you see the line. The robot is now aligned.
+- WORK 1 drive a curve and print all three pose numbers; discover y is not
+  zero.
+- WORK 2 poll theta while turning and brake at the angle you wanted — they
+  build their own `rotate()`, and it lands exactly where P05's tuning only
+  got close.
+- WORK 3 a path proved closed by x, y and theta all near zero.
+- FLEX live position on the OLED.
+
+The hook writes itself: *in P05 you tuned four numbers by hand; the robot knew
+all of them the whole time.*
+
+## Line alignment — designed, deferred
+
+Ray's design from 2026-08-02, **now scheduled after P06**, not at P05. It
+needs theta-polling and sensor-polling and turning-without-`rotate()` all at
+once, which is a cliff straight after P04. Slot number undecided; it displaces
+something.
+
+The design: drive until one line sensor sees the line, reset pose, turn until
+the *other* sensor sees it, read the angle, turn back half of it, drive until
+you see the line again.
 
 Two rules Ray set:
 
-- **Never `alvik.rotate()` in this project.** Every turn is wheels turning while
-  something gets polled — a line sensor in steps 3 and 6, the pose angle in
-  step 5. `rotate()` takes a fixed angle and blocks, so it cannot watch a sensor.
-- **The second sensor lands on the far crossing, not the near one.** Both sensors
-  sweep the same circle around the pivot and that circle cuts the line twice.
-  Turning toward the side that has *not* seen the line puts the second sensor on
-  the other cut, which is what makes halving the angle mean anything. Turn the
-  other way and the sweep is just the fixed angle between the two sensors.
+- **Never `alvik.rotate()` in this project.** Every turn watches something.
+- **The second sensor lands on the far crossing, not the near one.** Both
+  sensors sweep the same circle and it cuts the line twice. Turning toward the
+  side that has *not* seen the line puts the second sensor on the other cut,
+  which is what makes halving the angle mean anything.
 
-`alvik.get_line_sensors()` returns `(left, center, right)`. `LINE_THRESHOLD = 500`
-and the line reads *above* it on the white field — see
-[[line-sensor-thresholds-final]]; the sumo ring is the opposite polarity.
+`alvik.get_line_sensors()` returns `(left, center, right)`. `LINE_THRESHOLD =
+500`, line reads *above* it on the white field — see
+[[line-sensor-thresholds-final]]; the sumo ring is opposite polarity.
 
-**Collision to settle:** P11 "Find the Line" still claims to introduce the line
-sensors. P07 sumo already reads them for edge detection, so that was stale before
-this; P05 makes it worse. P11 needs new content or a new name, the same way P08
-did.
+**Collision:** P11 "Find the Line" still claims to introduce the line sensors.
+P07 sumo already reads them. P11 needs new content or a new name.
 
-P05 no longer teaches the distance sensor — P04 took it. `p05_distance_sensor.py`
-is now misnamed.
+## Hardware truth, measured 2026-08-03
 
-## Open, decided but not actioned
+Full detail is in the `alvik-drive-measured-behavior` memory. The short form:
+
+- **`drive()` delivers 92.6% of what you ask, in both axes**, plus a 0.21 s
+  startup lag. Same on three robots of different ages, so it is firmware, not
+  wear. Almost certainly a time-base error in the STM32 velocity loop; the
+  physical geometry measures correct (34 mm wheels, 88 mm track).
+- **`move()` is accurate** (495 mm on a 500 mm command) and **`get_pose()` is
+  honest on all three values** — theta accumulates without wrapping and
+  matched a by-eye turn count to 2%.
+- **Negative angular velocity turns right**, positive turns left. Measured.
+- **`brake()` stops in about 0.5 s** — 6 mm at 4.6 cm/s, 6.4° at 36 deg/s.
+- **`ROBOT_MAX_DEG_S` was exactly 2× too big.** Ray fixed both working copies
+  on 2026-08-03 — `nhs_lib/arduino_alvik/` and the fork submodule
+  `libs_on_github/arduino-alvik-mpy/`. Staged, not committed, PR not filed.
+
+**`init_bot/factory_alivk/` is an archive — leave it alone.** Ray's
+instruction. It is a dump of what was actually inside a robot out of the box,
+including an older Alvik library that still has the old constant. Nothing
+references it. Do not "fix" anything in there.
+
+**Ray's ruling: students never see the 92.6%.** They are beginners and will
+have enough trouble with `drive()` and `get_pose()` assuming correct
+behaviour. Do NOT put a compensation constant in `nhs_lib` — it would fix the
+rate but not the lag, and it would wrap the API being taught. Hide it through
+project design instead: **never write a step of the form "drive for N
+seconds" that asks a student to compute the time.** Tuning a time by hand is
+fine — the error gets absorbed and never surfaces, which is exactly what P05
+does.
+
+### Test programs in `dev/` (not student projects)
+
+- `spin_rate_test.py` — three timed spins, count turns by eye
+- `spin_ramp_test.py` — 10 Hz theta logging to `/spin_data.csv`, one OK press
+  runs the whole thing. The fleet-check tool.
+- `straight_line_test.py` — timed drive vs `move()`, logs to `/line_data.csv`
+- `turn_sign_test.py` — which way is positive
+
+### Still unmeasured
+
+- **`rotate()` has never been tested.** Accuracy is inferred from `move()`.
+  P04's WORK 3 depends on it.
+- **`drive()` with both arguments has never been tested.** Prediction: the
+  curve radius is right even though the traverse is 7.4% slow, because the
+  radius is forward ÷ turn and the error cancels in the division. P05 rests
+  on this.
+- **Saturation behaviour is unknown.** Budget rule: `forward + turn ÷ 13 ≤
+  12.5` in cm/s and deg/s. Nobody knows what the firmware does past that.
+
+## Older open items, unchanged
 
 - **The worksheet.** `Robotics_Project_Worksheet.docx` is parked until Ray
   settles Part A's wording and Part B question 1. See the
-  `robotics-worksheet-open-questions` memory. P02's Step 5 still tells students
-  to copy five variables plus the `blink()` call, which a one-line Part A rule
-  would contradict.
-- **Version prints.** Ray wants every module to print its version on load.
-  `gamepad.py`, `ui.py`, `navigation.py`, `vision.py`, `line_follower.py` and
-  `controller.py` still do not. P01's guide already promises students they will
-  see them.
+  `robotics-worksheet-open-questions` memory. **Do not touch it.**
+- **Version prints.** `gamepad.py`, `ui.py`, `navigation.py`, `vision.py`,
+  `line_follower.py` and `controller.py` still do not print theirs. P01's
+  guide already promises students they will see them.
 - **Library version.** `nhs_robotics/__init__.py` still says V03 despite real
   changes. Bumping it means chasing P14's "Requires library V03" line.
-- **SuperBot internals.** Ray: "SuperBot is a mess." Agreed plan is to settle
-  student-facing names per project and leave the constructor, the vision and
-  HuskyLens tangle, and the swallowed exceptions until all 14 guides are done.
+- **SuperBot internals.** Ray: "SuperBot is a mess." Settle student-facing
+  names per project; leave the constructor, the vision/HuskyLens tangle and
+  the swallowed exceptions until all 14 guides are done.
+- **`sb.drive_to_line()` passthrough** before P11 is printed. P11 currently
+  makes students type `sb.nav.drive_to_line(...)`, which breaks the rule that
+  students never write `sb.<subthing>.method()`.
+- **P08 is an empty placeholder**, between Capstone 1 and P09, so it has to be
+  a step up from a competition robot. Candidate in `projects/p08_placeholder.py`.
+- **Stale downstream framing:** `p06_sensor_assist.py` and `p08_move_with_code.py`
+  still teach blocking moves via `sb.nav.*`; P06 still calls the SuperBot
+  `bot`, not `sb`.
+- **Repo strays** from 2026-08-03 testing: `spin_test.py` in the root,
+  `init_bot/nhs_robot/line_data.csv`, `tests/spin_data.csv`, `csvs/`, and
+  `P05_TIme_Renames.docx` in Project Guides. Ask before deleting.
 
 ## Build
 
 ```bash
-./build-all.sh p04.md -d     # build one guide and deploy it
+./build-all.sh p05.md -d     # build one guide and deploy it
 ./build-all.sh -d            # build all and deploy
 ```
 
-Odd page counts are padded to even for duplex printing. Length only matters when
-a change crosses onto a new *sheet* — 7 and 8 pages are both 4 sheets.
+Odd page counts are padded to even for duplex printing. Length only matters
+when a change crosses onto a new *sheet* — 7 and 8 pages are both 4 sheets.
+P05 sits at 6 pages, 3 sheets, with about half a page of slack.
+
+**Images must be real PNGs.** The builder reads the PNG header and refuses
+anything else, and it renders at natural pixel size capped at 624 px wide.
+A JPEG renamed `.png` fails the build; an oversized canvas silently eats a
+sheet. Crop tight and export around 300–500 px wide.
 
 ## Tests
 
@@ -203,5 +239,5 @@ a change crosses onto a new *sheet* — 7 and 8 pages are both 4 sheets.
 python3 tests/run_host_regression.py    # no robot needed
 ```
 
-Any change to `nhs_lib` needs a test in `tests/regression_host.py` and a line in
-both runners. Five tests pass today.
+Any change to `nhs_lib` needs a test in `tests/regression_host.py` and a line
+in both runners. Five tests pass today.
