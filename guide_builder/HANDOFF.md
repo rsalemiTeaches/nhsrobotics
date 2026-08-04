@@ -1,6 +1,6 @@
 # Handoff: NHS Robotics guide rebuild
 
-*V03 — written 2026-08-03*
+*V04 — written 2026-08-04*
 
 Read this plus `README.md` in this folder. The memory files carry the class
 rules and Ray's teaching voice; this file carries where the work stopped.
@@ -23,10 +23,14 @@ his change back into the `.md` before rebuilding or the next build reverts him.
 | P03 Gamepad Driving | V08 | V04 | V03 | yes |
 | P04 Drive to the Wall and Back | V02 | V02 | V03 | not yet |
 | **P05 Around the Cone** | **V03** | **V01** | **V01** | **yes** |
-| P06–P14 | old | old | old | no |
+| **P06 The Magic Circle** | **V01** | **V01** | **V01** | **runs on hardware, guide under review** |
+| P07–P14 | old | old | old | no |
 
-**P01–P03 and now P05 are the reference set.** Everything from P06 down is
+**P01–P03 and now P05 are the reference set.** Everything from P07 down is
 still in the old voice and calls a library API that no longer exists.
+
+`projects/p06_sensor_assist.py` is the old P06 and is now orphaned. Ray has
+not said to delete it.
 
 ## What P05 became, and why
 
@@ -100,21 +104,62 @@ P04 already does this right, using `drive()` to approach the wall because it
 must watch the sensor, then `move()` and `rotate()` for the blind trip home.
 The guide could name that out loud.
 
-## P06: the pose project — next up
+## P06: The Magic Circle — built 2026-08-04, runs on hardware
 
-Ray's original brainstorm (2026-08-02) plus what P05 now sets up. Sketch, not
-settled:
+**The earlier "poll theta and build your own rotate()" sketch is dead.** Ray
+killed it and replaced it wholesale. Do not resurrect it. It failed on his own
+constraint — `alvik.rotate()` already turns an accurate fixed angle, so a
+theta-polling turn in place adds nothing — and its WORK 1 was a print
+statement, which is an observation and not a capability.
 
-- WORK 1 drive a curve and print all three pose numbers; discover y is not
-  zero.
-- WORK 2 poll theta while turning and brake at the angle you wanted — they
-  build their own `rotate()`, and it lands exactly where P05's tuning only
-  got close.
-- WORK 3 a path proved closed by x, y and theta all near zero.
-- FLEX live position on the OLED.
+`projects/p06_magic_circle.py`, `solutions/sol06_magic_circle.py`, `p06.md`.
 
-The hook writes itself: *in P05 you tuned four numbers by hand; the robot knew
-all of them the whole time.*
+**The project.** The robot hides an invisible ring on the floor within 100 cm
+of itself, 20 cm across. The student drives with the P03 gamepad and finds it
+using only the feedback they build. Roll inside and the robot brakes, spins to
+celebrate, and hides a new one.
+
+**The thing being taught is not the pose. It is translating information into
+feedback a person can act on.** Ray's words. The three WORK items are three
+translations, one each:
+
+- WORK 1 number → screen. Pythagoras on the two offsets, distance on the OLED.
+- WORK 2 sign → two lights. Light the LED on the side the ring is on, both off
+  when aimed.
+- WORK 3 number → color. Nano LED red when hot, blue when cold, via `set_rgb`.
+
+The dance and the next ring are GIVEN, because an outcome is not a translation.
+FLEX is the robot playing its own game with no gamepad.
+
+**`Circle` is defined in the student file**, not in `nhs_lib`. Ray's call: a
+curious student can read it, and nothing has to be imported. It is not a
+SuperBot capability. API is `circle = Circle(max_dist, diameter)` then
+`dir, dx, dy = circle.get_bearings()`, with dir 1 left, −1 right, 0 aimed.
+
+**No trigonometry reaches the student.** Ray was explicit. The class computes
+the relative bearing internally and returns only a sign, which needs `sin` and
+`cos` but never `atan2` — and because no angle is ever produced there is no
+±180 wrap to handle, and unbounded theta (4424°) passes straight through since
+`sin` is periodic. Students write Pythagoras and the color proportion, which
+are 8th-grade math they own.
+
+**Three numbers that are one decision.** `MAX_DIST_CM` 100, `TOLERANCE_DEG` 6,
+`RING_DIAMETER_CM` 20. The naive rule `max_dist × sin(tolerance) < radius`
+fails here (10.45 into 10) and it does not matter: the tolerance is divided by
+distance, so the aimed window is a fixed number of degrees and a shrinking
+number of centimetres as the robot closes — 10 cm of slack at a metre, 2 cm at
+twenty. The lights re-aim the student continuously. What *would* break the game
+is a tolerance too tight to hold with tank-drive sticks; 6° is a 12° window.
+Full reasoning is in the solution header.
+
+**Why this project is immune to the hardware defects.** Nothing depends on an
+accurate distance or an accurate angle. The ring exists only in the robot's own
+pose frame, so there is no physical ring for a drifting pose to disagree with,
+and the student is the control loop. This is "hide it through project design"
+taken as far as it goes.
+
+**Ray verified it on hardware 2026-08-04.** The game plays, the win fires at
+20 cm, the dance runs.
 
 ## Line alignment — designed, deferred
 
@@ -181,16 +226,93 @@ does.
 - `straight_line_test.py` — timed drive vs `move()`, logs to `/line_data.csv`
 - `turn_sign_test.py` — which way is positive
 
+### What 2026-08-04 added
+
+A day of measuring on hardware. This supersedes parts of the entry above and
+parts of the `alvik-drive-measured-behavior` memory — read this section as the
+newer truth where they disagree.
+
+- **theta from `get_pose()` is wheel odometry. yaw from `get_orientation()` is
+  the IMU. They are separate packets from the STM32 and never touch.** Proven
+  by lifting the robot and turning it by hand (yaw moves, theta does not) and
+  by spinning the wheels in the air (theta climbs, robot has not moved).
+  `dev/pose_source_test.py` does both on the OLED with no cable.
+- **yaw does not drift.** Parked for two minutes, no creep. It is the only
+  heading source on the robot that no wheel error can touch.
+- **yaw is 0–360 and it wraps.** Observed running 358.8 → 359.2 → 4.6. Any use
+  of yaw needs unwrapping, which is a trap for student code as much as ours.
+- **theta over-reports rotation by 8–13%** against yaw as ground truth. On one
+  spin the robot physically turned about 146° on a 180° command (81%), while
+  theta claimed 163°.
+- **Wheels measure 33 mm, track measures 88 mm.** Both Ray's measurements. That
+  geometry predicts only a 3% theta over-report, so **geometry does not explain
+  the 8–13%** and the residual is in the STM32 binary. An earlier guess in this
+  file that the track was really ~93 mm was wrong — Ray re-measured 88.
+  Remember the Python constants are documentation; the firmware has its own.
+- **The pose origin is the midpoint of the wheel axle**, not the nose. Proven by
+  the spin log: x and y sat at 0.0 through a full rotation, which could not
+  happen if the origin were offset forward.
+- **The pose keeps integrating under `set_wheels_speed()`**, not just `drive()`.
+  Confirmed by P06 working at all. Mixing `'J'` and `'V'` packets in one program
+  is also fine — P06's dance uses `drive()` between tank-drive commands.
+
+**Ray's ruling on calibration, 2026-08-04: do not build one.** No calibration
+program, no per-robot constant saved to the filesystem. A 33-vs-34 wheel would
+be one honest number, but the real error is an unexplained residual that
+differs between the linear and angular axes, sits in a binary nobody can read,
+and comes with a 0.21 s lag. Hidden per-robot state also fails silently and
+differently on each of 24 shared robots, and gets stomped every time a student
+breaks `main.py`. **Design the projects instead.** If calibration ever belongs
+in the course it is a project, not plumbing.
+
 ### Still unmeasured
 
 - **`rotate()` has never been tested.** Accuracy is inferred from `move()`.
-  P04's WORK 3 depends on it.
+  P04's WORK 3 depends on it. P06 does not use it.
 - **`drive()` with both arguments has never been tested.** Prediction: the
   curve radius is right even though the traverse is 7.4% slow, because the
   radius is forward ÷ turn and the error cancels in the division. P05 rests
-  on this.
+  on this. P06 does not.
 - **Saturation behaviour is unknown.** Budget rule: `forward + turn ÷ 13 ≤
   12.5` in cm/s and deg/s. Nobody knows what the firmware does past that.
+- `dev/curve_pose_test.py` was written to answer the first two and Ray has not
+  run it. It also measures whether pose y is honest through a curve, which
+  nothing has ever checked.
+
+### The dev/ test programs are not in the repo
+
+HANDOFF V03 listed `spin_rate_test.py`, `spin_ramp_test.py`,
+`straight_line_test.py` and `turn_sign_test.py` in `dev/`. **None of them are
+there.** `dev/` holds six unrelated files and git shows nothing deleted. The
+2026-08-03 measurement code may exist only on a robot. The two programs that do
+exist are `dev/pose_source_test.py` and `dev/curve_pose_test.py`, both from
+2026-08-04.
+
+## A flat controller battery fails silently, and nothing catches it
+
+Cost an hour of debugging on 2026-08-04. A dying PS4 controller does **not**
+raise. `RobotController.update()` opens with
+`if not self.is_connected(): self._reset_state()`, which zeroes every stick and
+clears every button, and the socket path catches `OSError` and calls
+`_close_ws()`. Nothing propagates.
+
+So the symptom is a robot that quietly stops driving. Everything else in the
+loop keeps running. The obvious reading — "it crashed, the `finally` block
+cleaned up" — is wrong, and I chased it a long way before checking the code.
+**Read `nhs_lib/controller.py` before theorising about gamepad failures.**
+
+A `try`/`except` around the gamepad read is useless here; one was added and
+reverted the same day.
+
+**The only real fix would be polling `RobotController.is_connected()`, and
+Ray's ruling 2026-08-04 is that it is not worth it.** Closed, not open. It
+would mean reaching through `gamepad.controller.`, which is a level worse than
+the banned `sb.<subthing>.method()` shape, and reversing the earlier decision
+to pull `is_connected()` out of the student-facing API. Do not propose it again.
+
+**P01 and P03 have the same silent behaviour, and that is accepted.** The
+diagnostic fact above is the thing worth keeping: when a gamepad project
+mysteriously stops driving, check the controller battery before the code.
 
 ## Older open items, unchanged
 
