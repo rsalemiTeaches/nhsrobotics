@@ -137,6 +137,8 @@ try:
             alvik.reset_pose(0, 0, 0)
             circle = Circle(MAX_DIST_CM, RING_DIAMETER_CM)
 
+        # GIVEN: a small pause, so the loop does not run away with the
+        # processor.
         time.sleep(0.05)
 
 finally:

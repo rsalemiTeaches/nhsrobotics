@@ -35,10 +35,12 @@ import time
 
 
 try:
-    # --- MAIN LOOP ---
-    # CANCEL on the robot or OPTIONS on the gamepad ends the run.
+    # GIVEN: the main loop. Cancel on the robot or Options on the gamepad
+    # ends the run, so you never need Thonny's Stop button.
     while not (sb.held('cancel') or gamepad.held('options')):
-        # Ask the gamepad for fresh data. This must happen EVERY loop.
+
+        # GIVEN: fresh data from the controller. Ask every time through
+        # the loop -- skip it and the buttons never change.
         gamepad.update()
 
         # --- WORK 2: THE BUTTON CHAIN ---
@@ -46,7 +48,9 @@ try:
         # put it right here. Its first line lines up exactly under the
         # "gamepad.update()" line above.
 
-        time.sleep(0.02)  # small pause keeps the loop stable
+        # GIVEN: a small pause, so the loop does not run away with the
+        # processor.
+        time.sleep(0.02)
 
 finally:
     # --- WORK 3: CLEAN UP ---

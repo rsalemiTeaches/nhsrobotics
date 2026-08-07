@@ -21,7 +21,8 @@ from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
 import time
 
-# GIVEN: the robot and the suit.
+# GIVEN: the robot and the suit. No gamepad in this project, so no WiFi
+# and no browser.
 alvik = ArduinoAlvik()
 alvik.begin()
 sb = SuperBot(alvik)

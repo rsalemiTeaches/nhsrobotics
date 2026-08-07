@@ -28,8 +28,12 @@ gamepad = RobotGamepad(alvik)
 MAX_RPM = 70
 
 try:
-    # Cancel on the robot or Options on the gamepad ends the run.
+    # GIVEN: the main loop. Cancel on the robot or Options on the gamepad
+    # ends the run.
     while not (sb.held('cancel') or gamepad.held('options')):
+
+        # GIVEN: fresh data from the controller. Ask every time through
+        # the loop -- skip it and the sticks never change.
         gamepad.update()
 
         # --- WORK 1: LOOK AT THE STICKS ---
@@ -43,6 +47,8 @@ try:
         # two lines from the guide that do that conversion, and the line
         # under them that sends both speeds to the wheels.
 
+        # GIVEN: a small pause, so the loop does not run away with the
+        # processor.
         time.sleep(0.02)
 
 finally:
