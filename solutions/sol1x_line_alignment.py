@@ -8,7 +8,7 @@
 #   START_MOTOR           give the order to roll forward
 #   SEEK                  watch for an outer sensor to reach the tape,
 #                         then stop and start the sweep
-#   FIND_ANGLE_AND_ALIGN  watch for a sensor to reach the tape again,
+#   ALIGN                 watch for a sensor to reach the tape again,
 #                         then turn back half of the sweep
 #   DRIVE                 give the order to roll forward again
 #   FIND_LINE             watch for all three sensors to be on the tape
@@ -122,9 +122,9 @@ try:
                 alvik.drive(0, turn_direction * TURN_SPEED)
 
                 time.sleep_ms(TURN_START_MS)
-                current_state = 'FIND_ANGLE_AND_ALIGN'
+                current_state = 'ALIGN'
 
-        elif current_state == 'FIND_ANGLE_AND_ALIGN':
+        elif current_state == 'ALIGN':
             # Turn until a sensor is on the edge of the tape again. By
             # now the one that tripped SEEK has been pulled back under
             # LINE_TOUCH, so whichever sensor answers here is the far
