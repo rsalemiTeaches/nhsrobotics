@@ -1,41 +1,36 @@
 # Project 08: Line Alignment -- SOLUTION
 # Version: V01
 #
-# Teacher copy. Four states, four waits, one elif tree.
+# Teacher copy. Ray's state machine, written out. Six states, one elif
+# tree keyed on current_state.
 #
-#   DRIVE     roll forward until EITHER outer sensor sees the line
-#   SEARCH    turn toward the side that has NOT seen it, until the other
-#             sensor lands on the far crossing
-#   ALIGN     turn back half of what SEARCH swept
-#   APPROACH  roll forward until BOTH outer sensors see the line at once
+#   INITIALIZE            wait for the sensors to wake up and for OK
+#   START_MOTOR           give the order to roll forward
+#   SEEK                  watch for an outer sensor to reach the tape,
+#                         then stop and start the sweep
+#   FIND_ANGLE_AND_ALIGN  watch for a sensor to reach the tape again,
+#                         then turn back half of the sweep
+#   DRIVE                 give the order to roll forward again
+#   FIND_LINE             watch for all three sensors to be on the tape
 #
-# Why these four and not seven. A state is something the robot is doing
-# while it waits. A "STOP" state and a "CALCULATE" state would exit on the
-# same pass they were entered, so they are not states -- they are the two
-# or three lines that run at a transition. And SEARCH CW / SEARCH CCW are
-# one state: the direction and the sensor being waited on are data, not
-# control flow. Splitting them duplicates every future edit.
+# The rhythm is one order, then one watcher. START_MOTOR gives an order
+# and leaves; SEEK does nothing but watch. DRIVE and FIND_LINE are the
+# same pair again.
 #
-# Why a state variable is needed at all. DRIVE and APPROACH perform the
-# same physical action -- roll forward, watch the outer sensors -- and end
-# on different tests. In DRIVE, one sensor going high means stop and
-# branch. In SEARCH, the same sensor going high means nothing at all. In
-# APPROACH it means nothing unless its partner is high too. Identical
-# readings, three correct answers, and nothing in the reading says which.
-# Only the state does.
+# Why halving works. The two outer sensors are mirrored about the
+# robot's centreline, so they ride one circle around the wheel axle, and
+# the edge of the tape cuts that circle twice. The first touch is one
+# crossing. The sweep carries the robot through square and onto the
+# mirror crossing, so half of the sweep comes back to square. Nothing in
+# that arithmetic needs the sensor spacing or how far ahead of the axle
+# they sit -- only the symmetry. And because the answer is half of a
+# measured angle, any scale error in theta divides out.
 #
-# Why halving works, and why it is immune to the odometry error. Both
-# outer sensors ride the same circle around the wheel axle, and the line
-# cuts that circle twice. Turning toward the side that has NOT seen the
-# line puts the second sensor on the FAR crossing. Stopping halfway back
-# leaves the sensor pair symmetric between the two crossings, which is
-# the same as saying the pair is parallel to the line -- square. Because
-# the answer is half of a measured angle, theta's 8-13% over-report
-# divides out. Do NOT "improve" this by reaching for yaw: yaw wraps at
-# 360 and would need unwrapping to buy nothing.
-#
-# No alvik.rotate() anywhere. Every turn in this project is watching
-# something, so every turn is drive().
+# LINE_TOUCH is 150 on purpose. Paper reads about 50 and tape reads 300
+# and up, so 150 trips while the sensor is still at the edge of the
+# tape rather than on it. That is what lets a small turn pull the
+# sensor back under the threshold, which is what makes the next state's
+# test work.
 
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
@@ -45,174 +40,123 @@ alvik = ArduinoAlvik()
 alvik.begin()
 sb = SuperBot(alvik)
 
-DRIVE_SPEED_CMS = 8.0
-TURN_RATE_DEG_S = 45.0
+# Wheel speeds, in RPM, the unit set_wheels_speed() uses by default.
+SEEK_SPEED = 20
+TURN_SPEED = 10
 
-# On the white field the tape reads ABOVE this. The sumo ring is the
-# opposite polarity -- that is P09's problem, not this one.
-LINE_THRESHOLD = 500
+# The sensor reads about 50 on white paper and 300 or more on tape.
+LINE_TOUCH = 150      # the edge of the tape
+LINE_ON = 200         # squarely over the tape
+PAPER_MAX = 75       # anything under this is bare paper
 
+# brake() does not stop the robot the instant it is called. Wait this
+# long before reading or zeroing the pose, so the number describes a
+# robot that has finished moving.
+SETTLE_MS = 1000
 
-# How long to wait at startup for the sensors to start reporting.
-SELF_CHECK_TIMEOUT_MS = 3000
-
-
-def sensors_reporting():
-    """True once all three sensors return a real number.
-
-    A sensor reads None until its first packet arrives. None is not a
-    reading of zero and it is not 'no line' -- it is no answer at all.
-    Those are different facts and the state machine below must never have
-    to tell them apart.
-    """
-    left, center, right = alvik.get_line_sensors()
-    return left is not None and center is not None and right is not None
+# Long enough for the turn to actually start, so the sensor that
+# tripped SEEK has moved off the edge before anything looks at it.
+TURN_START_MS = 50
 
 
-def wait_for_sensors():
-    """Block here, before the machine starts, until the sensors are alive.
-
-    This is the only place in the file that knows None exists. It returns
-    False if they never come up, and the caller stops with a message on
-    the screen -- because a robot that drives forward forever, certain
-    there is no line, looks exactly like a robot with no line in front of
-    it. Silence is the worst possible report.
-    """
-    started = time.ticks_ms()
-    while time.ticks_diff(time.ticks_ms(), started) < SELF_CHECK_TIMEOUT_MS:
-        if sensors_reporting():
-            return True
-        time.sleep_ms(20)
-    return False
 
 
-def outer_sensors():
-    """(left, right), True when that sensor is over the line.
-
-    Safe to compare without a guard: nothing calls this until
-    wait_for_sensors() has said the numbers are real.
-    """
-    left, _center, right = alvik.get_line_sensors()
-    return left > LINE_THRESHOLD, right > LINE_THRESHOLD
-
-
-def heading():
-    """Rotation so far, in degrees, from the wheel odometry.
-
-    Deliberately theta and not yaw. Yaw is the IMU and is the better
-    number in general, but this project only ever uses HALF OF A MEASURED
-    ANGLE, so any consistent scale error divides out -- theta's 8-13%
-    over-report is invisible here. Yaw would cost an unwrap, because it
-    runs 0-360 and rolls over mid-sweep, and would buy nothing.
-
-    The one thing that would break this is wheel slip, which is not
-    proportional and would not divide out. Turning slowly in place on a
-    flat field is the least slip-prone thing the robot does.
-    """
-    _x, _y, theta = alvik.get_pose()
-    return theta
-
-
-state = 'DRIVE'
+current_state = 'INITIALIZE'
 last_state = ''
 
-# Set at the DRIVE -> SEARCH transition. The sweep direction and the
-# sensor that ends the sweep are both discovered at runtime, because the
-# approach angle is arbitrary -- that is the whole premise of the project.
-search_rate = 0.0
-waiting_for_left = False
-swept = 0.0
-align_target = 0.0
-
 try:
-    # GIVEN: the self-check. It runs once, before the machine starts, so
-    # that every sensor read inside the loop is a real number and the
-    # states never have to ask whether the data exists.
-    if not wait_for_sensors():
-        sb.update_display("No line", "sensors")
-        sb.light_both_leds(1, 0, 0)
-        time.sleep(3.0)
-        state = 'FAILED'
+    while not sb.held('cancel'):
+        time.sleep_ms(10)  # tiny yield to the OS, not a throttle
+        # The screen names the state, and is written only when the state
+        # changes -- the P07 pattern. On a robot turning this slowly it
+        # is the difference between debugging and guessing.
+        if current_state != last_state:
+            last_state = current_state
+            sb.update_display("State:", current_state)
 
-    while not sb.held('cancel') and state not in ('DONE', 'FAILED'):
+        left_sensor, center_sensor, right_sensor = alvik.get_line_sensors()
 
-        # The screen names the state, written only when it changes --
-        # the P07 pattern. On a robot that is turning slowly this is the
-        # difference between debugging and guessing.
-        if state != last_state:
-            last_state = state
-            sb.update_display("State: ", state)
-
-        left_on, right_on = outer_sensors()
-
-        if state == 'DRIVE':
-            # Roll forward and wait for EITHER outer sensor.
-            alvik.drive(DRIVE_SPEED_CMS, 0)
-
-            if left_on or right_on:
-                # Turn toward the side that has NOT seen the line, so the
-                # second sensor lands on the far crossing. Negative turns
-                # right, positive turns left.
-                if left_on:
-                    search_rate = -TURN_RATE_DEG_S
-                    waiting_for_left = False
-                else:
-                    search_rate = TURN_RATE_DEG_S
-                    waiting_for_left = True
-
-                # Zero the trip meter here, so what SEARCH measures is the
-                # sweep and nothing else. No brake first: P05 already
-                # showed that drive() needs no stop between legs, and
-                # calling it again just changes what the robot is doing.
-                alvik.reset_pose(0, 0, 0)
-                state = 'SEARCH'
-
-        elif state == 'SEARCH':
-            # Turn, and wait for the OTHER sensor. The one that got us
-            # here is still sitting on the line and is ignored.
-            alvik.drive(0, search_rate)
-
-            found = left_on if waiting_for_left else right_on
-            if found:
-                swept = heading()
-                align_target = swept / 2.0
-                state = 'ALIGN'
-
-        elif state == 'ALIGN':
-            # Turn back the other way until the pose says we are halfway.
-            # Both numbers come from the same over-reading odometry, so
-            # the error cancels.
-            alvik.drive(0, -search_rate)
-
-            if swept > 0:
-                arrived = heading() <= align_target
+        if current_state == 'INITIALIZE':
+            # Two things have to be true before the machine starts: the
+            # sensors are awake, and the robot is on bare paper. A robot
+            # parked on the tape would trip SEEK on its first pass and
+            # measure nothing.
+            if (left_sensor > PAPER_MAX
+                or center_sensor > PAPER_MAX
+                or right_sensor > PAPER_MAX):
+                sb.update_display("Move me off", "the tape")
             else:
-                arrived = heading() >= align_target
-            if arrived:
-                state = 'APPROACH'
+                sb.update_display("Press OK", "to start")
+                if sb.pressed('ok'):
+                    current_state = 'START_MOTOR'
 
-        elif state == 'APPROACH':
-            # Square now, but not necessarily ON the line. Roll forward
-            # until BOTH outer sensors are on it at once, which is what
-            # square-on-the-line means. Note this is the same action as
-            # DRIVE with a different exit test -- and it is why "drive
-            # until you see the line" is not enough: written with OR, this
-            # finishes on the pass it starts, without moving, and looks
-            # right doing it.
-            alvik.drive(DRIVE_SPEED_CMS, 0)
+        elif current_state == 'START_MOTOR':
+            # One order, given once. Re-issuing it every pass floods the
+            # link to the base, and a speed that is already set does not
+            # need setting again.
+            alvik.set_wheels_speed(SEEK_SPEED, SEEK_SPEED)
+            current_state = 'SEEK'
 
-            if left_on and right_on:
-                state = 'DONE'
+        elif current_state == 'SEEK':
+            # Roll forward until either outer sensor reaches the edge of
+            # the tape.
+            if left_sensor > LINE_TOUCH or right_sensor > LINE_TOUCH:
+                alvik.brake()
+                time.sleep_ms(SETTLE_MS)
 
-        # A tiny yield to the OS, not a throttle. Every wait above is a
-        # test on this loop, so nothing here is timed by a sleep.
-        time.sleep_ms(10)
+                # Zero the trip meter here, once the robot has actually
+                # stopped, so what the next state measures is the sweep
+                # and nothing else.
+                alvik.reset_pose(0, 0, 0)
 
-    alvik.brake()
-    if state == 'DONE':
-        sb.update_display("Square", "")
-        sb.light_both_leds(0, 1, 0)
-        time.sleep(2.0)
+                # Turn toward the side that touched. That drags the
+                # sensor which touched back off the tape and carries the
+                # other one forward onto the far crossing. Right wheel
+                # backwards is clockwise.
+                if right_sensor > LINE_TOUCH:
+                    alvik.set_wheels_speed(TURN_SPEED, -TURN_SPEED)
+                else:
+                    alvik.set_wheels_speed(-TURN_SPEED, TURN_SPEED)
+
+                time.sleep_ms(TURN_START_MS)
+                current_state = 'FIND_ANGLE_AND_ALIGN'
+
+        elif current_state == 'FIND_ANGLE_AND_ALIGN':
+            # Turn until a sensor is on the edge of the tape again. By
+            # now the one that tripped SEEK has been pulled back under
+            # LINE_TOUCH, so whichever sensor answers here is the far
+            # crossing.
+            if left_sensor > LINE_TOUCH or right_sensor > LINE_TOUCH:
+                alvik.brake()
+                time.sleep_ms(SETTLE_MS)
+
+                # theta is the whole sweep, which is twice the angle the
+                # robot was off by, and in the wrong direction.
+                _x, _y, theta = alvik.get_pose()
+                fix_turn = -1 * theta / 2
+
+                # Nothing to watch during this turn -- the angle is
+                # already known -- so it is the one place in the machine
+                # that is allowed to block.
+                alvik.rotate(fix_turn, blocking=True)
+                current_state = 'DRIVE'
+
+        elif current_state == 'DRIVE':
+            alvik.set_wheels_speed(SEEK_SPEED, SEEK_SPEED)
+            current_state = 'FIND_LINE'
+
+        elif current_state == 'FIND_LINE':
+            # Square, but not yet on the tape. Roll forward until all
+            # three sensors are over it at once. All three, not any one:
+            # a single sensor is satisfied the moment the machine gets
+            # here, and the robot would stop without moving.
+            if (left_sensor > LINE_ON
+                    and center_sensor > LINE_ON
+                    and right_sensor > LINE_ON):
+                alvik.brake()
+                sb.update_display("Aligned", "")
+                current_state = 'INITIALIZE'
+                last_state = ''
 
 finally:
     alvik.brake()
