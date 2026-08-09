@@ -45,7 +45,7 @@ SEEK_SPEED = 20
 TURN_SPEED = 10
 
 # The sensor reads about 50 on white paper and 300 or more on tape.
-LINE_TOUCH = 150      # the edge of the tape
+LINE_TOUCH = 75      # the edge of the tape
 LINE_ON = 200         # squarely over the tape
 PAPER_MAX = 75       # anything under this is bare paper
 
@@ -59,10 +59,11 @@ SETTLE_MS = 1000
 TURN_START_MS = 50
 
 
-
-
 current_state = 'INITIALIZE'
 last_state = ''
+
+prev_time = 0
+led_state = False
 
 try:
     while not sb.held('cancel'):
@@ -81,14 +82,14 @@ try:
             # sensors are awake, and the robot is on bare paper. A robot
             # parked on the tape would trip SEEK on its first pass and
             # measure nothing.
-            if (left_sensor > PAPER_MAX
-                or center_sensor > PAPER_MAX
-                or right_sensor > PAPER_MAX):
-                sb.update_display("Move me off", "the tape")
-            else:
-                sb.update_display("Press OK", "to start")
-                if sb.pressed('ok'):
-                    current_state = 'START_MOTOR'
+
+            if (time.ticks_diff(time.ticks_ms(), prev_time) > 500):
+                prev_time = time.ticks_ms()
+                led_state = not led_state
+                sb.light_both_leds(led_state, led_state, led_state)
+                
+            if sb.pressed('ok'):
+                current_state = 'START_MOTOR'
 
         elif current_state == 'START_MOTOR':
             # One order, given once. Re-issuing it every pass floods the
@@ -100,7 +101,7 @@ try:
         elif current_state == 'SEEK':
             # Roll forward until either outer sensor reaches the edge of
             # the tape.
-            if left_sensor > LINE_TOUCH or right_sensor > LINE_TOUCH:
+            if center_sensor > LINE_TOUCH and (left_sensor > LINE_TOUCH or right_sensor > LINE_TOUCH):
                 alvik.brake()
                 time.sleep_ms(SETTLE_MS)
 
@@ -114,9 +115,10 @@ try:
                 # other one forward onto the far crossing. Right wheel
                 # backwards is clockwise.
                 if right_sensor > LINE_TOUCH:
-                    alvik.set_wheels_speed(TURN_SPEED, -TURN_SPEED)
+                    turn_direction = -1
                 else:
-                    alvik.set_wheels_speed(-TURN_SPEED, TURN_SPEED)
+                    turn_direction = 1
+                alvik.drive(0, turn_direction * TURN_SPEED)
 
                 time.sleep_ms(TURN_START_MS)
                 current_state = 'FIND_ANGLE_AND_ALIGN'
@@ -126,7 +128,17 @@ try:
             # now the one that tripped SEEK has been pulled back under
             # LINE_TOUCH, so whichever sensor answers here is the far
             # crossing.
-            if left_sensor > LINE_TOUCH or right_sensor > LINE_TOUCH:
+            sb.log_info("L: %-13s" % left_sensor,
+                        "C: %-13s" % center_sensor,
+                        "R: %s" % right_sensor, sep="")
+            if turn_direction == -1:
+                first_sensor = right_sensor
+                other_sensor = left_sensor
+            else:
+                first_sensor = left_sensor
+                other_sensor = right_sensor
+                
+            if center_sensor < LINE_TOUCH and (other_sensor > LINE_TOUCH and first_sensor < LINE_TOUCH):
                 alvik.brake()
                 time.sleep_ms(SETTLE_MS)
 
@@ -151,14 +163,14 @@ try:
             # a single sensor is satisfied the moment the machine gets
             # here, and the robot would stop without moving.
             if (left_sensor > LINE_ON
-                    and center_sensor > LINE_ON
-                    and right_sensor > LINE_ON):
+                and center_sensor > LINE_ON
+                and right_sensor > LINE_ON):
                 alvik.brake()
                 sb.update_display("Aligned", "")
                 current_state = 'INITIALIZE'
-                last_state = ''
 
 finally:
     alvik.brake()
     sb.light_both_leds(0, 0, 0)
     alvik.stop()
+
