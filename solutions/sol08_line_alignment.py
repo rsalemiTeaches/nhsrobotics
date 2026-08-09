@@ -32,9 +32,10 @@
 # sensor back under the threshold, which is what makes the next state's
 # test work.
 
+import time
+
 from arduino_alvik import ArduinoAlvik
 from nhs_robotics import SuperBot
-import time
 
 alvik = ArduinoAlvik()
 alvik.begin()
@@ -151,22 +152,6 @@ try:
                 # already known -- so it is the one place in the machine
                 # that is allowed to block.
                 alvik.rotate(fix_turn, blocking=True)
-                current_state = 'DRIVE'
-
-        elif current_state == 'DRIVE':
-            alvik.set_wheels_speed(SEEK_SPEED, SEEK_SPEED)
-            current_state = 'FIND_LINE'
-
-        elif current_state == 'FIND_LINE':
-            # Square, but not yet on the tape. Roll forward until all
-            # three sensors are over it at once. All three, not any one:
-            # a single sensor is satisfied the moment the machine gets
-            # here, and the robot would stop without moving.
-            if (left_sensor > LINE_ON
-                and center_sensor > LINE_ON
-                and right_sensor > LINE_ON):
-                alvik.brake()
-                sb.update_display("Aligned", "")
                 current_state = 'INITIALIZE'
 
 finally:
