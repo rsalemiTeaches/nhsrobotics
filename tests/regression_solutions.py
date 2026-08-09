@@ -12,7 +12,7 @@ from tb.plant import Plant, DEFAULT_DEFECTS
 from tb.stimulus import ApproachStimulus, Coverage
 
 P08 = "sol08_line_alignment.py"
-P08_STATES = ("DRIVE", "SEARCH", "ALIGN", "APPROACH")
+P08_STATES = ("WATCH_DRIVE", "WATCH_SEARCH", "WATCH_ALIGN", "WATCH_APPROACH")
 
 # Bumped when a run needs longer; a run that needs more than this is a bug.
 WATCHDOG_MS = 90000

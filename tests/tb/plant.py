@@ -23,8 +23,10 @@ SENSOR_FORWARD_CM = 5.0        # line sensors ahead of the wheel axle
 SENSOR_HALF_SPACING_CM = 1.5   # outer sensors either side of centre
 LINE_HALF_WIDTH_CM = 1.0       # 2 cm tape
 
-SENSOR_ON_VALUE = 800          # reads ABOVE threshold on the white field
-SENSOR_OFF_VALUE = 100
+# Measured 2026-08-09: white paper reads about 50, a sensor solidly on
+# the line reads 300-650.
+SENSOR_ON_VALUE = 400
+SENSOR_OFF_VALUE = 50
 
 # --- measured hardware defects, from REFERENCE.md ---
 # Every one of these is a knob so a test can prove a project is immune to
@@ -210,4 +212,4 @@ class Plant:
 
     def sensor_line_state(self):
         readings = self.get_line_sensors()
-        return tuple(r is not None and r > 500 for r in readings)
+        return tuple(r is not None and r > 200 for r in readings)
