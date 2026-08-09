@@ -36,6 +36,12 @@ def main():
     runner.run_test("Host: Unknown Button Name", regression_host.test_unknown_button_name_raises)
     runner.run_test("Host: Closest valid distance", regression_host.test_closest_valid)
 
+    print("\n--- Running Solution Tests (testbench) ---")
+    import regression_solutions
+    from run_solution_regression import TESTS as SOLUTION_TESTS
+    for name, func in SOLUTION_TESTS:
+        runner.run_test(name, func)
+
     runner.print_summary()
     return 1 if runner.fails else 0
 
