@@ -221,3 +221,11 @@ noted, a decision affects both repos.
     there preserves it instead of removing it. `.robotignore` is read from the
     folder passed to `-d`, not from `init_bot/`. Affects `nhsrobotics`.
     — 2026-08-09
+
+34. **`PROJECT.md`, `DECISIONS.md` and `REFERENCE.md` live in the class's own
+    repo, never in `Class Development`.** Moved into `nhsrobotics` on
+    2026-08-09. `Class Development` holds Physics and Engineering as well as
+    Robotics, and each class needs its own threads and its own history; one set
+    of project files at the top of a shared folder would mix them, and a thread
+    about one course would open by reading the state of another. Affects
+    `nhsrobotics` and any future class repo. — 2026-08-09

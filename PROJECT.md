@@ -7,19 +7,32 @@ Home folder for the robotics curriculum. Three files:
 - **`REFERENCE.md`** — durable knowledge: guide production, what the course
   teaches and why, measured hardware behaviour, and the silent failure modes.
 
-Nothing in `nhsrobotics` carries project state any more.
+## Where these live, and why it matters
+
+**These three files live in `nhsrobotics`, the robotics repo.** Ray moved them
+here on 2026-08-09, out of `Class Development`.
+
+The reason is the rule, not the tidy-up: **`Class Development` holds more than
+one class.** Physics and Engineering are in there too, and each class needs its
+own threads and its own history. A single `PROJECT.md` at the top of a folder
+shared by three courses would mix them, and a thread about Physics would open
+by reading the state of Robotics.
+
+So: **never put `PROJECT.md`, `DECISIONS.md` or `REFERENCE.md` in
+`Class Development`.** Each class keeps its own set, in its own home.
 
 ## Repos involved
 
-- **`nhsrobotics`** (`~/repos/sch_repo/nhsrobotics`) — the code. Student
-  scaffolds in `projects/`, reference answers in `solutions/`, the shared
-  library in `nhs_lib/`, guide source and the builder in `guide_builder/`.
-  Guides are generated from the markdown there and never hand-edited.
-- **`Class Development`** (this folder) — the documents. Robotics guides in
-  `Robotics/Project Guides/`, retired old-voice guides in its `Previous
-  Versions/`, capstone specs and the pacing plan under `Robotics/`, and the
-  school calendar at the top level. Physics and Engineering also live here
-  and are out of scope for this project.
+- **`nhsrobotics`** (`~/repos/sch_repo/nhsrobotics`) — **this folder, and home
+  for the project.** The code: student scaffolds in `projects/`, reference
+  answers in `solutions/`, the shared library in `nhs_lib/`, guide source and
+  the builder in `guide_builder/`, the testbench in `tests/`. Guides are
+  generated from the markdown in `guide_builder/` and never hand-edited.
+- **`Class Development`** — the documents, and NOT home. Deployed robotics
+  guides land in `Robotics/Project Guides/`, retired old-voice guides in its
+  `Previous Versions/`, capstone specs and the pacing plan under `Robotics/`,
+  and the school calendar at the top level. Physics and Engineering also live
+  there and are out of scope for this project.
 
 ## Current unit
 
