@@ -1,4 +1,4 @@
-# tests/regression_solutions.py -- solution-level regression. V01
+# tests/regression_solutions.py -- solution-level regression. V02
 #
 # Runs the real files out of solutions/, unmodified, inside the testbench.
 # Every test returns (status, message) the way the rest of the suite does:

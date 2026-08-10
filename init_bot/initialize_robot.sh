@@ -1,4 +1,9 @@
 #!/bin/bash
+# v30 - Never ship the laptop's droppings. __pycache__, .DS_Store and
+#       stray .pyc files are stripped from the staging copy before upload,
+#       and deleted from the robot if they are already there. The delete
+#       runs BEFORE the whitelist, because a .robotignore entry means
+#       "leave this alone" -- naming them there would preserve them.
 # v29 - main.py now belongs to the student. From P04 on, main.py holds
 #       their own "import workspace.pNN" line, so a plain sync leaves it
 #       alone. Pass -c to reset it back to the shipped version. A robot
@@ -148,7 +153,23 @@ while IFS= read -r line; do
     NORM_PATH="/$RPATH"
     [[ "$RPATH" == /* ]] || NORM_PATH="/$RPATH"
 
-    # 1. WHITELIST CHECK
+    # 1. JUNK CHECK, and it runs BEFORE the whitelist on purpose.
+    # __pycache__ and .DS_Store exist locally -- the tests folder is a
+    # symlink into the repo, and running the suite on a laptop fills it
+    # with caches -- so the existence check further down would keep them
+    # on the robot forever. Naming them in .robotignore makes that worse,
+    # not better: a whitelisted path is one this loop leaves alone. So the
+    # junk is matched here, by name, ahead of everything, and always goes.
+    BASENAME="${RPATH##*/}"
+    case "$BASENAME" in
+        __pycache__|.DS_Store|*.pyc)
+            echo "   - 🗑️  Removing junk: $RPATH"
+            mpremote "${CONNECT_ARGS[@]}" rm -r ":$RPATH" > /dev/null 2>&1 || true
+            continue
+            ;;
+    esac
+
+    # 2. WHITELIST CHECK
     SKIP=false
     for allow in "${WHITELIST[@]}"; do
         if [[ "$NORM_PATH" == "$allow"* ]]; then
@@ -159,7 +180,7 @@ while IFS= read -r line; do
     done
     if [ "$SKIP" = true ]; then continue; fi
 
-    # 2. LOCAL EXISTENCE CHECK
+    # 3. LOCAL EXISTENCE CHECK
     LOCAL_PATH="${SOURCE_DIR}/${RPATH}"
     
     EXISTS_LOCALLY=false
@@ -169,7 +190,7 @@ while IFS= read -r line; do
         if [ -f "$LOCAL_PATH" ]; then EXISTS_LOCALLY=true; fi
     fi
 
-    # 3. DELETE IF STALE
+    # 4. DELETE IF STALE
     if [ "$EXISTS_LOCALLY" = false ]; then
         echo "   - 🗑️  Removing extraneous item: $RPATH"
         mpremote "${CONNECT_ARGS[@]}" rm -r ":$RPATH" > /dev/null 2>&1 || true
@@ -190,15 +211,15 @@ STAGING_DIR=$(mktemp -d)
 # Copy everything to the staging directory first
 cp -r "${SOURCE_DIR}/"* "$STAGING_DIR/"
 
-# Drop Python's bytecode caches. They are made by running the tests on a
-# laptop, they appear at every level of the tree so .robotignore cannot
-# name them, and MicroPython never reads them. Uploading them wastes
-# flash and upload time.
-CACHES=$(find "$STAGING_DIR" -name '__pycache__' -type d | wc -l | tr -d ' ')
-find "$STAGING_DIR" -name '__pycache__' -type d -prune -exec rm -rf {} +
-find "$STAGING_DIR" -name '*.pyc' -delete
-if [ "$CACHES" -gt 0 ]; then
-    echo "   - Skipping $CACHES __pycache__ director$([ "$CACHES" -eq 1 ] && echo y || echo ies)"
+# Drop the laptop's droppings: __pycache__ from running the tests, and
+# .DS_Store from the Finder. Both appear at every level of the tree, so
+# .robotignore cannot name them -- it matches exact paths from the image
+# root. MicroPython reads neither.
+JUNK_PATTERN=( -name '__pycache__' -o -name '.DS_Store' -o -name '*.pyc' )
+JUNK=$(find "$STAGING_DIR" \( "${JUNK_PATTERN[@]}" \) -prune -print | wc -l | tr -d ' ')
+find "$STAGING_DIR" \( "${JUNK_PATTERN[@]}" \) -prune -exec rm -rf {} +
+if [ "$JUNK" -gt 0 ]; then
+    echo "   - Skipping $JUNK cache or junk item(s)"
 fi
 
 # Remove ignored items from the staging directory before upload

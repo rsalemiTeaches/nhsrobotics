@@ -1,4 +1,4 @@
-# tests/tb/scoreboard.py -- the checks. V01
+# tests/tb/scoreboard.py -- the checks. V02
 #
 # Every check here computes its expectation from the PLANT, never from the
 # DUT's own numbers. That is the whole discipline: a checker that repeats

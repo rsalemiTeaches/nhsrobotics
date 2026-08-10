@@ -1,6 +1,6 @@
 # tests/run_solution_regression.py
 #
-# The solution-level regression. V01
+# The solution-level regression. V02
 #
 #     python3 tests/run_solution_regression.py
 #     python3 tests/run_solution_regression.py -v      # coverage report too

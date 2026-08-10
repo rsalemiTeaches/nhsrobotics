@@ -1,4 +1,4 @@
-# tests/tb/plant.py -- the reference model of the robot's world. V01
+# tests/tb/plant.py -- the reference model of the robot's world. V02
 #
 # The plant owns the truth: where the robot really is, where the line
 # really is, what the sensors would really report. The DUT never sees any

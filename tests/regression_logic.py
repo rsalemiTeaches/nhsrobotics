@@ -26,6 +26,13 @@ def test_calculate_approach_vector(bot):
         return 0, str(e)
 
 def test_logging(bot):
+    """Exercises log_info() and log_error().
+
+    log_error() prints its message with an ERROR: prefix, which is the
+    whole point of it -- so this test cannot help printing two lines that
+    look like failures. The banner below says so before they appear,
+    because a suite that cries wolf gets ignored.
+    """
     try:
         # Test 1: Standard single-string logging
         bot.ui.log_info("Test 1: Standard single string.")
@@ -36,11 +43,14 @@ def test_logging(bot):
         # Test 3: Multiple arguments with a custom separator
         bot.ui.log_info("Test 3: Target Coordinates", 150, 200, sep=" | ")
 
+        print("   (the next two ERROR lines are supposed to happen)")
+
         # Test 4: Single-string error logging
-        bot.ui.log_error("Test 4: Single string simulated error.")
+        bot.ui.log_error("Test 4: pretend failure, nothing is wrong")
 
         # Test 5: Multiple arguments error logging
-        bot.ui.log_error("Test 5: Connection to", "HuskyLens", "timed out. Code:", 503)
+        bot.ui.log_error("Test 5: pretend timeout, nothing is wrong. Code:",
+                         503)
         return 1, ""
     except Exception as e:
         return 0, str(e)
