@@ -16,7 +16,6 @@ class RobotVision:
         self.nav = nav
         
         if qwiic_driver:
-            self.ui.log_info("Init HuskyLens...")
             attempts = 0
             success = False
             while attempts < 3 and not success:
@@ -25,10 +24,10 @@ class RobotVision:
                     if self.husky.begin():
                         success = True
                         self.ui.log_info("HuskyLens OK")
-                    else:
-                        print(f"HuskyLens Search {attempts + 1}")
-                except Exception as e:
-                    print(f"Husky Search Error {attempts + 1} Error: {e}")
+                except Exception:
+                    # Nothing on the bus answers the way a HuskyLens does.
+                    # Retried below; only the outcome gets reported.
+                    pass
 
                 if not success:
                     attempts += 1
@@ -36,7 +35,12 @@ class RobotVision:
 
             if not success:
                 self.husky = None
-                self.ui.log_error("No HuskyLens")
+                # NOT an error. Almost no robot in the class has a
+                # HuskyLens fitted, so shouting about it every single boot
+                # trains everybody to ignore the word ERROR -- and then
+                # they ignore a real one. Absent hardware is news, not a
+                # fault.
+                self.ui.log_info("No HuskyLens")
 
     def get_camera_distance(self):
         if not self.husky:

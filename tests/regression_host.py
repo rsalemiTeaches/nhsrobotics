@@ -1,4 +1,4 @@
-"""Tests for nhs_lib that need no hardware. V03
+"""Tests for nhs_lib that need no hardware. V04
 
 Same (status, message) contract as the other regression_*.py modules, so
 RegressionRunner reports them the same way:
@@ -113,6 +113,54 @@ def _bare_gamepad():
     gp._edges = {n: Button(gp._make_getter(n))
                  for n in RobotGamepad.BUTTON_NAMES}
     return gp
+
+
+def test_missing_huskylens_is_not_an_error():
+    """A robot with no HuskyLens is the normal case in this class.
+
+    RobotVision used to end its search with log_error("No HuskyLens"), so
+    every boot of every robot printed ERROR. A suite -- or a robot -- that
+    reports a fault when nothing is wrong teaches everybody to skim past
+    the word, and then a real one goes unread.
+
+    The class under test is patched rather than the hardware poked, so
+    this runs the same on a laptop and on a robot, and touches no I2C.
+    """
+    from nhs_robotics import vision
+
+    class _NeverFinds:
+        def __init__(self, **kwargs):
+            pass
+
+        def begin(self):
+            return False
+
+    class _RecordingUI:
+        def __init__(self):
+            self.infos = []
+            self.errors = []
+
+        def log_info(self, *args, sep=' '):
+            self.infos.append(sep.join(str(a) for a in args))
+
+        def log_error(self, *args, sep=' '):
+            self.errors.append(sep.join(str(a) for a in args))
+
+    real = vision.QwiicHuskylens
+    ui = _RecordingUI()
+    try:
+        vision.QwiicHuskylens = _NeverFinds
+        eyes = vision.RobotVision(qwiic_driver=object(), ui=ui, nav=None)
+    finally:
+        vision.QwiicHuskylens = real
+
+    if ui.errors:
+        return 0, "logged an error for absent hardware: %s" % ui.errors
+    if eyes.husky is not None:
+        return 0, "kept a HuskyLens handle that never answered"
+    if not any("HuskyLens" in line for line in ui.infos):
+        return 0, "said nothing at all about the missing HuskyLens"
+    return 1, ""
 
 
 # --- tests -----------------------------------------------------------------
@@ -234,4 +282,4 @@ def test_closest_valid():
     return 1, ""
 
 
-print("Loaded regression_host.py V03")
+print("Loaded regression_host.py V04")

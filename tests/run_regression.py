@@ -40,6 +40,8 @@ def main():
 
     print("\n--- Running Logic Tests ---")
     runner.run_test("Host: Closest valid distance", regression_host.test_closest_valid)
+    runner.run_test("Host: Missing HuskyLens is not an error",
+                    regression_host.test_missing_huskylens_is_not_an_error)
     runner.run_test("Logic: Calculate Approach Vector", regression_logic.test_calculate_approach_vector, bot)
     runner.run_test("Logic: Logging", regression_logic.test_logging, bot)
     runner.run_test("Logic: LineFollower PID", regression_line_follower.test_line_follower_logic, bot)

@@ -35,6 +35,8 @@ def main():
     runner.run_test("Host: Touch held/pressed", regression_host.test_touch_held_and_pressed)
     runner.run_test("Host: Unknown Button Name", regression_host.test_unknown_button_name_raises)
     runner.run_test("Host: Closest valid distance", regression_host.test_closest_valid)
+    runner.run_test("Host: Missing HuskyLens is not an error",
+                    regression_host.test_missing_huskylens_is_not_an_error)
 
     print("\n--- Running Solution Tests (testbench) ---")
     import regression_solutions
