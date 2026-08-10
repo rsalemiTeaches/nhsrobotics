@@ -111,10 +111,14 @@ def waiting_for_gamepad(gamepad):
     The blink is not timed by a sleep, because the button has to stay
     responsive -- pressed() only sees a push if update() is called
     often enough to catch it.
+
+    Cancel gets out of here too. Without that the only way to stop a
+    robot waiting for a controller it is never going to get is to pull
+    its battery, and the match loop below would never run to notice.
     """
     lights_on = False
     last_blink = time.ticks_ms()
-    while not gamepad.pressed('cross'):
+    while not gamepad.pressed('cross') and not sb.held('cancel'):
         gamepad.update()
         if time.ticks_diff(time.ticks_ms(), last_blink) > 300:
             last_blink = time.ticks_ms()

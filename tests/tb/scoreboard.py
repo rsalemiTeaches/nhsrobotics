@@ -86,3 +86,36 @@ def check_never_moved_before_sensors(env, monitor):
         if kind == "set_wheels_speed" and any(args):
             return 0, "commanded wheels%s despite dead sensors" % (args,)
     return 1, ""
+
+
+def check_stayed_in_ring(env):
+    """Truth check: did the robot ever leave the sumo ring?
+
+    Read from the plant's own position, not from anything the DUT said.
+    A robot whose edge test is broken reports nothing unusual -- it just
+    drives away.
+    """
+    ring = env.plant.ring
+    if ring is None:
+        return 2, "no ring in this plant"
+    if env.plant.left_ring:
+        return 0, ("left the ring: reached %.1f cm from centre, ring is %.1f"
+                   % (env.plant.max_radius_cm, ring[0]))
+    return 1, ""
+
+
+def check_no_motion_before(monitor, sim_ms):
+    """Nothing that moves a wheel may happen before this moment.
+
+    Used for the start of a match: the robot is armed, the button has not
+    been pressed, and a robot that creeps has jumped the start.
+    """
+    movers = ("drive", "set_wheels_speed", "move", "rotate")
+    for stamp, kind, args in monitor.transactions:
+        if kind in movers and stamp < sim_ms:
+            if kind in ("drive", "set_wheels_speed") and all(
+                    abs(float(a)) < 1e-9 for a in args):
+                continue        # ordering a stop is not moving
+            return 0, "%s at %d ms, before the start at %d ms" % (
+                kind, stamp, sim_ms)
+    return 1, ""

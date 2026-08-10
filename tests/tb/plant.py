@@ -24,9 +24,46 @@ SENSOR_HALF_SPACING_CM = 1.5   # outer sensors either side of centre
 LINE_HALF_WIDTH_CM = 1.0       # 2 cm tape
 
 # Measured 2026-08-09: white paper reads about 50, a sensor solidly on
-# the line reads 300-650.
+# the line reads 300-650. The sensor reads HIGH over black, whatever the
+# black happens to be -- tape on paper in the line projects, the floor of
+# the sumo ring in P09. In the ring the polarity of the QUESTION flips,
+# not the polarity of the sensor: the rim is white, so an edge is a
+# reading that drops.
 SENSOR_ON_VALUE = 400
 SENSOR_OFF_VALUE = 50
+
+# --- things in front of the robot ---
+TARGET_RADIUS_CM = 5.0     # an Alvik-sized object, measured from centre
+SENSOR_CONE_DEG = 30.0     # the ToF sees roughly what is ahead of it
+
+
+class Target:
+    """Something the distance sensor can see: a hand, a clown, another bot.
+
+    mode:
+        'stand'  never moves
+        'flee'   backs directly away once the robot is inside notice_cm
+        'chase'  closes on the robot the whole time
+        'glued'  holds a fixed gap off the robot's nose whatever the robot
+                 does. Models a shove that never ends -- which is how a
+                 test proves that something ELSE ends it.
+    """
+
+    def __init__(self, x, y, mode="stand", speed_cms=0.0,
+                 notice_cm=60.0, gap_cm=2.0, radius_cm=TARGET_RADIUS_CM):
+        self.x = float(x)
+        self.y = float(y)
+        self.mode = mode
+        self.speed_cms = float(speed_cms)
+        self.notice_cm = float(notice_cm)
+        self.gap_cm = float(gap_cm)
+        self.radius_cm = float(radius_cm)
+        # Once something has noticed a robot coming at it, it does not
+        # un-notice. Without this latch a fleeing target stops the moment
+        # it is back outside notice_cm, and the two settle into a chase
+        # that never resolves either way.
+        self.spooked = False
+
 
 # --- measured hardware defects, from REFERENCE.md ---
 # Every one of these is a knob so a test can prove a project is immune to
@@ -44,7 +81,8 @@ DEFAULT_DEFECTS = {
 
 class Plant:
     def __init__(self, line_point=(40.0, 0.0), line_angle_deg=90.0,
-                 start=(0.0, 0.0, 0.0), wall_distance_cm=None, defects=None):
+                 start=(0.0, 0.0, 0.0), wall_distance_cm=None, defects=None,
+                 target=None, ring=None):
         self.defects = dict(DEFAULT_DEFECTS)
         if defects:
             self.defects.update(defects)
@@ -53,6 +91,14 @@ class Plant:
         self.x, self.y, self.theta = start
         self.line_point = line_point
         self.line_angle = line_angle_deg
+
+        # A sumo ring, as (radius_cm, rim_width_cm), centred on the
+        # origin. When one is set the line sensors report the ring
+        # instead of a strip of tape.
+        self.ring = ring
+        self.target = target
+        self.max_radius_cm = math.hypot(self.x, self.y)
+        self.left_ring = False
         self.wall_distance_cm = wall_distance_cm
 
         # What reset_pose() last set the reported frame to.
@@ -109,6 +155,7 @@ class Plant:
     def step(self, dt_ms):
         self.elapsed_ms += dt_ms
         self._cmd_age_ms += dt_ms
+        self._step_target(dt_ms)
 
         if self._braking_ms > 0:
             # Rolling to a stop: still moving, at a decaying rate.
@@ -135,6 +182,52 @@ class Plant:
         self.x += distance_cm * math.cos(radians)
         self.y += distance_cm * math.sin(radians)
         self.distance_travelled_cm += abs(distance_cm)
+
+        radius = math.hypot(self.x, self.y)
+        self.max_radius_cm = max(self.max_radius_cm, radius)
+        if self.ring is not None and radius > self.ring[0]:
+            self.left_ring = True
+
+    def _step_target(self, dt_ms):
+        target = self.target
+        if target is None or target.mode == "stand":
+            return
+
+        nose_x, nose_y = self.nose_point()
+
+        if target.mode == "glued":
+            # Pinned to the robot's nose, so the gap never opens on its
+            # own. Anything that ends the charge has to come from the
+            # robot's own code.
+            radians = math.radians(self.theta)
+            reach = target.gap_cm + target.radius_cm
+            target.x = nose_x + reach * math.cos(radians)
+            target.y = nose_y + reach * math.sin(radians)
+            return
+
+        dx = target.x - nose_x
+        dy = target.y - nose_y
+        span = math.hypot(dx, dy) or 1.0
+        step = target.speed_cms * dt_ms / 1000.0
+
+        if target.mode == "flee":
+            if span - target.radius_cm <= target.notice_cm:
+                target.spooked = True
+            if not target.spooked:
+                return
+            step = +step
+        elif target.mode == "chase":
+            step = -step
+        else:
+            return
+
+        target.x += step * dx / span
+        target.y += step * dy / span
+
+    def nose_point(self):
+        radians = math.radians(self.theta)
+        return (self.x + SENSOR_FORWARD_CM * math.cos(radians),
+                self.y + SENSOR_FORWARD_CM * math.sin(radians))
 
     # ---------- sensors out ----------
 
@@ -173,17 +266,48 @@ class Plant:
     def get_line_sensors(self):
         if self.elapsed_ms < self.defects["sensor_dead_ms"]:
             return (None, None, None)
+
+        if self.ring is not None:
+            # Black floor inside, white rim outside. Black reads high, so
+            # a sensor out on the rim reads LOW -- the edge is a drop.
+            inner_radius = self.ring[0] - self.ring[1]
+            return tuple(
+                SENSOR_OFF_VALUE
+                if math.hypot(point[0], point[1]) > inner_radius
+                else SENSOR_ON_VALUE
+                for point in self.sensor_positions())
+
         return tuple(
             SENSOR_ON_VALUE if self._distance_to_line(p) <= LINE_HALF_WIDTH_CM
             else SENSOR_OFF_VALUE
             for p in self.sensor_positions())
 
     def get_distance(self):
-        """Five ToF zones. Modelled as a wall straight ahead, or nothing."""
+        """Five ToF zones: a target, a wall straight ahead, or nothing."""
+        if self.target is not None:
+            gap = self._gap_to_target()
+            if gap is None:
+                return (0, 0, 0, 0, 0)  # nothing in the cone -- no echo
+            return tuple([gap] * 5)
+
         if self.wall_distance_cm is None:
             return (0, 0, 0, 0, 0)      # no echo -- SuperBot turns this into 999
         remaining = max(0.0, self.wall_distance_cm - self.distance_travelled_cm)
         return tuple([remaining] * 5)
+
+    def _gap_to_target(self):
+        """Centimetres of clear air ahead, or None if the target is not in
+        front of the robot. Turning away really does lose sight of it,
+        which is what makes a retreat testable."""
+        nose_x, nose_y = self.nose_point()
+        dx = self.target.x - nose_x
+        dy = self.target.y - nose_y
+        bearing = math.degrees(math.atan2(dy, dx))
+        error = (bearing - self.theta + 180.0) % 360.0 - 180.0
+        if abs(error) > SENSOR_CONE_DEG:
+            return None
+        gap = math.hypot(dx, dy) - self.target.radius_cm
+        return max(gap, 0.5)
 
     # ---------- truth, for the scoreboard only ----------
 

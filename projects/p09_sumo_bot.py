@@ -92,10 +92,13 @@ def waiting_for_gamepad(gamepad):
     Nothing in the match reads the gamepad. It exists to start you, and
     once you are started a flat controller battery cannot cost you a
     bout.
+
+    Cancel gets out of here too, so a robot waiting for a controller it
+    is never going to get can still be stopped.
     """
     lights_on = False
     last_blink = time.ticks_ms()
-    while not gamepad.pressed('cross'):
+    while not gamepad.pressed('cross') and not sb.held('cancel'):
         gamepad.update()
         if time.ticks_diff(time.ticks_ms(), last_blink) > 300:
             last_blink = time.ticks_ms()
