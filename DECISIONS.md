@@ -1,0 +1,223 @@
+# NHS Robotics — Decision Log
+
+Numbers are permanent. A reversal is struck with its reason, not deleted.
+
+Entries 1-6 were written in `nhsrobotics/DECISIONS.md` on 2026-08-05 and are
+carried here verbatim; that copy is now superseded and points here. Unless
+noted, a decision affects both repos.
+
+1. **Sumo (Capstone 1 tournament) is numbered P09, not P07.** — 2026-08-05
+
+2. ~~**P07 is the line-alignment project**: drive until a line sensor sees the
+   line, then square up on it regardless of approach angle (angle assumed
+   acute). It introduces the line sensors, which P09 Sumo Skills previously
+   did as a side effect of its edge guard.~~ — 2026-08-05
+   — **2026-08-07: reversed by #10.** Line alignment is P08. P07 is the timer
+   project. The reasoning above still holds for the project itself, only the
+   number changed.
+
+3. **Fall Term 1 is 22 periods (8/28-10/30); Term 2 is 21 (11/3-1/14).** Read
+   from Ray's own calendar (`Red Blue 2627 Calendar.xlsx`, column G) and
+   confirmed by him. — 2026-08-05
+
+4. **Term 1's last period is not slack.** Students start P10 on 10/30 and
+   finish it in Term 2 — the term boundary is a grading boundary, not a work
+   boundary. — 2026-08-05
+   — **2026-08-07: the calendar does not say this.** Column G's 10/30 cell
+   reads only "End of Term 1"; P10 appears nowhere in the sheet. 10/30 is a
+   real class day with no project assigned. The principle may still be Ray's
+   intent, but it is not recorded anywhere and P10 is deferred to October.
+
+5. **Cross-course date collisions are not treated as scheduling conflicts.**
+   Ray's ruling: "we are not a one-room schoolhouse." A Robotics due date
+   landing on a Physics exam day is not a problem to solve. — 2026-08-05
+
+6. **The class's SWBAT for the state-machine unit is the `elif` tree keyed on
+   a state variable** — not "state machines" as a general topic, and not any
+   specific theme. Whatever project teaches it, a new state must be forced by
+   real ambiguity or by a memoryless bug, never added to pad the count.
+   — 2026-08-05
+
+7. **Sumo (P09) is autonomous only. No gamepads.** Four robots start back to
+   back, each runs a hunting pattern, and a robot charges when it detects
+   another robot directly in front of it. Hitting the ring edge is a
+   manoeuvre — back up, turn, resume hunting — not a veto on a human driver.
+   The hunting pattern is where student individuality lives now that driver
+   skill is gone. — 2026-08-07
+
+8. **P09 is no longer designated Capstone 1.** It is a normal project, which
+   means it may teach new material rather than only combining earlier work.
+   — 2026-08-07
+
+9. **Opponent detection is a 3 cm charge threshold. The five ToF zones are not
+   taught.** The white floor produces IR false positives in the horizontal
+   zones; rather than filtering them, the robot only believes readings close
+   enough that an opponent is essentially touching it. Charge means shove from
+   near-contact, so matches turn on the quality of the hunt pattern rather than
+   on sensing range. — 2026-08-07
+
+10. **The sequence through the designed portion of the course is P07 timers,
+    P08 line sensor, P09 sumo.** This reverses #2 — line alignment moves from
+    P07 to P08. P07 becomes the old P09 "Robot Timers" material; P07 and P09
+    swap numbers in the repo. — 2026-08-07
+
+11. **P07 is a driveable proximity alarm, built from the old Robot Timers
+    material.** WORK 1 read the distance sensor and show it on the OLED while
+    holding the robot in your hand. WORK 2 add a blink that speeds up as the
+    distance closes. WORK 3 add tank drive, so display, blink and driving all
+    run at once. FLEX: refuse positive motor speeds inside 5 cm, reverse always
+    allowed. The split is deliberately additive — nothing rewrites an earlier
+    WORK, so the one-checkpoint rule needs no exception. — 2026-08-07
+
+12. **P07 has exactly one timer.** There is no display-refresh clock; the OLED
+    is written every lap. `ticks_ms` appears in WORK 2, at the moment the
+    student would otherwise reach for `sleep()` and discover it freezes the
+    display they just built. Two independent clocks in one loop was considered
+    and rejected as too much at once. — 2026-08-07
+
+13. **P07 blinks both Alvik LEDs together via `sb.light_both_leds()`**, the
+    helper P02 teaches and P04 uses. Individual `left_led` / `right_led` calls
+    are for cases where the two differ, as in P06. The guide is built around
+    the callback: P02 gave students a `blink()` that works by freezing the
+    robot, and P07 is the same blink on the same lights, made not to freeze.
+    — 2026-08-07
+
+14. **The state machine is introduced at P08 and scaled at P09.** P08's
+    alignment cannot be written as three sequential `while` loops: each is a
+    blocking wait, and the sequence branches on which sensor trips first
+    because the approach angle is arbitrary. So P08 gets one loop with a state
+    variable on a job that ends. P09 reuses the shape for hunt, charge and
+    edge recovery on a loop that never ends, and adds timed states — "how long
+    have I been in this state" — as its one new idea. — 2026-08-07
+
+15. **Every robot has an OLED, set up by students on the first day. Projects
+    may assume it.** — 2026-08-07
+
+16. **No controller rumble.** It exists nowhere in the codebase and would need
+    robot-side and browser-side work plus a regression test. The Qwiic buzzer
+    already in `peripherals.py` covers the same non-visual cue and needs only
+    an `sb.` passthrough. — 2026-08-07
+
+17. **Design work stops at P09.** P10 through P14 are decided in October, after
+    Ray has run the class. No P10+ project may be used as an argument about
+    P07-P09, because those slots may be rewritten or cut. — 2026-08-07
+
+18. **P07 has two timer checks, not one. This reverses #12.** WORK 1 is a
+    seconds clock on the OLED — divide elapsed milliseconds by 1000 and write
+    the screen only when the whole number changes. WORK 2 adds the blink
+    interval. The two arrive one WORK apart rather than together, which is what
+    #12 rejected. The `sleep()` reasoning under #12 is also withdrawn: the
+    course never offers `sleep()` as the timing tool, and P02's freezing
+    `blink()` already supplied the pain. — 2026-08-09
+
+19. **P07 is named "The Parking Sensor."** — 2026-08-09
+
+20. **A P08 state machine alternates orders and watchers**, and every order is
+    given exactly once by a state that exists to give it. `START_DRIVE` then
+    `WATCH_DRIVE`, and so on. Re-issuing `drive()` on every pass floods the link
+    to the STM32 and the robot stops seeing the line. A STOP state is required
+    after first contact: brake, then watch the pose until it stops changing.
+    Never assume a command has taken effect — the base is about 0.2 s behind.
+    Affects `nhsrobotics` solutions. — 2026-08-09
+
+21. **`LINE_THRESHOLD = 200`**, measured on marker over white paper: white reads
+    about 50, a sensor on the line reads 300-650. During rotation all three
+    sensors swing between 50 and 350, so while turning the robot looks at *only*
+    the sensor it is waiting for. — 2026-08-09
+
+22. **Solutions get a regression testbench, and it is for us, not students.**
+    `nhsrobotics/tests/tb/` models the robot's world — pose, line, sensors — and
+    shadows `arduino_alvik`, `nhs_robotics` and `time` on `sys.path` so the real
+    solution files run unmodified. The DUT's own `sleep_ms` drives a simulated
+    clock, so the suite finishes in under a second with no robot. Checks compute
+    expectations from the world model, never from the solution's own arithmetic.
+    The measured hardware defects are knobs, so an immunity claim can be a test
+    rather than a comment. Run with `tests/run_solution_regression.py`; it is
+    also folded into `tests/run_host_regression.py`. No pytest — Ray's call.
+    Affects `nhsrobotics`. — 2026-08-09
+
+23. **Scaffold `GIVEN:` comments say why the line is there, not just that it is
+    given.** Applied across P01-P06 on 2026-08-09. Comments only; no code
+    changed, so the approved guides still match. Affects `nhsrobotics`.
+    — 2026-08-09
+
+24. **`int(a / b)`, never `a // b`.** Floor division is a second operator to
+    explain for no gain; `int()` is a function, and functions are a shape
+    students already own from P02. Affects guides and code. — 2026-08-09
+
+25. **Projects P08 and up were moved out of the active folders.**
+    `projects/old_projects/` and `solutions/old_solutions/` hold P08-P14, moved
+    with `git mv`. `projects/` and `solutions/` are P01-P07 only, so a deploy
+    cannot push a stale numbered file. Affects `nhsrobotics`. — 2026-08-09
+
+26. **Line alignment leaves Term 1 and becomes a Term 2 project.** It works on
+    hardware — the version that stops on the CENTRE sensor and sweeps its arc
+    aligns well from any oblique approach — but the guide would have to teach
+    the arc-and-mirror argument to justify halving the angle, and that is a
+    geometry lesson wearing a state machine's coat. Term 2 can carry it. The
+    solution is parked at `solutions/sol1x_line_alignment.py`; its nine
+    testbench checks are written for a later design than that file and skip on
+    purpose. Affects both repos. — 2026-08-09
+
+27. **A state may not turn away from the thing its own exit test measures.**
+    P08 was first written as a Guard Bot with hysteresis: alarmed inside 20 cm,
+    calm past 35, and the gap between them forcing the state variable. The
+    alert state spun in place, which swung the distance sensor off the intruder
+    and read 999 — past the calm threshold — so the alert ended in a few
+    degrees and the two thresholds never did anything. The lesson generalises:
+    if a state's exit depends on a reading, the state's actions must keep that
+    reading meaningful. — 2026-08-09
+
+28. **P08 is The Security Bot.** Patrol on green, advance slowly on anything
+    inside 60 cm, and then one of two things: it fled past 90 cm, or it never
+    moved and is now inside 15 cm, in which case turn 135 degrees and run.
+    "It did not flee" is a fact about a stretch of time, not about a reading,
+    which is the honest argument for a state variable. The retreat uses
+    blocking `move()` and `rotate()` — the opposite of P07's rule, for the
+    opposite reason: nothing needs watching while you leave. 135 and not 180 so
+    the robot does not retrace its own path and bounce between two walls.
+    Affects both repos. — 2026-08-09
+
+29. **P09's guide prints code from earlier projects, not the lines to type.**
+    Every other guide prints what to write. This one shows the student what
+    they wrote in P03, P04, P06 and P08 to solve the same problem, and asks
+    what has to change. "Capstone" here describes that method only; DECISIONS
+    #8 stands and P09 is not designated Capstone 1. Affects `Class Development`.
+    — 2026-08-09
+
+30. **P09's one new idea is a guard above the elif tree, and it has no timer.**
+    The edge test cannot live inside a branch — a robot must leave the rim
+    whether it was patrolling or charging — so it sits above the tree and takes
+    effect on the same pass, which is exactly what P08 taught transitions do
+    not do. That contrast is the lesson. The consequence: the screen write must
+    sit BELOW the guard, or a state the guard sets and the tree clears on one
+    pass is never displayed. This also retires the timed-state half of
+    DECISIONS #14 — the retreat blocks, the countdown is a human voice, and the
+    gamepad wait is given, so there is nowhere for a clock. Affects both repos.
+    — 2026-08-09
+
+31. **The solution testbench models targets and rings, and every check is
+    mutation-tested.** `tests/tb/plant.py` V02 adds a `Target` (stand, flee,
+    chase, or glued to the nose, visible only in a 30 degree cone) and a ring
+    (black inside, white rim, radius and width). A check is only trusted once
+    the code has been broken on purpose and the check has failed: deleting
+    P09's guard sends the robot 4.8 m from the ring centre and is caught;
+    inverting P08's `distance < SPOT_CM` is caught by the empty-room test and
+    NOT by the reaches-every-state or ordering checks. Affects `nhsrobotics`.
+    — 2026-08-09
+
+32. **Absent hardware is news, not a fault.** `RobotVision` reported a missing
+    HuskyLens with `log_error` on every boot of every robot, and almost no
+    robot has one. Downgraded to `log_info`, and the three per-attempt search
+    prints dropped. A suite or a robot that cries wolf teaches everybody to
+    skim past the word ERROR. Covered by a test that patches `QwiicHuskylens`
+    rather than poking I2C, so it runs the same on a laptop and on a robot.
+    Affects `nhsrobotics`. — 2026-08-09
+
+33. **The deploy never ships the laptop's droppings.** `initialize_robot.sh`
+    v30 strips `__pycache__`, `.DS_Store` and stray `.pyc` from the staging
+    copy, and deletes them from the robot BEFORE the whitelist check. The order
+    matters: a `.robotignore` entry means "leave this alone", so naming junk
+    there preserves it instead of removing it. `.robotignore` is read from the
+    folder passed to `-d`, not from `init_bot/`. Affects `nhsrobotics`.
+    — 2026-08-09
