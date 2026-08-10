@@ -1,4 +1,4 @@
-"""Tests for nhs_lib that need no hardware. V01
+"""Tests for nhs_lib that need no hardware. V03
 
 Same (status, message) contract as the other regression_*.py modules, so
 RegressionRunner reports them the same way:
@@ -14,7 +14,6 @@ below. On the robot the real ones are already imported and nothing is faked.
 """
 
 import sys
-import types
 
 
 def _stub_micropython_modules():
@@ -24,6 +23,12 @@ def _stub_micropython_modules():
         return False            # we are on the robot
     except ImportError:
         pass
+
+    # Imported HERE and not at the top of the file. MicroPython has no
+    # `types` module, so a top-level import kills this file on the robot --
+    # where the line below is never reached anyway, because the robot took
+    # the early return above.
+    import types
 
     class _Stub(types.ModuleType):
         def __getattr__(self, name):
@@ -75,9 +80,24 @@ class FakeController:
         self.buttons = dict.fromkeys(RobotGamepad.BUTTON_NAMES, False)
 
 
+# CPython can skip a constructor with cls.__new__(cls). MicroPython cannot
+# -- user classes have no __new__ there -- so the portable way to get an
+# object without running its hardware constructor is a subclass whose
+# __init__ does nothing. These tests run on the laptop AND on the robot,
+# so they have to use the one that works in both.
+class _BareSuperBot(SuperBot):
+    def __init__(self):
+        pass
+
+
+class _BareGamepad(RobotGamepad):
+    def __init__(self):
+        pass
+
+
 def _bare_superbot(alvik):
     """A SuperBot without its hardware constructor."""
-    sb = SuperBot.__new__(SuperBot)
+    sb = _BareSuperBot()
     sb.alvik = alvik
     sb._touch = {n: Button(getattr(alvik, "get_touch_" + n))
                  for n in SuperBot.TOUCH_NAMES}
@@ -88,7 +108,7 @@ def _bare_superbot(alvik):
 
 def _bare_gamepad():
     """A RobotGamepad without its WiFi constructor."""
-    gp = RobotGamepad.__new__(RobotGamepad)
+    gp = _BareGamepad()
     gp.controller = FakeController()
     gp._edges = {n: Button(gp._make_getter(n))
                  for n in RobotGamepad.BUTTON_NAMES}
@@ -214,4 +234,4 @@ def test_closest_valid():
     return 1, ""
 
 
-print("Loaded regression_host.py V02")
+print("Loaded regression_host.py V03")

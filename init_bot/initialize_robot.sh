@@ -190,6 +190,17 @@ STAGING_DIR=$(mktemp -d)
 # Copy everything to the staging directory first
 cp -r "${SOURCE_DIR}/"* "$STAGING_DIR/"
 
+# Drop Python's bytecode caches. They are made by running the tests on a
+# laptop, they appear at every level of the tree so .robotignore cannot
+# name them, and MicroPython never reads them. Uploading them wastes
+# flash and upload time.
+CACHES=$(find "$STAGING_DIR" -name '__pycache__' -type d | wc -l | tr -d ' ')
+find "$STAGING_DIR" -name '__pycache__' -type d -prune -exec rm -rf {} +
+find "$STAGING_DIR" -name '*.pyc' -delete
+if [ "$CACHES" -gt 0 ]; then
+    echo "   - Skipping $CACHES __pycache__ director$([ "$CACHES" -eq 1 ] && echo y || echo ies)"
+fi
+
 # Remove ignored items from the staging directory before upload
 for ignore in "${WHITELIST[@]}"; do
     # Skip /workspace as it's a remote-only system folder
