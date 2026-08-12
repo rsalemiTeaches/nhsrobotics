@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build the printable guides from markdown, pad odd page counts, and report.
-# V03
+# V04
 #
 #   ./build-all.sh            build every pNN.md that needs it
 #   ./build-all.sh p02.md     build just one
@@ -115,7 +115,9 @@ for md in "${FILES[@]}"; do
             echo "ERROR: LibreOffice produced no PDF for $md" >&2
             exit 1
         fi
-        mv "$WORK/$pdf" "$pdf"
+        # cp, not mv: the temp folder is often on another device, and an
+        # overwrite in place does not need permission to unlink the old file.
+        cp "$WORK/$pdf" "$pdf"
         rm -f "$WORK"/*
         built=$((built + 1))
     fi

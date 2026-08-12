@@ -1,5 +1,5 @@
 // Build one guide from markdown.
-// V02
+// V03
 //
 //   node make.js p02.md            -> writes the .docx named in the frontmatter
 //   PAD_EVEN=1 node make.js p02.md -> adds a blank page for duplex printing
@@ -20,9 +20,11 @@ const src = fs.readFileSync(mdPath, 'utf8');
 
 // A link prints its label, or its target when there is no label. That is what
 // you want almost always -- "you will find it in [[robot_setup]]" should print
-// the name. It is wrong in exactly one case: a link to another guide. [[p07]]
-// prints "p07", and no student has ever seen that name; the guide on their desk
-// says "Project 07: The Parking Sensor".
+// the name. It is wrong in exactly one case: a link to another guide, because
+// the target is a build filename. [[p07]] prints "p07", and no student has ever
+// seen that name; the guide on their desk says "Project 07: The Parking Sensor".
+// A guide is recognised by there being a .md of that name in this folder, so the
+// rule needs no list to keep up to date.
 //
 // It is also the link Obsidian's autocomplete offers first, so it is the one
 // that will slip through and reach a printed handout. Caught here, loudly.
@@ -34,11 +36,12 @@ const body = src
   .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '')
   .replace(/```[\s\S]*?```/g, '')
   .replace(/`[^`\n]*`/g, '');
-const naked = [...body.matchAll(/(?<!!)\[\[(p\d{2})\]\]/g)];
+const naked = [...body.matchAll(/(?<!!)\[\[([^\]|]+)\]\]/g)]
+  .filter(m => fs.existsSync(require('path').join(__dirname, m[1] + '.md')));
 if (naked.length) {
   console.error(`${mdPath}: a link to another guide needs words a student can read.`);
   for (const b of naked) {
-    console.error(`  [[${b[1]}]] prints "${b[1]}"  ->  write [[${b[1]}|Project ${b[1].slice(1)}]]`);
+    console.error(`  [[${b[1]}]] prints "${b[1]}"  ->  write [[${b[1]}|Project ${b[1].replace(/\D/g, '')}]]`);
   }
   process.exit(1);
 }

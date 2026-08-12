@@ -113,9 +113,13 @@ function codeBlock(src) {
 }
 
 // Pictures are placed by markdown: ![alt](images/thing.png), on its own line.
-// The file is read relative to this folder. Width is capped at the text column
-// and the height follows the picture's own proportions, so nothing is squashed.
+// The file is read relative to this folder. Width and height are both capped
+// and the picture keeps its proportions, so nothing is ever squashed.
 const TEXT_COLUMN_PX = 624;          // 6.5in of usable width at 96 dpi
+// A picture is also capped in height. Without this a tall screenshot renders
+// several inches high, and one of them owns a whole sheet. 4.5in leaves room for
+// the text that explains it, and lets two pictures share a page.
+const TEXT_ROW_PX = 432;             // 4.5in at 96 dpi
 
 function pngSize(buf) {
   // PNG: 8-byte signature, then the IHDR chunk with width and height.
@@ -125,7 +129,7 @@ function pngSize(buf) {
   return null;
 }
 
-function imageBlock(spec) {
+function imageBlock(spec, o = {}) {
   // Obsidian's ![[thing.png]] carries a bare filename, because the vault finds
   // pictures by name. The builder needs a path, so a bare name falls back to
   // images/ -- which is where every guide picture lives anyway.
@@ -140,10 +144,10 @@ function imageBlock(spec) {
   if (!size) {
     throw new Error("not a readable PNG: " + spec.src);
   }
-  const scale = Math.min(1, TEXT_COLUMN_PX / size.width);
+  const scale = Math.min(1, TEXT_COLUMN_PX / size.width, TEXT_ROW_PX / size.height);
   return new Paragraph({
     alignment: AlignmentType.CENTER,
-    keepNext: true,
+    ...(o.keepNext === false ? {} : {keepNext: true}),
     spacing: {before: 80, after: 160},
     children: [new ImageRun({
       data: data,
@@ -158,9 +162,16 @@ function imageBlock(spec) {
   });
 }
 
+// keepNext glues a paragraph to the one after it. A picture carries it so it is
+// not stranded at the bottom of a page away from the text that explains it --
+// EXCEPT when the next block is another picture. Chaining a run of pictures
+// makes one unbreakable block, and a block taller than a page shunts the whole
+// run to the next sheet and leaves the current one empty.
 function render(blocks) {
   const out = [];
-  for (const [kind, payload] of blocks) {
+  for (let at = 0; at < blocks.length; at++) {
+    const [kind, payload] = blocks[at];
+    const nextIsImage = at + 1 < blocks.length && blocks[at + 1][0] === "image";
     if (kind === "title") {
       out.push(new Paragraph({text: payload, heading: HeadingLevel.TITLE,
                               keepNext: true, spacing: {after: 120}}));
@@ -185,7 +196,7 @@ function render(blocks) {
       payload.forEach(t => out.push(numP(t)));
       out.push(new Paragraph({children: [], spacing: {after: 60}}));
     } else if (kind === "image") {
-      out.push(imageBlock(payload));
+      out.push(imageBlock(payload, {keepNext: !nextIsImage}));
     } else if (kind === "code") {
       out.push(codeBlock(payload));
       // Word butts text straight against a table, so a spacer is needed. Keep
