@@ -4,6 +4,7 @@
     "libs_on_github/"
   ],
   "alwaysUpdateLinks": true,
-  "useMarkdownLinks": true,
-  "newLinkFormat": "shortest"
+  "useMarkdownLinks": false,
+  "newLinkFormat": "shortest",
+  "attachmentFolderPath": "guide_builder/images"
 }

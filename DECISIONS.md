@@ -2,6 +2,9 @@
 
 Numbers are permanent. A reversal is struck with its reason, not deleted.
 
+Current state is in [PROJECT.md](PROJECT.md); durable knowledge is in
+[REFERENCE.md](REFERENCE.md).
+
 Entries 1-6 were written in `nhsrobotics/DECISIONS.md` on 2026-08-05 and are
 carried here verbatim; that copy is now superseded and points here. Unless
 noted, a decision affects both repos.

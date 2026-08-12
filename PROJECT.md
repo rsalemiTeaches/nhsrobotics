@@ -3,8 +3,8 @@
 Home folder for the robotics curriculum. Three files:
 
 - **`PROJECT.md`** (this file) — what is being worked on right now.
-- **`DECISIONS.md`** — settled calls, numbered and permanent.
-- **`REFERENCE.md`** — durable knowledge: guide production, what the course
+- **[DECISIONS.md](DECISIONS.md)** — settled calls, numbered and permanent.
+- **[REFERENCE.md](REFERENCE.md)** — durable knowledge: guide production, what the course
   teaches and why, measured hardware behaviour, and the silent failure modes.
 
 ## Where these live, and why it matters
@@ -45,7 +45,7 @@ So: **never put `PROJECT.md`, `DECISIONS.md` or `REFERENCE.md` in
 | P09 | The Sumo Bot — patrol the ring, charge, and never fall out | Guide V01, scaffold V01, solution V01. Never run on a robot. |
 
 **P08 is no longer the line-sensor project.** Line alignment moved to Term 2 —
-see DECISIONS #26. Its solution is parked at `solutions/sol1x_line_alignment.py`.
+see [DECISIONS #26](DECISIONS.md). Its solution is parked at `solutions/sol1x_line_alignment.py`.
 
 Ray is designing **only** through P09. P10 onward get decided in October, after
 he has run the class. Do not spend design effort past P09, and do not use any
@@ -54,7 +54,7 @@ P10+ project as an argument about P07-P09 — those slots may be rewritten or cu
 ## What's done
 
 - **P01-P06 are rebuilt and in the new voice.** Version and approval status
-  live in `REFERENCE.md` in this folder. P04 is rebuilt but Ray has not
+  live in [REFERENCE.md](REFERENCE.md) in this folder. P04 is rebuilt but Ray has not
   approved it.
 - **The fall calendar was read directly** (`Red Blue 2627 Calendar.xlsx`,
   sheet `Schedule`, column G "Robotics Red 1"). It contains exactly twelve
@@ -68,21 +68,21 @@ P10+ project as an argument about P07-P09 — those slots may be rewritten or cu
 - **P07 is written and built.** Named *The Parking Sensor*. Guide V08 deployed to
   Project Guides at 8 pages (4 sheets), `projects/p07_parking_sensor.py`,
   `solutions/sol07_parking_sensor.py`. WORK 1 is now a seconds clock on the OLED,
-  not a distance readout — see DECISIONS #18. **Nobody has run it on a robot.**
+  not a distance readout — see [DECISIONS #18](DECISIONS.md). **Nobody has run it on a robot.**
 - **P08 The Security Bot is written.** Guide V04 at 8 pages (4 sheets),
   `projects/p08_security_bot.py`, `solutions/sol08_security_bot.py`. Four
   states, one elif tree. The retreat blocks on `move()`/`rotate()` because
-  nothing needs watching during it — DECISIONS #28. The FLEX is a fifth state,
+  nothing needs watching during it — [DECISIONS #28](DECISIONS.md). The FLEX is a fifth state,
   `PEEKING`, implemented in the solution and marked so it can be cut in one
   edit.
 - **P09 The Sumo Bot is written.** Guide V01 at 6 pages (3 sheets),
   `projects/p09_sumo_bot.py`, `solutions/sol09_sumo_bot.py`. Three states plus
-  a guard above the tree — DECISIONS #30. It is a capstone in style: the guide
+  a guard above the tree — [DECISIONS #30](DECISIONS.md). It is a capstone in style: the guide
   prints code from P03, P04, P06 and P08 and the student adapts it, rather than
-  printing the lines to type — DECISIONS #29.
+  printing the lines to type — [DECISIONS #29](DECISIONS.md).
 - **The line-sensor threshold was measured**, 2026-08-09, marker on white paper:
   white reads about 50, a sensor on the line reads 300-650. `LINE_THRESHOLD = 200`.
-  During rotation all three sensors swing 50-350. See DECISIONS #21. Still true;
+  During rotation all three sensors swing 50-350. See [DECISIONS #21](DECISIONS.md). Still true;
   it now belongs to the Term 2 project.
 - **The `GIVEN:` comment convention was extended to P01-P06 scaffolds.** Comments
   only; no code changed, so the approved guides still match.
@@ -93,12 +93,12 @@ P10+ project as an argument about P07-P09 — those slots may be rewritten or cu
   inside a 30 degree cone — and a ring, so the line sensors read black-high
   inside and white-low on the rim. Nine new named tests. `run_solution_regression.py`
   reports 13 pass, 0 fail, 9 skip; `run_host_regression.py` reports 20 pass,
-  0 fail, 9 skip. See DECISIONS #22 and #31.
+  0 fail, 9 skip. See [DECISIONS #22](DECISIONS.md) and [#31](DECISIONS.md).
 - **A missing HuskyLens is no longer reported as an error.** `nhs_lib` change
-  plus a test that patches the driver rather than poking I2C — DECISIONS #32.
+  plus a test that patches the driver rather than poking I2C — [DECISIONS #32](DECISIONS.md).
 - **`initialize_robot.sh` is at v30.** It strips `__pycache__`, `.DS_Store` and
   stray `.pyc` from the staging copy, and deletes them from the robot ahead of
-  the whitelist check — DECISIONS #33.
+  the whitelist check — [DECISIONS #33](DECISIONS.md).
 
 ## What's open
 
@@ -106,7 +106,7 @@ P10+ project as an argument about P07-P09 — those slots may be rewritten or cu
 
 - ~~**The name.**~~ — 2026-08-09: settled, *The Parking Sensor*.
 - ~~**Does an unthrottled OLED write bog the loop or flicker?**~~ — 2026-08-09:
-  moot. The screen is now written once a second by design. See DECISIONS #18.
+  moot. The screen is now written once a second by design. See [DECISIONS #18](DECISIONS.md).
 - **P07 has never been run on a robot.** The guide, scaffold and solution are all
   written and unverified.
 
@@ -117,9 +117,9 @@ near square. The design that works stops on the CENTRE sensor and spins it
 through an arc, using the outer two only to pick the spin direction; because
 the centre sensor sits on the centreline its arc peaks exactly at square, so
 the two crossings are symmetric for any approach angle and there is no maximum
-oblique angle. See `REFERENCE.md`. It was moved out of Term 1 because the guide
+oblique angle. See [REFERENCE.md](REFERENCE.md). It was moved out of Term 1 because the guide
 would have to teach the arc-and-mirror argument, which is a geometry lesson
-rather than a state-machine one — DECISIONS #26.
+rather than a state-machine one — [DECISIONS #26](DECISIONS.md).
 
 Still unresolved, for whenever it comes back:
 
@@ -173,7 +173,7 @@ is where a student's own fourth state, and the podium, are won.
 - `Capstone1_Sumo_Tournament_Spec.docx` still needs its fate decided — rewrite as
   a project guide, or retire. P09 is written and does not use it. Note that
   "capstone" is now only a description of how P09's guide works, not a
-  designation; DECISIONS #8 still stands. Whether Capstone 2 Navigation Race
+  designation; [DECISIONS #8](DECISIONS.md) still stands. Whether Capstone 2 Navigation Race
   keeps its designation is also undecided.
 - **`tests/tb` is on the robots.** It is now in `init_bot/nhs_robot/.robotignore`
   so it will not be uploaded again, but a whitelisted path is one the sync
@@ -222,7 +222,7 @@ past P09 has been designed.
   codebase; it would need robot-side and browser-side work plus a regression
   test. The buzzer already there does the same job.
 - ~~**Two independent timers in P07**~~ — 2026-08-09: reversed. P07 has two timer
-  checks, introduced one WORK apart. See DECISIONS #18.
+  checks, introduced one WORK apart. See [DECISIONS #18](DECISIONS.md).
 - **P07 as a distance-sensor project** ("drive to the wall and stop at a
   distance"). Dropped — that is `p04_drive_to_the_wall_and_back.py`'s WORK 2
   verbatim, with `WALL_THRESHOLD_CM` already given at the top of the file.
@@ -234,7 +234,7 @@ past P09 has been designed.
 - **A four-state alignment machine with no STOP.** Tried and wrong on hardware. Without
   a state that brakes and then watches the pose until it stops changing, the
   robot rolls onto the band during the 0.2 s the base takes to act, and the
-  sweep measures nothing. See DECISIONS #20.
+  sweep measures nothing. See [DECISIONS #20](DECISIONS.md).
 - **Re-issuing `drive()` every pass of the loop.** The robot went straight over
   the line without seeing it. `drive()` sets a speed that stays set.
 - **The Guard Bot with two thresholds.** P08 was first written as a guard that
@@ -242,13 +242,13 @@ past P09 has been designed.
   forcing the state variable. Killed by the robot: the alert state spun, which
   swung the sensor off the intruder and read 999, so the gap never did anything.
   A state cannot both turn away from the thing its exit test is about and use
-  that test. See DECISIONS #27.
+  that test. See [DECISIONS #27](DECISIONS.md).
 - **Line alignment as the Term 1 state-machine project.** Moved to Term 2 —
-  DECISIONS #26.
+  [DECISIONS #26](DECISIONS.md).
 - **A timed state anywhere in P09.** There is nowhere left for one: the retreat
   blocks, the countdown is a human calling "one, two, three, go", and the
-  gamepad wait is given. DECISIONS #14 said timed states were P09's new idea;
-  that part of it is retired — DECISIONS #30.
+  gamepad wait is given. [DECISIONS #14](DECISIONS.md) said timed states were P09's new idea;
+  that part of it is retired — [DECISIONS #30](DECISIONS.md).
 - **Leaving the state machine at P10 Traffic Light.** Rejected — P10 is in the
   undesigned zone, so the course Ray actually runs this fall would never teach
   the SWBAT.

@@ -1,5 +1,5 @@
 // Markdown -> block list for build.js.
-// V01
+// V02
 //
 // Supported:
 //   ---            frontmatter (out, version, title)
@@ -11,10 +11,12 @@
 //   1. item        numbered list     -> n
 //   ```            fenced code block -> code
 //   ![alt](file)   image, own line   -> image
+//   ![[file]]      image, own line   -> image  (Obsidian's embed)
 //   text           paragraph         -> p
 //
 // Placeholders {{SAVE}}, {{PARTA}}, {{GRADING}} are substituted before parsing.
-// Inline `backticks` are left alone; build.js turns them into monospace runs.
+// Inline `backticks` and links are left alone; build.js turns backticks into
+// monospace runs and reduces each link to its label.
 
 function frontmatter(src) {
   const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
@@ -67,6 +69,12 @@ function parse(src, vars = {}) {
     // An image on a line of its own: ![alt text](images/thing.png)
     const img = line.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (img) { blocks.push(["image", {alt: img[1], src: img[2]}]); i++; continue; }
+
+    // The same thing as Obsidian writes it when you drag a picture in:
+    // ![[thing.png]], or ![[thing.png|caption]]. build.js resolves the bare
+    // name against images/.
+    const wimg = line.trim().match(/^!\[\[([^\]|]+?)(?:\|([^\]]*))?\]\]$/);
+    if (wimg) { blocks.push(["image", {alt: wimg[2] || "", src: wimg[1]}]); i++; continue; }
 
     // A paragraph that is entirely bold is the lead line.
     const bold = line.trim().match(/^\*\*(.+)\*\*$/);

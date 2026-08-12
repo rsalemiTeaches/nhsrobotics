@@ -2,22 +2,32 @@
 
 Durable knowledge: how the guides get built, what the course teaches and why,
 what the hardware actually does, and the failures that don't announce
-themselves. Current state is in `PROJECT.md`; settled calls are in
-`DECISIONS.md`. Nothing here is a status report.
+themselves. Current state is in [PROJECT.md](PROJECT.md); settled calls are in
+[DECISIONS.md](DECISIONS.md). Nothing here is a status report.
 
 ## Guide production
 
-Guides are **generated from the markdown in `nhsrobotics/guide_builder/`**.
-Never hand-edit a `.docx` — the next build reverts it. If Ray edits one, fold
-his change back into the `.md` first. Close the file in Word before rebuilding;
-Project Guides lives in Google Drive and an open file can make a conflicted copy.
+Guides are **generated from the markdown in `nhsrobotics/guide_builder/`**, and
+the guide that gets printed is a **PDF**. Word is not in the chain at all: a
+`.docx` is built in a temp folder, converted, and deleted. There is no editable
+copy of a guide anywhere, which is the point — an edit that is not in the
+markdown cannot survive, so it cannot be made by accident.
 
 ```bash
 ./build-all.sh p05.md -d     # build one guide and deploy it
-./build-all.sh -d            # build all and deploy
+./build-all.sh -d            # build every guide that needs it, and deploy
+./build-all.sh -f            # rebuild everything, current or not
 ```
 
-`guide_builder/README.md` explains the builder itself. Two rules that bite:
+**A guide is only rebuilt when it is stale**, the way make works: its markdown,
+one of its pictures, or the builder itself is newer than the PDF. Pagination is
+measured by running the file through LibreOffice, which is slow, so this is the
+difference between a minute and a second.
+
+Deploying writes into Google Drive. A PDF open in a viewer is only being read,
+so it will not make a conflicted copy the way an open Word file could.
+
+[guide_builder/README.md](guide_builder/README.md) explains the builder itself. Two rules that bite:
 
 - **Images must be real PNGs.** The builder reads the PNG header and refuses
   anything else, and renders at natural pixel size capped at 624 px wide. A JPEG

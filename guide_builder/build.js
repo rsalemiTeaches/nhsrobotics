@@ -1,5 +1,6 @@
-// Guide generator V03.
-// Inline markup in any text: `code`, **bold**, *italic*.
+// Guide generator V04.
+// Inline markup in any text: `code`, **bold**, *italic*, and links, which print
+// as their label only.
 const d = require('docx');
 const fs = require('fs');
 const path = require('path');
@@ -15,13 +16,34 @@ const PAGE_W = 9360;
 // Override for a one-off test with CODE_FONT="Courier New" ./build-all.sh ...
 const CODE_FONT = process.env.CODE_FONT || "Roboto Mono";
 
+// A rebuild of unchanged markdown produces an identical document, but not an
+// identical FILE: Word's docProps carries a creation time, and the zip stamps
+// each entry with the clock. So `git status` shows a rebuilt guide as modified
+// even when not a word moved. That is why build-all.sh skips guides that are
+// already current -- it is cheaper and it keeps the diff honest. Rewriting the
+// package to strip the clock was considered and rejected: the .docx is what a
+// student is handed, and it is not worth reaching into for a tidier diff.
+
 // Inline markup, matched in one pass so order is preserved:
-//   `code`     -> monospace      **bold** -> bold      *italic* -> italic
+//   `code` -> monospace   **bold** -> bold   *italic* -> italic
+//   [label](target) and [[target|label]] -> the label, as ordinary text
 // "Use `x` **now**" -> [normal "Use ", mono "x", normal " ", bold "now"]
-// Code spans are matched first, so asterisks inside backticks stay literal.
+// Code spans are matched first, so asterisks and brackets inside backticks stay
+// literal.
+//
+// A link prints as its label and nothing else. Guides are read on paper, where
+// a clickable target is worthless and a filename is noise. So the vault can be
+// fully linked and the handout still reads as plain English.
+//
+// A bare [[target]] prints the target, which is right whenever the name is the
+// thing the student needs: "you will find it in [[robot_setup]]". The one case
+// it is wrong is a link to another guide, [[p07]], because "p07" is a name no
+// student has ever seen -- and that is the one Obsidian's autocomplete offers.
+// make.js refuses that link, and only that link.
+//
 // `base` supplies the paragraph's own styling (a lead line is bold, a note is
 // grey italic); the inline flag is applied after it so it always wins.
-const INLINE = /`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+const INLINE = /`([^`]+)`|(?<!!)\[\[([^\]|]+?)(?:\|([^\]]+))?\]\]|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*/g;
 
 function runs(text, base = {}) {
   const out = [];
@@ -37,9 +59,13 @@ function runs(text, base = {}) {
     if (m[1] !== undefined) {
       out.push(new TextRun({text: m[1], size: 19, ...base, font: CODE_FONT}));
     } else if (m[2] !== undefined) {
-      out.push(new TextRun({text: m[2], size: 22, ...base, bold: true}));
+      plain(m[3] ?? m[2]);                // [[target|label]] -> label, [[target]] -> target
+    } else if (m[4] !== undefined) {
+      plain(m[4]);                        // [label](target)  -> label
+    } else if (m[6] !== undefined) {
+      out.push(new TextRun({text: m[6], size: 22, ...base, bold: true}));
     } else {
-      out.push(new TextRun({text: m[3], size: 22, ...base, italics: true}));
+      out.push(new TextRun({text: m[7], size: 22, ...base, italics: true}));
     }
     last = INLINE.lastIndex;
   }
@@ -100,9 +126,14 @@ function pngSize(buf) {
 }
 
 function imageBlock(spec) {
-  const file = path.resolve(__dirname, spec.src);
-  if (!fs.existsSync(file)) {
-    throw new Error("image not found: " + spec.src + "\n  looked in " + file);
+  // Obsidian's ![[thing.png]] carries a bare filename, because the vault finds
+  // pictures by name. The builder needs a path, so a bare name falls back to
+  // images/ -- which is where every guide picture lives anyway.
+  const tried = [spec.src, path.join("images", path.basename(spec.src))];
+  const file = tried.map(p => path.resolve(__dirname, p)).find(fs.existsSync);
+  if (!file) {
+    throw new Error("image not found: " + spec.src + "\n  looked in " +
+                    tried.map(p => path.resolve(__dirname, p)).join("\n  and   "));
   }
   const data = fs.readFileSync(file);
   const size = pngSize(data);

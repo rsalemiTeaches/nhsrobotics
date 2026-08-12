@@ -1,5 +1,5 @@
 // Build one guide from markdown.
-// V01
+// V02
 //
 //   node make.js p02.md            -> writes the .docx named in the frontmatter
 //   PAD_EVEN=1 node make.js p02.md -> adds a blank page for duplex printing
@@ -17,6 +17,31 @@ if (!mdPath) {
 }
 
 const src = fs.readFileSync(mdPath, 'utf8');
+
+// A link prints its label, or its target when there is no label. That is what
+// you want almost always -- "you will find it in [[robot_setup]]" should print
+// the name. It is wrong in exactly one case: a link to another guide. [[p07]]
+// prints "p07", and no student has ever seen that name; the guide on their desk
+// says "Project 07: The Parking Sensor".
+//
+// It is also the link Obsidian's autocomplete offers first, so it is the one
+// that will slip through and reach a printed handout. Caught here, loudly.
+//
+// Frontmatter is exempt: `related:` is bare guide links on purpose, and is
+// never rendered. Code spans and fences are exempt too, because a guide may
+// legitimately show link syntax as an example.
+const body = src
+  .replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '')
+  .replace(/```[\s\S]*?```/g, '')
+  .replace(/`[^`\n]*`/g, '');
+const naked = [...body.matchAll(/(?<!!)\[\[(p\d{2})\]\]/g)];
+if (naked.length) {
+  console.error(`${mdPath}: a link to another guide needs words a student can read.`);
+  for (const b of naked) {
+    console.error(`  [[${b[1]}]] prints "${b[1]}"  ->  write [[${b[1]}|Project ${b[1].slice(1)}]]`);
+  }
+  process.exit(1);
+}
 
 // Frontmatter is read twice: once to learn the project number so SAVE can be
 // built, once for real with all placeholders filled in.
