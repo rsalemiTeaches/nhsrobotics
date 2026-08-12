@@ -1,0 +1,9 @@
+{
+  "userIgnoreFilters": [
+    "guide_builder/node_modules/",
+    "libs_on_github/"
+  ],
+  "alwaysUpdateLinks": true,
+  "useMarkdownLinks": true,
+  "newLinkFormat": "shortest"
+}
