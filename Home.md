@@ -11,21 +11,21 @@ The vault is the repo. Everything here is plain text and lives in git.
 
 ## The guides
 
-One markdown file per guide, in `guide_builder/`. The printed guides are PDFs
+One markdown file per guide, in `guides/`. The printed guides are PDFs
 built from these. No office suite is involved, and the markdown is the only copy
 anyone can edit.
 
 | Guide | Title | Version |
 |---|---|---|
-| [p01](guide_builder/p01.md) | Gamepad Lights | V10 |
-| [p02](guide_builder/p02.md) | Flashing Lights | V15 |
-| [p03](guide_builder/p03.md) | Gamepad Driving | V08 |
-| [p04](guide_builder/p04.md) | Drive to the Wall and Back | V06 |
-| [p05](guide_builder/p05.md) | Around the Cone | V03 |
-| [p06](guide_builder/p06.md) | The Magic Circle | V01 |
-| [p07](guide_builder/p07.md) | The Parking Sensor | V08 |
-| [p08](guide_builder/p08.md) | The Security Bot | V04 |
-| [p09](guide_builder/p09.md) | The Sumo Bot | V01 |
+| [p01](guides/p01.md) | Gamepad Lights | V10 |
+| [p02](guides/p02.md) | Flashing Lights | V15 |
+| [p03](guides/p03.md) | Gamepad Driving | V08 |
+| [p04](guides/p04.md) | Drive to the Wall and Back | V06 |
+| [p05](guides/p05.md) | Around the Cone | V03 |
+| [p06](guides/p06.md) | The Magic Circle | V01 |
+| [p07](guides/p07.md) | The Parking Sensor | V08 |
+| [p08](guides/p08.md) | The Security Bot | V04 |
+| [p09](guides/p09.md) | The Sumo Bot | V01 |
 
 Each guide carries `tags` and `related` in its properties, so the graph and the
 backlinks pane show how the projects feed each other.
@@ -33,7 +33,7 @@ backlinks pane show how the projects feed each other.
 ## Building the guides
 
 ```bash
-cd guide_builder
+cd guides
 ./build-all.sh          # build every guide that needs it
 ./build-all.sh p05.md   # build one
 ./build-all.sh -d       # build and copy into Project Guides
@@ -43,7 +43,7 @@ cd guide_builder
 A guide is only rebuilt when its markdown, one of its pictures, or the builder
 itself is newer than the PDF.
 
-[guide_builder/README.md](guide_builder/README.md) explains the markdown the
+[builder/README.md](builder/README.md) explains the markdown the
 builder understands.
 
 ## Links inside a guide
@@ -66,6 +66,7 @@ A link with no label prints its target, so `[[robot_setup]]` prints
 Dragging a picture into a guide works — Obsidian writes `![[thing.png]]` and the
 builder resolves it against `images/`.
 
-Run `node guide_builder/test-build.js` to check the builder after any change.
+Run `node ../builder/test-build.js` from `guides/` to check the builder after
+any change. Remember it is shared with `nhsengineering` — see DECISIONS #43.
 
 *V03*

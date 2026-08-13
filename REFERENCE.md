@@ -7,17 +7,29 @@ themselves. Current state is in [PROJECT.md](PROJECT.md); settled calls are in
 
 ## Guide production
 
-Guides are **generated from the markdown in `nhsrobotics/guide_builder/`**, and
+Guides are **generated from the markdown in `nhsrobotics/guides/`**, and
 the guide that gets printed is a **PDF**. Word is not in the chain at all: a
 `.docx` is built in a temp folder, converted, and deleted. There is no editable
 copy of a guide anywhere, which is the point — an edit that is not in the
 markdown cannot survive, so it cannot be made by accident.
 
+**Content and builder are separate folders.** `guides/` holds the markdown,
+`images/`, `course.js`, `deploy.txt` and the built PDFs. `builder/` is a
+submodule of `rsalemiTeaches/guide-builder`, **shared with `nhsengineering`**,
+and holds no guides, no pictures and no course text. Run the build from
+`guides/`.
+
 ```bash
-./build-all.sh p05.md -d     # build one guide and deploy it
-./build-all.sh -d            # build every guide that needs it, and deploy
-./build-all.sh -f            # rebuild everything, current or not
+cd guides
+../builder/build-all.sh p05.md -d   # build one guide and deploy it
+../builder/build-all.sh -d          # build every guide that needs it, deploy
+../builder/build-all.sh -f          # rebuild everything, current or not
 ```
+
+The words behind `{{SAVE}}`, `{{PARTA}}` and `{{GRADING}}` are in
+`guides/course.js`, not in the builder — a shared builder cannot carry one
+course's grading rule. It is called with the guide's frontmatter, which is how
+`SAVE` gets the project number and scaffold name.
 
 **A guide is only rebuilt when it is stale**, the way make works: its markdown,
 one of its pictures, or the builder itself is newer than the PDF. Pagination is
@@ -27,11 +39,11 @@ difference between a minute and a second.
 Deploying writes into Google Drive. A PDF open in a viewer is only being read,
 so it will not make a conflicted copy the way an open Word file could.
 
-`node test-build.js` in `guide_builder/` checks the builder — 24 checks, no
+`node ../builder/test-build.js` from `guides/` checks the builder — no
 robot and no Word, building into a temp folder so it never touches a deployed
 guide. Run it after any change to `build.js`, `parse.js` or `make.js`.
 
-[guide_builder/README.md](guide_builder/README.md) explains the builder itself. Rules that bite:
+[builder/README.md](builder/README.md) explains the builder itself. Rules that bite:
 
 - **Images must be real PNGs.** The builder reads the PNG header and refuses
   anything else. A JPEG renamed `.png` fails the build. Crop tight, export

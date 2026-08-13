@@ -185,5 +185,5 @@ node_modules/
 # Built guides. The markdown is the source and the build is reproducible, so
 # the repo stays text. Deployed copies live in Project Guides on Drive, and old
 # ones in its Previous Versions folder.
-guide_builder/*.docx
-guide_builder/*.pdf
+guides/*.docx
+guides/*.pdf

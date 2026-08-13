@@ -297,3 +297,39 @@ noted, a decision affects both repos.
     Obsidian graph and backlinks show how projects feed each other — P09's
     `related` names P03, P04, P06 and P08, which is [DECISIONS #29](DECISIONS.md)
     made visible. Affects both repos. — 2026-08-12
+
+43. **The builder is one shared repository, `rsalemiTeaches/guide-builder`, a
+    submodule at `builder/` in both courses.** `guide_builder/` is gone. The
+    guides, `images/` and the built PDFs are in `guides/`.
+
+    Entries #38, #39, #40 and #41 each end "Affects both repos," and every one
+    of them was carried across by hand. That was the argument: the copies never
+    diverged on purpose, only by neglect. Engineering reversed its own decision
+    to keep a separate copy — its DECISIONS #5, reversed by #11 — and this is
+    the same call from this side.
+
+    **Each course pins its own commit**, so a change arrives when the pin moves
+    and not before. Bumping a pin means rebuilding and *looking at* the guides in
+    both courses: pagination is the shared failure mode and it fails quietly.
+    Moving to the shared builder repaginated P06 — the same eight pages and the
+    same words, but the breaks fall differently, because a picture no longer
+    glues itself to the heading underneath it.
+
+    Three things had to change for one builder to serve two courses:
+
+    - **The builder holds no course text.** `SAVE`, `PARTA` and `GRADING` moved
+      out of `build.js` into `guides/course.js`, which is called with the
+      guide's frontmatter — that is how `SAVE` still gets the project number and
+      the scaffold filename. A guides folder without a `course.js` is refused
+      rather than guessed at. This is the one thing that genuinely differs
+      between the courses, and it is now the only thing.
+    - **The builder does not assume it sits beside the guides.** Pictures and
+      sibling guides resolve against the folder the markdown is in, and the
+      deploy target is named in `guides/deploy.txt` rather than hardcoded.
+    - **A guide is a letter and two digits**, `p07.md` or `e07.md`. The glob was
+      `e*.md`, which is Engineering's naming and found nothing here.
+
+    Robotics also gains what Engineering had found in the meantime: markdown
+    tables, a preflight that names a missing `soffice` or `pdftoppm` instead of
+    exiting silently, and `extras.txt` for the things that ship with the guides
+    but are not guides. The worksheet belongs in that file. — 2026-08-13

@@ -10,3 +10,6 @@
     path = libs_on_github/arduino-alvik-mpy
 	url = https://github.com/rsalemiTeaches/arduino-alvik-mpy
 	branch = main
+[submodule "builder"]
+	path = builder
+	url = https://github.com/rsalemiTeaches/guide-builder.git

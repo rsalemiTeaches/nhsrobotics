@@ -26,8 +26,9 @@ So: **never put `PROJECT.md`, `DECISIONS.md` or `REFERENCE.md` in
 - **`nhsrobotics`** (`~/repos/sch_repo/nhsrobotics`) — **this folder, and home
   for the project.** The code: student scaffolds in `projects/`, reference
   answers in `solutions/`, the shared library in `nhs_lib/`, guide source and
-  the builder in `guide_builder/`, the testbench in `tests/`. Guides are
-  generated from the markdown in `guide_builder/` and never hand-edited. **The
+  guide source in `guides/`, the builder as a submodule in `builder/`, the
+  testbench in `tests/`. Guides are generated from the markdown in `guides/`
+  and never hand-edited. **The
   repo is also the Obsidian vault** — see [DECISIONS #35](DECISIONS.md).
 - **`Class Development`** — the documents, and NOT home. Deployed robotics
   guides land in `Robotics/Project Guides/`, retired old-voice guides in its
@@ -118,7 +119,7 @@ approved.
   as its label only. [DECISIONS #39](DECISIONS.md).
 - **Pictures are capped at 6.5 × 4.5 inches** and no longer chain together
   across a page break. [DECISIONS #40](DECISIONS.md).
-- **`guide_builder/test-build.js` is new** — 24 checks, no robot and no Word,
+- **`builder/test-build.js` is new** — 24 checks, no robot and no Word,
   building into a temp folder. [DECISIONS #41](DECISIONS.md).
 - **The three project files carry real links now**, and `Home.md` is the vault's
   front door.
