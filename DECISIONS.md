@@ -236,7 +236,7 @@ noted, a decision affects both repos.
 35. **The robotics repo is the Obsidian vault, and the vault root is the repo.**
     Not a folder inside it and not a separate vault: a second copy of the guides
     would be a second source of truth, which is what the builder exists to
-    prevent. `guide_builder/node_modules` and `libs_on_github` are excluded from
+    prevent. `builder/node_modules` and `libs_on_github` are excluded from
     search. `.obsidian/` is committed except `workspace.json`, which is
     per-machine layout. Affects `nhsrobotics`. — 2026-08-12
 
@@ -283,13 +283,19 @@ noted, a decision affects both repos.
     engineering guides, but the fix belongs to both builders. Affects both
     repos. — 2026-08-12
 
-41. **The guide builder has its own test suite, `guide_builder/test-build.js`.**
+41. **The guide builder has its own test suite, `builder/test-build.js`.**
     24 checks: every guide builds, links print as labels, a bare guide link is
     refused, frontmatter properties change nothing on the page, and two builds
     of the same markdown produce the same document. It builds into a temp folder
     so it never touches the deployed guides, and needs no robot and no Word.
     Every check was mutation-tested — broken on purpose and confirmed to fail.
     Affects both repos. — 2026-08-12
+
+    2026-08-13: it moved into the shared builder with everything else (#43), so
+    it is run as `node ../builder/test-build.js` from `guides/` and is pointed at
+    a course's guides folder rather than assuming the guides sit beside it. Two
+    checks were added — a guides folder with no `course.js` is refused, and the
+    count is no longer 24.
 
 42. **Guide frontmatter carries `tags` and `related`.** The builder reads only
     `out`, `version`, `title`, `number` and `scaffold`, so the extra keys are

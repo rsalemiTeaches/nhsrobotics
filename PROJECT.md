@@ -55,6 +55,18 @@ P10+ project as an argument about P07-P09 — those slots may be rewritten or cu
 
 ## What's done
 
+- **The builder is now a shared submodule at `builder/`**, the same repo and the
+  same commit Engineering uses; `guide_builder/` is gone and the guides, their
+  pictures and the built PDFs are in `guides/`. All nine build from it, and the
+  printed text is unchanged except P06, whose page breaks fall differently now
+  that a picture no longer glues itself to the heading below it — same eight
+  pages, same words. [DECISIONS #43](DECISIONS.md).
+- **The worksheet is generated and deployed with the guides.**
+  `guides/worksheet.js` is the source and writes
+  *Robotics_Project_Worksheet.pdf*; `guides/extras.txt` gets one
+  `build-all.sh -d` to remake and deploy the guides and the worksheet together.
+  It used to exist only in Drive as a `.docx`, with no source anywhere.
+  [DECISIONS #44](DECISIONS.md).
 - **P01-P06 are rebuilt and in the new voice.** Version and approval status
   live in [REFERENCE.md](REFERENCE.md) in this folder. P04 is rebuilt but Ray has not
   approved it.
@@ -119,7 +131,7 @@ approved.
   as its label only. [DECISIONS #39](DECISIONS.md).
 - **Pictures are capped at 6.5 × 4.5 inches** and no longer chain together
   across a page break. [DECISIONS #40](DECISIONS.md).
-- **`builder/test-build.js` is new** — 24 checks, no robot and no Word,
+- **`builder/test-build.js` is new** — 26 checks, no robot and no Word,
   building into a temp folder. [DECISIONS #41](DECISIONS.md).
 - **The three project files carry real links now**, and `Home.md` is the vault's
   front door.
@@ -241,6 +253,13 @@ past P09 has been designed.
 
 ## Paths not taken
 
+- **Keeping a private copy of the builder.** Held until 2026-08-13 on the
+  grounds that Robotics is its own course. Every one of #38, #39, #40 and #41
+  ends "Affects both repos," and each was hand-carried; that was the argument
+  against it. [DECISIONS #43](DECISIONS.md).
+- **The worksheet as a `.docx`.** It had always been one, and it was rebuilt as
+  one first. Reversed the same day: a Word file invites a hand-fix the next build
+  discards, and a form is where reflow hurts most. [DECISIONS #44](DECISIONS.md).
 - **Five ToF zones for opponent bearing.** Rejected 2026-08-05 in favour of the
   3 cm threshold. Students never see the zones.
 - **`get_distance_top()` / `get_distance_bottom()` for opponent detection.**
