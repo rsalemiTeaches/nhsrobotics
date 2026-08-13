@@ -1,0 +1,9 @@
+# Things that ship with the guides but are not guides.
+#
+#   <file>  ::  <command that makes it>
+#
+# Remade when the file is missing or the command's script is newer, and deployed
+# alongside the PDFs on a run with -d. Drop the :: half for a file that is not
+# generated and only needs deploying.
+
+Robotics_Project_Worksheet.docx :: node worksheet.js

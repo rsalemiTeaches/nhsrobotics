@@ -32,16 +32,28 @@ backlinks pane show how the projects feed each other.
 
 ## Building the guides
 
+The builder is `builder/`, a submodule **shared with `nhsengineering`**. It holds
+no guides, no pictures and no course text. Run it from `guides/`.
+
 ```bash
 cd guides
-./build-all.sh          # build every guide that needs it
-./build-all.sh p05.md   # build one
-./build-all.sh -d       # build and copy into Project Guides
-./build-all.sh -f       # rebuild everything, current or not
+../builder/build-all.sh          # build every guide that needs it
+../builder/build-all.sh p05.md   # build one
+../builder/build-all.sh -d       # build and copy into Project Guides
+../builder/build-all.sh -f       # rebuild everything, current or not
 ```
 
-A guide is only rebuilt when its markdown, one of its pictures, or the builder
-itself is newer than the PDF.
+A guide is only rebuilt when its markdown, one of its pictures, `course.js`, or
+the builder itself is newer than the PDF.
+
+Two files in `guides/` make the shared builder this course's:
+`course.js` holds the text behind `{{SAVE}}`, `{{PARTA}}` and `{{GRADING}}`, and
+`deploy.txt` names where the finished guides go.
+
+**The project worksheet is generated too.** `guides/worksheet.js` writes
+*Robotics_Project_Worksheet.docx*, and `guides/extras.txt` lists it so one
+`-d` run deploys the guides and the worksheet together. Edit the script, never
+the docx.
 
 [builder/README.md](builder/README.md) explains the markdown the
 builder understands.

@@ -332,4 +332,29 @@ noted, a decision affects both repos.
     Robotics also gains what Engineering had found in the meantime: markdown
     tables, a preflight that names a missing `soffice` or `pdftoppm` instead of
     exiting silently, and `extras.txt` for the things that ship with the guides
-    but are not guides. The worksheet belongs in that file. — 2026-08-13
+    but are not guides. — 2026-08-13
+
+44. **The project worksheet is generated, not written.**
+    `guides/worksheet.js` is the source and writes
+    *Robotics_Project_Worksheet.docx*; the docx is gitignored like the PDFs and
+    is never edited by hand, for the same reason no guide has an editable copy.
+    It is listed in `guides/extras.txt`, so one `build-all.sh -d` remakes and
+    deploys the guides and the worksheet together. Until now the worksheet lived
+    only in Drive, with no source anywhere and nothing to rebuild it from.
+
+    The builder does not make it: the sheet is a form, not a guide — ruled
+    write-on lines, checkbox glyphs, and answer space measured in blank lines.
+    It borrows the builder's `docx` package rather than keeping a second one.
+    Engineering's checkoff sheet works the same way; see its DECISIONS #13.
+
+    Two things changed in the move, both because the old layout said something
+    it did not mean:
+
+    - **The two redo gates get their own row.** "Robot works" and
+      "Explanations OK" were spread across the four score columns, which read as
+      though passing explanations belonged to Late and Redo. They are conditions
+      on the whole sheet.
+    - **Ruled answer lines are table rows, not bordered paragraphs.** Word treats
+      a run of adjacent paragraphs with identical borders as one bordered block
+      and draws the rule once around the group, so four ruled lines came out as
+      a single line with a lot of white above it. — 2026-08-13
