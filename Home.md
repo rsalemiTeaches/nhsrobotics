@@ -51,9 +51,9 @@ Two files in `guides/` make the shared builder this course's:
 `deploy.txt` names where the finished guides go.
 
 **The project worksheet is generated too.** `guides/worksheet.js` writes
-*Robotics_Project_Worksheet.docx*, and `guides/extras.txt` lists it so one
-`-d` run deploys the guides and the worksheet together. Edit the script, never
-the docx.
+*Robotics_Project_Worksheet.pdf*, and `guides/extras.txt` lists it so one `-d`
+run deploys the guides and the worksheet together. Edit the script, never the
+output.
 
 [builder/README.md](builder/README.md) explains the markdown the
 builder understands.

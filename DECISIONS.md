@@ -336,11 +336,17 @@ noted, a decision affects both repos.
 
 44. **The project worksheet is generated, not written.**
     `guides/worksheet.js` is the source and writes
-    *Robotics_Project_Worksheet.docx*; the docx is gitignored like the PDFs and
-    is never edited by hand, for the same reason no guide has an editable copy.
-    It is listed in `guides/extras.txt`, so one `build-all.sh -d` remakes and
-    deploys the guides and the worksheet together. Until now the worksheet lived
-    only in Drive, with no source anywhere and nothing to rebuild it from.
+    *Robotics_Project_Worksheet.pdf*; it is gitignored like the guides and never
+    edited by hand, for the same reason no guide has an editable copy. It is
+    listed in `guides/extras.txt`, so one `build-all.sh -d` remakes and deploys
+    the guides and the worksheet together. Until now the worksheet lived only in
+    Drive, with no source anywhere and nothing to rebuild it from.
+
+    **It is a PDF, not the `.docx` it used to be.** A Word file invites a
+    hand-fix that the next build throws away, and a form is exactly where reflow
+    between Word versions hurts — ruled lines and box widths move. It reaches PDF
+    through the builder's `topdf.js`, the same temp-and-discard chain a guide
+    uses, so no editable copy exists anywhere.
 
     The builder does not make it: the sheet is a form, not a guide — ruled
     write-on lines, checkbox glyphs, and answer space measured in blank lines.

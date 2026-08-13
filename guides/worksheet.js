@@ -1,18 +1,19 @@
 // The robotics project worksheet — one sheet per project, filled in by hand and
 // shown with the running robot. V01
 //
-//   node worksheet.js                       -> Robotics_Project_Worksheet.docx
-//   node worksheet.js "Some Other Name.docx"
+//   node worksheet.js                       -> Robotics_Project_Worksheet.pdf
+//   node worksheet.js "Some Other Name.pdf"
 //
-// This script is the source. The .docx is output and is never edited by hand,
-// for the same reason no guide has an editable copy: an edit that is not here
-// cannot survive the next run. Listed in extras.txt so build-all.sh remakes and
-// deploys it with the guides.
+// This script is the source. The PDF is output and there is no editable copy of
+// the sheet anywhere, for the same reason no guide has one: an edit that is not
+// here cannot survive the next run. Listed in extras.txt so build-all.sh remakes
+// and deploys it with the guides.
 //
 // It is not built by ../builder — that makes guides, and this is a form: ruled
 // write-on lines, checkbox glyphs, and answer space measured in blank lines.
-// It borrows the builder's copy of the `docx` package rather than keeping a
-// second one, which is why the require below has a fallback.
+// It borrows the builder's topdf.js to reach a PDF, and the builder's copy of
+// the `docx` package rather than keeping a second one -- which is why the
+// require below has a fallback.
 //
 // The wording and the boxes match what the worksheet has always said. The three
 // Part B questions are deliberately the same on every project — being able to
@@ -38,7 +39,7 @@ try {
 const {Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
        WidthType, AlignmentType, BorderStyle, ShadingType, VerticalAlign} = d;
 
-const OUT = process.argv[2] || "Robotics_Project_Worksheet.docx";
+const OUT = process.argv[2] || "Robotics_Project_Worksheet.pdf";
 
 const PAGE_W = 12240, PAGE_H = 15840, MARGIN = 1080;
 const W = PAGE_W - 2 * MARGIN;                    // 10080 dxa
@@ -234,7 +235,8 @@ const doc = new Document({
   }],
 });
 
-Packer.toBuffer(doc).then(b => {
-  fs.writeFileSync(OUT, b);
-  console.log("wrote", OUT);
-});
+// A PDF, not a Word file. The .docx is an intermediate in a temp folder and is
+// deleted -- nothing an editor can open is left behind, so a typo fixed by hand
+// cannot survive the next build. Same rule as the guides.
+const {writePdf} = require(path.resolve(__dirname, '../builder/topdf.js'));
+writePdf(doc, OUT, Packer);

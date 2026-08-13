@@ -6,4 +6,4 @@
 # alongside the PDFs on a run with -d. Drop the :: half for a file that is not
 # generated and only needs deploying.
 
-Robotics_Project_Worksheet.docx :: node worksheet.js
+Robotics_Project_Worksheet.pdf :: node worksheet.js
