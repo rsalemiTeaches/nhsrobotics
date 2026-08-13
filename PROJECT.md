@@ -27,7 +27,8 @@ So: **never put `PROJECT.md`, `DECISIONS.md` or `REFERENCE.md` in
   for the project.** The code: student scaffolds in `projects/`, reference
   answers in `solutions/`, the shared library in `nhs_lib/`, guide source and
   the builder in `guide_builder/`, the testbench in `tests/`. Guides are
-  generated from the markdown in `guide_builder/` and never hand-edited.
+  generated from the markdown in `guide_builder/` and never hand-edited. **The
+  repo is also the Obsidian vault** — see [DECISIONS #35](DECISIONS.md).
 - **`Class Development`** — the documents, and NOT home. Deployed robotics
   guides land in `Robotics/Project Guides/`, retired old-voice guides in its
   `Previous Versions/`, capstone specs and the pacing plan under `Robotics/`,
@@ -99,6 +100,31 @@ P10+ project as an argument about P07-P09 — those slots may be rewritten or cu
 - **`initialize_robot.sh` is at v30.** It strips `__pycache__`, `.DS_Store` and
   stray `.pyc` from the staging copy, and deletes them from the robot ahead of
   the whitelist check — [DECISIONS #33](DECISIONS.md).
+
+**2026-08-12 — the guides became PDFs and the repo became a vault.** None of
+this changed a word of any guide; all nine still render identically to what was
+approved.
+
+- **The printed guide is a PDF.** Word left the chain entirely: a `.docx` is
+  built in a temp folder, converted, and deleted. The nine `.docx` files are out
+  of `Project Guides` and into its `Previous Versions`.
+  [DECISIONS #36](DECISIONS.md).
+- **Built guides are no longer committed.** The markdown is the source and the
+  build reproduces it. [DECISIONS #37](DECISIONS.md).
+- **`build-all.sh` v04 skips guides that are already current**, the way make
+  does, and takes `-f` to force. A full no-op run is under a second instead of
+  about a minute. [DECISIONS #38](DECISIONS.md).
+- **The builder understands links and Obsidian image embeds**, and a link prints
+  as its label only. [DECISIONS #39](DECISIONS.md).
+- **Pictures are capped at 6.5 × 4.5 inches** and no longer chain together
+  across a page break. [DECISIONS #40](DECISIONS.md).
+- **`guide_builder/test-build.js` is new** — 24 checks, no robot and no Word,
+  building into a temp folder. [DECISIONS #41](DECISIONS.md).
+- **The three project files carry real links now**, and `Home.md` is the vault's
+  front door.
+
+**Current page counts, measured 2026-08-12:** P01 6, P02 6, P03 6, P04 8, P05 6,
+P06 8, P07 8, P08 8, P09 6.
 
 ## What's open
 

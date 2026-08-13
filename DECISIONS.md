@@ -232,3 +232,68 @@ noted, a decision affects both repos.
     of project files at the top of a shared folder would mix them, and a thread
     about one course would open by reading the state of another. Affects
     `nhsrobotics` and any future class repo. — 2026-08-09
+
+35. **The robotics repo is the Obsidian vault, and the vault root is the repo.**
+    Not a folder inside it and not a separate vault: a second copy of the guides
+    would be a second source of truth, which is what the builder exists to
+    prevent. `guide_builder/node_modules` and `libs_on_github` are excluded from
+    search. `.obsidian/` is committed except `workspace.json`, which is
+    per-machine layout. Affects `nhsrobotics`. — 2026-08-12
+
+36. **The printed guide is a PDF. Word is not in the chain.** A `.docx` is built
+    in a temp folder, converted by LibreOffice, and deleted. No office suite is
+    needed to make a guide or to print one, and — the real reason — there is no
+    editable copy, so an edit that is not in the markdown cannot survive and
+    therefore cannot be made by accident. The nine deployed `.docx` moved to
+    `Project Guides/Previous Versions/`. Affects both repos. — 2026-08-12
+
+37. **Built guides are not committed.** The markdown is the source and the build
+    reproduces it, so the repo stays text — which was the point of moving to
+    Obsidian. A rebuilt file always looks modified to git anyway, because the
+    format carries a creation time. The copies that matter live in
+    `Project Guides`, with retired ones in its `Previous Versions`. Affects both
+    repos. — 2026-08-12
+
+38. **`build-all.sh` only rebuilds what is stale, the way make does.** A guide is
+    rebuilt when its markdown, one of its pictures, or the builder itself
+    (`build.js`, `parse.js`, `make.js`) is newer than the PDF; `-f` forces.
+    Pagination is measured by running the file through LibreOffice, so a full
+    no-op run went from about a minute to under a second. With `-d` the deployed
+    copy is compared too, so a guide built earlier without `-d` still gets
+    copied. Affects both repos. — 2026-08-12
+
+39. **A link prints as its label and nothing else, and a bare link to another
+    guide is refused.** Guides are read on paper, where a clickable target is
+    worthless and a filename is noise, so `[[p03|Gamepad Driving]]` and
+    `[Gamepad Driving](p03.md)` both print *Gamepad Driving*. A bare `[[p03]]`
+    prints "p03", a name no student has ever seen, and it is the first thing
+    Obsidian's autocomplete offers — so the build refuses it and says what to
+    write. A guide is recognised by there being a `.md` of that name in the
+    builder folder, so the rule needs no list. Frontmatter is exempt: `related:`
+    is bare links on purpose and is never printed. Obsidian's `![[picture.png]]`
+    embed is understood and resolved against `images/`. Affects both repos.
+    — 2026-08-12
+
+40. **A picture is capped at 6.5 × 4.5 inches, and carries `keepNext` only when
+    the next block is not a picture.** Height was never capped before, so a
+    portrait screenshot rendered seven inches tall and owned a sheet. And
+    `keepNext` on every picture chained consecutive ones into a single
+    unbreakable block; a block taller than a page shunted the whole run to the
+    next sheet and left the current one empty. Both were found in the imported
+    engineering guides, but the fix belongs to both builders. Affects both
+    repos. — 2026-08-12
+
+41. **The guide builder has its own test suite, `guide_builder/test-build.js`.**
+    24 checks: every guide builds, links print as labels, a bare guide link is
+    refused, frontmatter properties change nothing on the page, and two builds
+    of the same markdown produce the same document. It builds into a temp folder
+    so it never touches the deployed guides, and needs no robot and no Word.
+    Every check was mutation-tested — broken on purpose and confirmed to fail.
+    Affects both repos. — 2026-08-12
+
+42. **Guide frontmatter carries `tags` and `related`.** The builder reads only
+    `out`, `version`, `title`, `number` and `scaffold`, so the extra keys are
+    inert and provably change nothing in the output. They exist to make the
+    Obsidian graph and backlinks show how projects feed each other — P09's
+    `related` names P03, P04, P06 and P08, which is [DECISIONS #29](DECISIONS.md)
+    made visible. Affects both repos. — 2026-08-12

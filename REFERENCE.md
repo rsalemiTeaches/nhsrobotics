@@ -27,15 +27,31 @@ difference between a minute and a second.
 Deploying writes into Google Drive. A PDF open in a viewer is only being read,
 so it will not make a conflicted copy the way an open Word file could.
 
-[guide_builder/README.md](guide_builder/README.md) explains the builder itself. Two rules that bite:
+`node test-build.js` in `guide_builder/` checks the builder — 24 checks, no
+robot and no Word, building into a temp folder so it never touches a deployed
+guide. Run it after any change to `build.js`, `parse.js` or `make.js`.
+
+[guide_builder/README.md](guide_builder/README.md) explains the builder itself. Rules that bite:
 
 - **Images must be real PNGs.** The builder reads the PNG header and refuses
-  anything else, and renders at natural pixel size capped at 624 px wide. A JPEG
-  renamed `.png` fails the build; an oversized canvas silently eats a sheet.
-  Crop tight, export around 300–500 px wide.
+  anything else. A JPEG renamed `.png` fails the build. Crop tight, export
+  around 300–500 px wide.
+- **A picture is capped at 6.5 × 4.5 inches**, proportions kept. Height was
+  uncapped until 2026-08-12, which is how an oversized canvas used to eat a
+  sheet without saying so.
+- **A picture carries `keepNext` only when the next block is not a picture.**
+  `keepNext` glues a paragraph to the one after it, so a run of pictures used to
+  chain into a single unbreakable block — and a block taller than a page shunted
+  the whole run to the next sheet and left the current one empty. Found in the
+  engineering guides, fixed in both builders. See
+  [DECISIONS #40](DECISIONS.md).
 - **Length costs sheets, not pages.** Printing is double-sided and odd page
   counts are padded, so 7 and 8 pages are both 4 sheets. Only an even-to-odd
   crossing matters.
+- **A link prints as its label and nothing else**, and a bare `[[p03]]` is
+  refused by the build because it would print a filename at a student. Links
+  between guides belong in the `related` property, which is never printed. See
+  [DECISIONS #39](DECISIONS.md).
 
 ### Where the rebuild stands
 
